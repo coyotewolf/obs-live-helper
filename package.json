@@ -15,8 +15,7 @@
     "open": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3",
-    "pm2": "^6.0.8"
+    "nodemon": "^3.0.3"
   },
   "type": "commonjs",
   "license": "MIT",
