@@ -1,0 +1,42 @@
+[2025-08-07T11:32:16.094Z] 🎵 Now playing: ${artists} - ${name}
+[2025-08-07T11:32:16.880Z] ❌ LRC not found: Request failed with status code 400
+[2025-08-07T11:33:40.475Z] 🎵 Now playing: ${artists} - ${name}
+[2025-08-07T11:33:41.185Z] ❌ LRC not found: Request failed with status code 400
+[2025-08-07T11:34:25.475Z] 🎵 Now playing: ${artists} - ${name}
+[2025-08-07T11:34:26.245Z] ❌ LRC not found: Request failed with status code 400
+[2025-08-07T11:36:59.162Z] 🎵 Now playing: ${artists} - ${name}
+[2025-08-07T11:36:59.870Z] ❌ LRC not found: Request failed with status code 400
+[2025-08-07T11:38:04.249Z] 🎵 Now playing: ${artists} - ${name}
+[2025-08-07T11:38:05.011Z] ❌ LRC not found: Request failed with status code 400
+[2025-08-07T11:39:07.856Z] 🎵 Now playing: Camille Schneyder - Dans mon dos
+[2025-08-07T11:39:08.746Z] ❌ LRC not found: Request failed with status code 400
+[2025-08-07T11:39:27.804Z] 🎵 Now playing: Ed Sheeran - Shape of You
+[2025-08-07T11:39:28.607Z] ❌ LRC not found: Request failed with status code 400
+[2025-08-07T11:43:03.874Z] 🎵 Now playing: Ed Sheeran - Shape of You
+[2025-08-07T11:43:04.652Z] ❌ LRC not found: LRC not found
+[2025-08-07T11:43:18.812Z] 🎵 Now playing: Alex Goot, Kurt Hugo Schneider - You Are The Reason
+[2025-08-07T11:43:19.580Z] ❌ LRC not found: LRC not found
+[2025-08-07T11:46:01.269Z] 🎵 Now playing: Alex Goot, Kurt Hugo Schneider - You Are The Reason
+[2025-08-07T11:46:02.017Z] ✅ LRC synced
+[2025-08-07T11:46:31.234Z] 🎵 Now playing: 阿冗 - 有关你们相爱的经过（影视剧《爱上特种兵》插曲）
+[2025-08-07T11:46:32.024Z] ❌ LRC not found: Request failed with status code 404
+[2025-08-07T11:47:21.318Z] 🎵 Now playing: Ed Sheeran - Shape of You
+[2025-08-07T11:47:22.078Z] ✅ LRC synced
+[2025-08-07T11:51:11.703Z] 🎵 Now playing: Frédéric Chopin, Arthur Rubinstein, The New Symphony Orchestra Of London, Stanisław Skrowaczewski - Piano Concerto No. 1 in E Minor, Op. 11: Romance
+[2025-08-07T11:51:12.502Z] ❌ LRC not found: Request failed with status code 404
+[2025-08-07T11:51:26.742Z] 🎵 Now playing: Ed Sheeran - Shape of You
+[2025-08-07T11:51:27.453Z] ✅ LRC synced
+[2025-08-07T11:55:17.074Z] 🎵 Now playing: Pimp Flaco, Blackthoven - COVID-19
+[2025-08-07T11:55:17.904Z] ✅ LRC synced
+[2025-08-07T11:57:52.491Z] 🎵 Now playing: Maisy Kay - Out of My Mind
+[2025-08-07T11:57:53.273Z] ❌ LRC not found: Request failed with status code 404
+[2025-08-07T11:58:02.392Z] 🎵 Now playing: Ed Sheeran - Shape of You
+[2025-08-07T11:58:03.202Z] ✅ LRC synced
+[2025-08-07T12:00:29.906Z] 🎵 Now playing: Ed Sheeran - Shape of You
+[2025-08-07T12:00:32.112Z] ✅ LRC synced
+[2025-08-07T12:01:55.036Z] 🎵 Now playing: Euphoria, Bolshiee - Born To Die
+[2025-08-07T12:02:00.052Z] 🎵 Now playing: Euphoria, Bolshiee - Born To Die
+[2025-08-07T12:02:03.054Z] ❌ LRC not found: timeout of 8000ms exceeded
+[2025-08-07T12:02:06.896Z] ❌ LRC not found: Request failed with status code 404
+[2025-08-07T12:04:20.331Z] 🎵 Now playing: Frédéric Chopin, Yleri East - Piano Sonata No. 2 Bb minor, Opus 35 - 1st Movement
+[2025-08-07T12:04:23.992Z] ❌ LRC not found: Request failed with status code 404

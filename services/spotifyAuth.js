@@ -61,15 +61,19 @@ async function getAccessToken() {
 
   const now = Date.now() / 1000;
   if (tokens.expires_at && tokens.expires_at - 60 > now) {
-    return tokens.access_token;
+    return tokens.access_token;          // 尚未過期
   }
 
-  // need refresh
+  // 需要刷新
   try {
     const refreshed = await refreshAccessToken(tokens.refresh_token);
     return refreshed.access_token;
   } catch (err) {
-    console.error('Token refresh failed:', err.response?.data || err.message);
+    // 自動移除無效 token
+    if (err.response?.data?.error === 'invalid_grant') {
+      fs.unlinkSync(TOKEN_FILE);
+      console.warn('⚠️  Refresh token invalid, deleted token file.');
+    }
     return null;
   }
 }

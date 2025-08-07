@@ -1,1 +1,20 @@
-<h1>OBS Live Helper is running 🎉</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>OBS Lyrics Display</title>
+
+  <!-- 連結剛才放的樣式檔 -->
+  <link rel="stylesheet" href="../css/pages/display.css" />
+  
+  <!-- 如果你想背景透明給 OBS 用，可取消註解 ↓ -->
+  <!-- <style>body{background:transparent;}</style> -->
+</head>
+<body>
+  <!-- 歌詞會插進這個 div -->
+  <div id="lyrics"></div>
+
+  <!-- 前端腳本：解析 LRC、顯示 7 行 -->
+  <script src="../js/display.js"></script>
+</body>
+</html>
