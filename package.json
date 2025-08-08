@@ -12,6 +12,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
     "express": "^4.19.0",
+    "multer": "^2.0.2",
     "open": "^9.0.0"
   },
   "devDependencies": {

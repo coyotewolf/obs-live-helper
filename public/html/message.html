@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OBS Message Display</title>
+
+  <!-- 共用固定樣式 -->
+  <link rel="stylesheet" href="../css/pages/display.css">
+
+  <!-- 使用者自訂 (載入一次，之後用 BroadcastChannel 即時覆蓋) -->
+  <link rel="stylesheet" id="customCss" href="/style.css">
+
+  <!-- 由 Dashboard 即時注入的新樣式 -->
+  <style id="dynamicStyle"></style>
+
+  <style>body{background:transparent;margin:0}</style>
+</head>
+<body>
+  <div id="msgBox"></div>
+
+  <script>
+    const box   = document.getElementById('msgBox');
+    const dyn   = document.getElementById('dynamicStyle');
+    const bc    = new BroadcastChannel('obs-style-sync');
+
+    /* ---- 初次載入 HTML ---- */
+    fetch('/api/editor')
+      .then(r=>r.text())
+      .then(t=>{ box.innerHTML = t || '&nbsp;'; });
+
+    /* ---- BroadcastChannel ─ 即時同步 ---- */
+    bc.onmessage = ev=>{
+      const {type,html,css}=ev.data||{};
+      if(type==='update-html')  box.innerHTML = html || '&nbsp;';
+      if(type==='set-css')      dyn.textContent = css || '';
+    };
+  </script>
+</body>
+</html>

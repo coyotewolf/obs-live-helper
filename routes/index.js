@@ -1,9 +1,11 @@
 const router = require('express').Router();
 
+router.use('/spotify', require('./spotify'));
+router.use('/editor', require('./editor'));
+router.use('/style', require('./style'));
+
 router.get('/hello', (req, res) => {
   res.json({ message: 'API is working! 👋' });
 });
-
-router.use('/spotify', require('./spotify'));
 
 module.exports = router;

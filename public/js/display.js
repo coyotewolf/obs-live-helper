@@ -3,7 +3,6 @@ const LRC_URL   = '/lyrics/current.lrc';
 const STATUS_URL = '/api/spotify/status';
 const WINDOW_SIZE = 3;          // 前後各 3 行 => 總共 7 行
 const POLL_MS = 1000;
-const NO_LRC_TEXT = '好像找不到歌詞呢 (〒︿〒)';   // ← 新增
 
 // === 解析 LRC ===
 function parseLRC(text) {
@@ -42,14 +41,7 @@ async function fetchLRC() {
 }
 async function tick() {
   const status = await fetch(STATUS_URL).then(r => r.json());
-
-  // 直播暫停或 Spotify 暫停
   if (!status.playing) return render([{ lyric: '' }], 0);
-
-  // 播放中但沒有同步歌詞
-  if (!status.lyricsSynced) {
-    return render([{ lyric: NO_LRC_TEXT }], 0);
-  }
 
   const pos = status.track.progress_ms;
   const idx = lrcLines.findIndex((l, i) =>
