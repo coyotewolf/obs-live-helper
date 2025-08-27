@@ -22,6 +22,12 @@ if (!fs.existsSync(LRC_DIR)) fs.mkdirSync(LRC_DIR, { recursive: true });
 let lastTrackId   = null;      // Spotify track.id
 let lastSyncedAt  = 0;
 let lastSyncedObj = null;      // {id,name,artists}
+let lyricsNotFoundCount = 0;
+let lyricsFoundForCurrentTrack = false;
+let lastLoggedTrackId = null;
+let lastLoggedLrcSynced = false;
+let lastLoggedLrcNotFoundCount = 0;
+let lastLoggedGiveUpSearch = false; // 新增：追蹤是否已記錄放棄尋找訊息
 
 /**
  * Append one line to lyrics.log
@@ -29,7 +35,7 @@ let lastSyncedObj = null;      // {id,name,artists}
 function logLine(msg) {
   const stamp = new Date().toISOString();
   fs.appendFileSync(LOG_FILE, `[${stamp}] ${msg}\n`);
-  // console.log(msg);
+  console.log(`[${stamp}] ${msg}`);
 }
 
 /**
@@ -66,36 +72,69 @@ async function performLyricSync() {
     // logLine(`DEBUG: performLyricSync - 比較歌曲。Current: ${currentTrackIdentifier}, Last: ${lastTrackIdentifier}`);
 
     if (currentTrackIdentifier === lastTrackIdentifier) { // 同首歌
-      // logLine(`DEBUG: performLyricSync - 歌曲未切換，跳過更新。`);
       return;
     }
+
+    // 歌曲切換，重置狀態
+    lyricsNotFoundCount = 0;
+    lyricsFoundForCurrentTrack = false;
+    lastLoggedLrcSynced = false; // 重置 synced 狀態
+    lastLoggedLrcNotFoundCount = 0; // 重置 not found 狀態
+    lastLoggedGiveUpSearch = false; // 新增：重置放棄尋找狀態
 
     const name    = data.item.name;
     const artists = data.item.artists.map(a => a.name).join(', ');
     const album   = data.item.album.name;
     const trackId = data.item.id;
 
+    if (currentTrackIdentifier !== lastLoggedTrackId) {
+      logLine(`🎵 Now playing: ${artists} - ${name}`);
+      lastLoggedTrackId = currentTrackIdentifier;
+    }
+
     // 先清空現有 .lrc
     const tempPath = path.join(__dirname, '..', 'lyrics', 'current.lrc.tmp');
     fs.writeFileSync(tempPath, '');
 
-    // logLine(`DEBUG: performLyricSync - currentTrackId: ${data.item.id}, currentTrackName: ${data.item.name}`);
-    // logLine(`DEBUG: performLyricSync - lastTrackId: ${lastTrackId}, lastSyncedObj.name: ${lastSyncedObj?.name}`);
-    // logLine(`🎵 Now playing: ${artists} - ${name}`);
-    try {
-      const lrcText = await fetchLyricsLRC(artists.split(',')[0], name);
-      const metadata = `[ti:${trackId}]\n[ar:${artists}]\n[al:${album}]\n`;
-      fs.writeFileSync(tempPath, metadata + lrcText, 'utf8');
-      fs.renameSync(tempPath, LRC_FILE);
-      // logLine(`DEBUG: performLyricSync - lyrics/current.lrc 檔案已更新。`);
-      const updatedLrcContent = fs.readFileSync(LRC_FILE, 'utf8');
-      // logLine(`DEBUG: performLyricSync - lyrics/current.lrc 檔案實際內容 (前200字元):\n${updatedLrcContent.substring(0, 200)}...`);
-      // logLine('✅ LRC synced');
-      lastSyncedObj = { id: trackId, name, artists };
-    } catch (err) {
-      // logLine(`❌ LRC not found: ${err.message}`);
-      lastSyncedObj = null;
-    }
+    // 歌詞尋找邏輯
+    // 移除舊的日誌邏輯
+    // if (lyricsFoundForCurrentTrack) {
+    //   logLine('✅ LRC synced (已找到歌詞，跳過尋找)');
+    // } else if (lyricsNotFoundCount >= 3) {
+    //   logLine('❌ LRC not found: LRC not found (放棄尋找)');
+    //   fs.writeFileSync(LRC_FILE, '', 'utf8'); // 清空 LRC 檔案
+    //   lastSyncedObj = null;
+    // } else {
+      try {
+        const lrcText = await fetchLyricsLRC(artists.split(',')[0], name);
+        const metadata = `[ti:${trackId}]\n[ar:${artists}]\n[al:${album}]\n`;
+        fs.writeFileSync(tempPath, metadata + lrcText, 'utf8');
+        fs.renameSync(tempPath, LRC_FILE);
+
+        if (!lastLoggedLrcSynced) { // 只有當從未同步過才記錄
+          logLine('✅ LRC synced');
+          lastLoggedLrcSynced = true;
+        }
+        lyricsFoundForCurrentTrack = true;
+        lastSyncedObj = { id: trackId, name, artists };
+      } catch (err) {
+        lyricsNotFoundCount++;
+        fs.writeFileSync(LRC_FILE, '', 'utf8'); // 清空 LRC 檔案
+        lastSyncedObj = null;
+
+        if (lyricsNotFoundCount < 3) {
+          if (lyricsNotFoundCount !== lastLoggedLrcNotFoundCount) {
+            logLine(`❌ LRC not found: ${err.message}`);
+            lastLoggedLrcNotFoundCount = lyricsNotFoundCount;
+          }
+        } else if (lyricsNotFoundCount === 3 && !lastLoggedGiveUpSearch) {
+          logLine(`❌ LRC not found: ${err.message} (放棄尋找)`);
+          lastLoggedGiveUpSearch = true;
+          lastLoggedLrcNotFoundCount = lyricsNotFoundCount; // 確保此計數器在記錄放棄尋找時也更新
+        }
+        // 如果 lyricsNotFoundCount > 3，則不再記錄任何「not found」或「放棄尋找」相關訊息
+      }
+    // } // 結束舊的 else 區塊
 
     lastTrackId  = trackId;
     lastSyncedAt = Date.now();
