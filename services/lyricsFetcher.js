@@ -29,7 +29,7 @@ let lastSyncedObj = null;      // {id,name,artists}
 function logLine(msg) {
   const stamp = new Date().toISOString();
   fs.appendFileSync(LOG_FILE, `[${stamp}] ${msg}\n`);
-  console.log(msg);
+  // console.log(msg);
 }
 
 /**
@@ -49,7 +49,7 @@ async function fetchLyricsLRC(artist, title) {
   throw new Error('LRC not found');
 }
 
-async function syncLoop() {
+async function performLyricSync() {
   try {
     const token = await getAccessToken();
     if (!token) return;   // 尚未授權
@@ -61,23 +61,39 @@ async function syncLoop() {
 
     if (!data || !data.item) return;                 // 無播放
     if (!data.is_playing) return;                   // 暫停狀態
-    if (data.item.id === lastTrackId) return;       // 同首歌
+    const currentTrackIdentifier = data.item.id || data.item.name; // 優先使用 ID，如果沒有則使用名稱
+    const lastTrackIdentifier = lastTrackId || lastSyncedObj?.name;
+    // logLine(`DEBUG: performLyricSync - 比較歌曲。Current: ${currentTrackIdentifier}, Last: ${lastTrackIdentifier}`);
+
+    if (currentTrackIdentifier === lastTrackIdentifier) { // 同首歌
+      // logLine(`DEBUG: performLyricSync - 歌曲未切換，跳過更新。`);
+      return;
+    }
 
     const name    = data.item.name;
     const artists = data.item.artists.map(a => a.name).join(', ');
+    const album   = data.item.album.name;
     const trackId = data.item.id;
 
     // 先清空現有 .lrc
-    fs.writeFileSync(LRC_FILE, '');
+    const tempPath = path.join(__dirname, '..', 'lyrics', 'current.lrc.tmp');
+    fs.writeFileSync(tempPath, '');
 
-    logLine(`🎵 Now playing: ${artists} - ${name}`);
+    // logLine(`DEBUG: performLyricSync - currentTrackId: ${data.item.id}, currentTrackName: ${data.item.name}`);
+    // logLine(`DEBUG: performLyricSync - lastTrackId: ${lastTrackId}, lastSyncedObj.name: ${lastSyncedObj?.name}`);
+    // logLine(`🎵 Now playing: ${artists} - ${name}`);
     try {
       const lrcText = await fetchLyricsLRC(artists.split(',')[0], name);
-      fs.writeFileSync(LRC_FILE, lrcText, 'utf8');
-      logLine('✅ LRC synced');
+      const metadata = `[ti:${trackId}]\n[ar:${artists}]\n[al:${album}]\n`;
+      fs.writeFileSync(tempPath, metadata + lrcText, 'utf8');
+      fs.renameSync(tempPath, LRC_FILE);
+      // logLine(`DEBUG: performLyricSync - lyrics/current.lrc 檔案已更新。`);
+      const updatedLrcContent = fs.readFileSync(LRC_FILE, 'utf8');
+      // logLine(`DEBUG: performLyricSync - lyrics/current.lrc 檔案實際內容 (前200字元):\n${updatedLrcContent.substring(0, 200)}...`);
+      // logLine('✅ LRC synced');
       lastSyncedObj = { id: trackId, name, artists };
     } catch (err) {
-      logLine(`❌ LRC not found: ${err.message}`);
+      // logLine(`❌ LRC not found: ${err.message}`);
       lastSyncedObj = null;
     }
 
@@ -88,11 +104,17 @@ async function syncLoop() {
   }
 }
 
+async function syncLoopWrapper() {
+  // console.log('syncLoopWrapper: 開始執行歌詞同步');
+  await performLyricSync();
+  // console.log('syncLoopWrapper: 歌詞同步執行完畢');
+}
+
 /**
  * Public: start interval
  */
-function startLyricSync(intervalMs = 5000) {
-  setInterval(syncLoop, intervalMs);
+function startLyricSync(intervalMs = 1000) {
+  setInterval(syncLoopWrapper, intervalMs);
 }
 
 /**
@@ -103,4 +125,4 @@ function isLyricsSynced(track) {
   return track.name === lastSyncedObj.name && track.artists === lastSyncedObj.artists;
 }
 
-module.exports = { startLyricSync, isLyricsSynced };
+module.exports = { startLyricSync, isLyricsSynced, performLyricSync }; // 導出 performLyricSync

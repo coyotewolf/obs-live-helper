@@ -4,7 +4,7 @@
 const router = require('express').Router();
 const axios = require('axios');
 const { generateCodePair, exchangeCodeForToken, getAccessToken, readTokens } = require('../services/spotifyAuth');
-const { isLyricsSynced } = require('../services/lyricsFetcher');
+const { isLyricsSynced, performLyricSync } = require('../services/lyricsFetcher'); // 引入 performLyricSync
 const fs = require('fs');
 const path = require('path');
 
@@ -72,12 +72,34 @@ router.get('/status', async (req, res) => {
       return res.json({ authorized: true, playing: false });
     }
 
+    // 獲取當前播放歌曲的識別符
+    const currentTrackIdentifier = data.item?.id || data.item?.name;
+
+    // 為了避免重複同步，我們需要檢查 lastTrackId 和 lastSyncedObj
+    // 由於這些變數在 lyricsFetcher.js 內部，我們不能直接訪問。
+    // 最好的方法是讓 performLyricSync 函數內部處理這個檢查。
+
+    // 強制執行一次歌詞同步，並等待其完成
+    await performLyricSync();
+
+    // 重新獲取最新的 Spotify 狀態，因為 performLyricSync 可能會改變它
+    const updatedData = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: { Authorization: `Bearer ${access_token}` }, // 使用之前獲取的 token
+    }).then(r => r.data);
+
+    // 如果 updatedData 不存在，則返回錯誤
+    if (!updatedData || !updatedData.item) {
+      return res.json({ authorized: true, playing: false });
+    }
+
+    // 使用更新後的數據構建 track 物件
     const track = {
-      name: data.item?.name,
-      artists: data.item?.artists?.map(a => a.name).join(', '),
-      progress_ms: data.progress_ms,
-      duration_ms: data.item?.duration_ms,
-      is_playing: data.is_playing
+      id: updatedData.item?.id,
+      name: updatedData.item?.name,
+      artists: updatedData.item?.artists?.map(a => a.name).join(', '),
+      progress_ms: updatedData.progress_ms,
+      duration_ms: updatedData.item?.duration_ms,
+      is_playing: updatedData.is_playing
     };
 
     // lyrics sync flag placeholder (step4 will update)

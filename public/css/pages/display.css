@@ -1,5 +1,6 @@
 #lyrics {
-  font-size: 28px;
+  font-family: "Yu Gothic", sans-serif;
+  font-size: 48px;
   line-height: 1.4;
   text-align: center;
   height: 100vh;
@@ -7,6 +8,7 @@
   flex-direction: column;
   justify-content: center;
   margin: 0 10px;
+  color: rgb(245, 245, 245); /* 設定歌詞文字顏色為黑色 */
 }
 
 #lyrics .current {

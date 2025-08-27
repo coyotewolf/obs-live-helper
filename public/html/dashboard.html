@@ -1,134 +1,133 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>OBS Live Helper Dashboard</title>
 
-  <link rel="stylesheet" href="../css/pages/dashboard.css" />
+  <link rel="stylesheet" href="../css/pages/dashboard.css">
+  <!-- 讓 dashboard 同步載入 /style.css（@font-face） -->
+  <link id="coreStyle" rel="stylesheet" href="/style.css">
 
   <style>
     body{visibility:hidden}
-    #fontTable{margin-left:20px}
-    #fontTable th,#fontTable td{padding:4px}
-    /* ↓ 只限編輯器／預覽容器 */
-    #editorArea, #previewArea {
-    --ff-zh: inherit;
-    --ff-en: inherit;
-    --ff-ja: inherit;
-    font-family: var(--ff-en), var(--ff-zh), var(--ff-ja), sans-serif;
+
+    #editorArea,#previewArea{
+      min-height:260px;max-height:400px;
+      overflow:auto;padding:10px;
+      border:1px solid #555;font-size:1rem;
     }
-    #editorArea .zh, #previewArea .zh { font-family: var(--ff-zh)!important; }
-    #editorArea .en, #previewArea .en { font-family: var(--ff-en)!important; }
-    #editorArea .ja, #previewArea .ja { font-family: var(--ff-ja)!important; }
+    /* 預覽框預設白底、黑字 */
+    #previewArea{ background:#fff; color:#000; }
 
+    /* 和 message.html 的內文規則保持一致 */
+    #editorArea span,
+    #editorArea b,#editorArea i,#editorArea u,#editorArea s,
+    #editorArea font{
+      display:inline;
+      vertical-align:text-bottom;
+      line-height:1em;
+    }
+    #previewArea span,
+    #previewArea b,#previewArea i,#previewArea u,#previewArea s,
+    #previewArea font{
+      display:inline;
+      vertical-align:text-bottom;
+      line-height:1em;
+    }
   </style>
-
-  <script>
-    /* 等到所有樣式載入後再顯示，避免版面跳動 */
-    window.addEventListener('load',()=>{document.body.style.visibility='visible'});
-  </script>
+  <script>addEventListener('load',()=>document.body.style.visibility='visible');</script>
 </head>
-
 <body>
-  <main class="wrapper">
+<main class="wrapper">
 
-    <!-- ╔═══════════ 左欄 1/3 ═══════════╗ -->
-    <aside id="leftColumn">
-
-      <!-- Spotify 狀態 -->
-      <section id="spotifyBlock">
-        <div class="titleRow">
-          <h2>🎵 Spotify 狀態</h2>
-          <button id="loginBtn" class="btnPrimary">🔑 登入 / 重新授權</button>
-        </div>
-        <div id="trackInfo">尚未播放</div>
-        <pre id="logView"></pre>
-      </section>
-
-      <!-- 歌詞樣式 -->
-      <section id="styleBlock">
-        <h2>🎨 歌詞樣式設定</h2>
-
-        <label>字大小 (px)
-          <input type="number" id="fontSizeInp" value="28" min="10" max="80">
-        </label>
-
-        <label>文字顏色
-          <input type="color" id="fontColorInp" value="#ffffff">
-        </label>
-
-        <label>當前行顏色
-          <input type="color" id="currentColorInp" value="#ffeb3b">
-        </label>
-
-        <label><input type="checkbox" id="boldChk"> 當前行粗體</label>
-
-        <label>垂直對齊
-          <select id="alignSel">
-            <option value="flex-start">頂端</option>
-            <option value="center" selected>中間</option>
-            <option value="flex-end">底端</option>
-          </select>
-        </label>
-
-        <div class="btnRow">
-          <button id="saveStyleBtn" class="btnPrimary">💾 儲存樣式</button>
-        </div>
-      </section>
-    </aside>
-
-    <!-- ╔═══════════ 右欄 2/3 ═══════════╗ -->
-    <section id="editorBlock">
-      <h2>📝 畫面文字編輯器</h2>
-
-      <!-- 工具列 -->
-      <div id="toolbar">
-        <button data-cmd="bold"><b>B</b></button>
-        <button data-cmd="italic"><i>I</i></button>
-        <button data-cmd="strikeThrough"><s>S</s></button>
-        <button data-cmd="transparent" title="背景透明">⛶</button>
-        <input type="color" id="foreColor"  title="文字顏色">
-        <input type="color" id="backColor"  title="背景顏色">
-        <button data-cmd="justifyLeft">⬅</button>
-        <button data-cmd="justifyCenter">≡</button>
-        <button data-cmd="justifyRight">➡</button>
+  <!-- ＝＝＝ 左欄 (Spotify + 樣式設定) ＝＝＝ -->
+  <aside id="leftColumn">
+    <section id="spotifyBlock">
+      <div class="titleRow">
+        <h2>🎵 Spotify 狀態</h2>
+        <button id="loginBtn" class="btnPrimary">🔑 登入 / 重新授權</button>
       </div>
-
-      <!-- 編輯 + 預覽 -->
-      <div class="editWrap">
-        <div id="editorArea"  contenteditable="true"></div>
-        <div id="previewArea"></div>
-      </div>
-
-      <!-- 字體 Font-Family -->
-      <details open>
-        <summary><b>字體 Font-Family</b></summary>
-        <table id="fontTable">
-          <tr><th>語言</th><th>清單</th><th>上傳檔案</th></tr>
-          <tr>
-            <td>中文</td>
-            <td><select id="fontZhSel"></select></td>
-            <td rowspan="3"><input type="file" id="fontFile" accept=".ttf,.otf,.woff" /></td>
-          </tr>
-          <tr>
-            <td>English</td>
-            <td><select id="fontEnSel"></select></td>
-          </tr>
-          <tr>
-            <td>日本語</td>
-            <td><select id="fontJaSel"></select></td>
-          </tr>
-        </table>
-      </details>
-
-      <div class="btnRow">
-        <button id="saveTextBtn"  class="btnPrimary">💾 儲存文字</button>
-        <button id="clearTextBtn" class="btnDanger">🧹 清空文字</button>
-      </div>
+      <div id="trackInfo">尚未播放</div>
+      <pre id="logView"></pre>
     </section>
 
-  </main>
+    <section id="styleBlock">
+      <h2>🎨 字樣式</h2>
+      <label>字大小(px) <input type="number" id="fontSizeInp" value="28" min="10" max="160"></label>
+      <label>文字顏色 <input type="color" id="fontColorInp" value="#ffffff"></label>
+      <label>當前行顏色 <input type="color" id="currentColorInp" value="#ffeb3b"></label>
+      <label><input type="checkbox" id="boldChk"> 當前行粗體</label>
+      <label>垂直對齊
+        <select id="alignSel">
+          <option value="flex-start">頂端</option>
+          <option value="center" selected>中間</option>
+          <option value="flex-end">底端</option>
+        </select>
+      </label>
+      <div class="btnRow"><button id="saveStyleBtn" class="btnPrimary">💾 儲存樣式</button></div>
+    </section>
+  </aside>
 
-  <script src="../js/dashboard.js"></script>
+  <!-- ＝＝＝ 右欄 (文字編輯器) ＝＝＝ -->
+  <section id="editorBlock">
+    <h2>📝 畫面文字編輯器</h2>
+
+    <!-- 工具列 -->
+    <div id="toolbar">
+      <button data-cmd="bold"><b>B</b></button>
+      <button data-cmd="italic"><i>I</i></button>
+      <button data-cmd="strikeThrough"><s>S</s></button>
+      <button data-cmd="transparent" title="背景透明">⛶</button>
+
+      <input type="color" id="foreColor" title="文字顏色">
+      <input type="color" id="backColor" title="背景顏色">
+      <button data-cmd="justifyLeft">⬅</button>
+      <button data-cmd="justifyCenter">≡</button>
+      <button data-cmd="justifyRight">➡</button>
+
+      <!-- 單一欄位：可輸入或選建議（作用於選取文字） -->
+      <input id="fontSizeCtrl" type="text" list="sizeList" placeholder="字號(px)" style="width:84px" title="輸入數字或選擇建議，Enter 套用">
+      <datalist id="sizeList">
+        <option value="12"><option value="14"><option value="16"><option value="18"><option value="20">
+        <option value="24"><option value="28"><option value="32"><option value="36"><option value="48">
+        <option value="56"><option value="64"><option value="72"><option value="96">
+      </datalist>
+
+      <!-- 字體 -->
+      <select id="fontSel" title="字體"></select>
+
+      <!-- 頁面底色（含透明選項） -->
+      <label style="margin-left:8px; display:flex; align-items:center; gap:6px;">
+        頁面底色
+        <input type="color" id="pageBgColor" value="#ffffff" title="message.html 背景色">
+        <label style="display:flex;align-items:center;gap:4px;">
+          <input type="checkbox" id="pageBgTransparent">
+          <span>透明</span>
+        </label>
+      </label>
+    </div>
+
+    <!-- 編輯 / 預覽 -->
+    <div class="editWrap">
+      <div id="editorArea" contenteditable="true"></div>
+      <div id="previewArea"></div>
+    </div>
+
+    <!-- 上傳字體 -->
+    <div style="margin:12px 0">
+      <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden>
+      <label class="btnPrimary" for="fontFile">選擇字型檔</label>
+      <button id="uploadFontBtn" class="btnPrimary" style="display:none">⬆ 上傳</button>
+    </div>
+
+    <div class="btnRow">
+      <button id="saveTextBtn"  class="btnPrimary">💾 儲存文字</button>
+      <button id="clearTextBtn" class="btnDanger">🧹 清空文字</button>
+    </div>
+  </section>
+
+</main>
+
+<script src="../js/dashboard.js"></script>
 </body>
 </html>

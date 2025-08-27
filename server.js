@@ -22,7 +22,11 @@ app.use(express.text({  limit: '2mb', type: 'text/plain' })); // dashboard 儲�
 
 /* ---------- 靜態檔 ---------- */
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/lyrics', express.static(path.join(__dirname, 'lyrics')));
+app.use('/lyrics', express.static(path.join(__dirname, 'lyrics'), {
+  etag: false,
+  lastModified: false,
+  maxAge: 0
+}));
 app.use('/fonts',  express.static(path.join(__dirname, 'public', 'fonts')));
 app.use(express.static(path.join(__dirname, 'storage'))); // 讓 /storage/style.css 也能直連
 

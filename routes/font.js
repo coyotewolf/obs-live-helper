@@ -1,31 +1,37 @@
-/** routes/font.js  —  完整版本 **/
+/** routes/font.js  — 完整覆寫 */
 const router = require('express').Router();
 const multer = require('multer');
 const path   = require('path');
 const fs     = require('fs');
 
-/* 儲存目錄：public/fonts */
 const dir = path.join(__dirname, '..', 'public', 'fonts');
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-/* multer 設定 */
 const upload = multer({ dest: dir });
 
-/* POST /api/font/upload  — 上傳字型檔 */
-router.post('/upload', upload.single('font'), (req, res) => {
-  const ext  = path.extname(req.file.originalname);          // .ttf  / .otf / .woff
-  const base = path.basename(req.file.originalname, ext);    // 去掉副檔名
-  const final = path.join(dir, base + ext);
+/* ========== 取得已存在的字體清單 ========== */
+router.get('/list', (_, res) => {
+  const list = fs.readdirSync(dir)
+                 .filter(f => /\.(ttf|otf|woff2?)$/i.test(f))
+                 .map(f => path.basename(f, path.extname(f))); // 去副檔名
+  res.json(list);
+});
 
-  /* 重新命名到目標檔名 */
+/* ========== 上傳 ========== */
+router.post('/upload', upload.single('font'), (req, res) => {
+  const ext   = path.extname(req.file.originalname);
+  const base  = path.basename(req.file.originalname, ext);
+  const final = path.join(dir, base + ext);
   fs.renameSync(req.file.path, final);
 
-  /* 追加 @font-face 到 storage/style.css */
-  const cssPath = path.join(__dirname, '..', 'storage', 'style.css');
-  const rule = `@font-face{font-family:'${base}';src:url('/fonts/${base + ext}');}\n`;
-  fs.appendFileSync(cssPath, rule);
+  const cssRule = `@font-face{font-family:'${base}';src:url('/fonts/${base + ext}');}\n`;
+  fs.appendFileSync(path.join(__dirname, '..', 'storage', 'style.css'), cssRule);
 
-  /* 回傳字族名，前端會自動填到下拉選單 */
+  /* 即時讓 message.html 重新載入 style.css */
+  const bc = new BroadcastChannel('obs-style-sync');
+  bc.postMessage({ type: 'font-updated' });
+  bc.close();
+
   res.json({ family: base });
 });
 
