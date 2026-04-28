@@ -23,6 +23,11 @@ let lastLoggedLrcSynced = false;
 let lastLoggedLrcNotFound = false;
 let activeSyncPromise = null;
 let lrclibBackoffUntil = 0;
+let currentTrackAttemptCount = 0;
+let lastLyricAttemptAt = 0;
+
+const SAME_TRACK_RETRY_MS = Number(process.env.LYRICS_SAME_TRACK_RETRY_MS || 8000);
+const MAX_SAME_TRACK_RETRIES = Number(process.env.LYRICS_MAX_SAME_TRACK_RETRIES || 12);
 
 function ensureLogDir() {
   const dir = path.dirname(LOG_FILE);
@@ -81,6 +86,12 @@ async function fetchLyricsLRC(artist, title) {
   }
 }
 
+function shouldRetrySameTrack(trackId) {
+  if (!trackId || lastSyncedObj?.id === trackId) return false;
+  if (currentTrackAttemptCount >= MAX_SAME_TRACK_RETRIES) return false;
+  return Date.now() - lastLyricAttemptAt >= SAME_TRACK_RETRY_MS;
+}
+
 async function performLyricSyncCore() {
   const playback = await getCurrentPlayback({ ttlMs: 1800 });
   if (!playback.authorized || playback.rate_limited) return;
@@ -101,18 +112,27 @@ async function performLyricSyncCore() {
   const firstArtist = artists.split(',')[0]?.trim() || artists;
   const album = item.album || '';
 
-  if (trackId === lastTrackId) return;
+  const switchedTrack = trackId !== lastTrackId;
 
-  lastTrackId = trackId;
-  lastSyncedObj = null;
-  lastSyncedAt = Date.now();
-  lastLoggedLrcSynced = false;
-  lastLoggedLrcNotFound = false;
+  if (!switchedTrack && !shouldRetrySameTrack(trackId)) return;
 
-  if (trackId !== lastLoggedTrackId) {
-    logLine(`🎵 Now playing: ${artists} - ${name}`);
-    lastLoggedTrackId = trackId;
+  if (switchedTrack) {
+    lastTrackId = trackId;
+    lastSyncedObj = null;
+    lastSyncedAt = Date.now();
+    lastLoggedLrcSynced = false;
+    lastLoggedLrcNotFound = false;
+    currentTrackAttemptCount = 0;
+    lastLyricAttemptAt = 0;
+
+    if (trackId !== lastLoggedTrackId) {
+      logLine(`🎵 Now playing: ${artists} - ${name}`);
+      lastLoggedTrackId = trackId;
+    }
   }
+
+  currentTrackAttemptCount += 1;
+  lastLyricAttemptAt = Date.now();
 
   // Important: remove stale lyrics immediately on track switch.
   // Keep metadata so display.js can tell which track the LRC belongs to.
@@ -133,12 +153,16 @@ async function performLyricSyncCore() {
 
     lastSyncedObj = { id: trackId, name, artists };
     lastSyncedAt = Date.now();
+    currentTrackAttemptCount = 0;
   } catch (err) {
     if (lastTrackId === trackId) writeCurrentLrc(buildMetadata(trackId, artists, album));
     lastSyncedObj = null;
 
-    if (!lastLoggedLrcNotFound) {
-      logLine(`❌ LRC not found: ${err.message}`);
+    if (!lastLoggedLrcNotFound || currentTrackAttemptCount === MAX_SAME_TRACK_RETRIES) {
+      const retryNote = currentTrackAttemptCount < MAX_SAME_TRACK_RETRIES
+        ? `，將自動重試 ${currentTrackAttemptCount}/${MAX_SAME_TRACK_RETRIES}`
+        : '，已達重試上限';
+      logLine(`❌ LRC not found: ${err.message}${retryNote}`);
       lastLoggedLrcNotFound = true;
     }
   }

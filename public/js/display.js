@@ -65,8 +65,14 @@ function clearRetryTimer() {
 }
 
 function scheduleLrcRetry(delay = 650) {
-  clearRetryTimer();
+  // Do not keep canceling and rescheduling on every tick.
+  // The previous version called clearRetryTimer() here, but tick() runs every 2s
+  // and the retry delay is often 2.5s, so the timer was repeatedly canceled
+  // before it could fire. That made OBS stay on "找沒歌詞><" until manual refresh.
+  if (retryTimer) return;
+
   retryTimer = setTimeout(() => {
+    retryTimer = null;
     if (!currentTrackKey || isLoadingLyrics) return;
     isLoadingLyrics = true;
     fetchLRC(currentTrackKey);
@@ -195,6 +201,16 @@ async function fetchLRC(expectedTrackKey = currentTrackKey) {
 
     if (!text.trim() || lines.length === 0) {
       lrcLines = [];
+
+      // If current.lrc belongs to the current track but only contains metadata,
+      // the backend is probably still fetching or retrying LRCLib. Keep trying.
+      if (expectedTrackKey && lrcTrackKey === expectedTrackKey) {
+        lyricsState = 'not_found';
+        scheduleLrcRetry(2200);
+        renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
+        return;
+      }
+
       lyricsState = 'not_found';
       renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
       return;
