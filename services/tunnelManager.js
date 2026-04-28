@@ -2,13 +2,20 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const axios = require('axios');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const STORAGE_DIR = path.join(ROOT_DIR, 'storage');
 const PUBLIC_URL_FILE = path.join(STORAGE_DIR, 'public-url.json');
 const TRY_CLOUDFLARE_RE = /https:\/\/[-a-zA-Z0-9.]+\.trycloudflare\.com/g;
 
+const TUNNEL_HEALTH_CHECK_MS = Number(process.env.TUNNEL_HEALTH_CHECK_MS || 45000);
+const TUNNEL_START_GRACE_MS = Number(process.env.TUNNEL_START_GRACE_MS || 20000);
+const TUNNEL_RESTART_COOLDOWN_MS = Number(process.env.TUNNEL_RESTART_COOLDOWN_MS || 15000);
+const TUNNEL_HEALTH_TIMEOUT_MS = Number(process.env.TUNNEL_HEALTH_TIMEOUT_MS || 6000);
+
 let child = null;
+let healthCheckPromise = null;
 let state = {
   enabled: String(process.env.ENABLE_PUBLIC_TUNNEL || '').toLowerCase() === 'true',
   running: false,
@@ -18,6 +25,11 @@ let state = {
   lastError: '',
   logs: [],
   updatedAt: null,
+  startedAt: 0,
+  lastHealthCheckAt: 0,
+  lastHealthOkAt: 0,
+  lastRestartAt: 0,
+  restartCount: 0,
   executable: ''
 };
 
@@ -29,7 +41,7 @@ function pushLog(line) {
   const text = String(line || '').trim();
   if (!text) return;
   state.logs.push(text);
-  state.logs = state.logs.slice(-80);
+  state.logs = state.logs.slice(-100);
 }
 
 function normalizeBaseUrl(url) {
@@ -61,11 +73,6 @@ function persistPublicUrl(patch) {
     ...patch,
     updatedAt: new Date().toISOString()
   }, null, 2));
-}
-
-function readPersistedPublicUrl() {
-  const data = readPublicUrlFile();
-  return data.publicUrl || data.manualPublicUrl || '';
 }
 
 function readManualPublicUrl() {
@@ -130,7 +137,11 @@ function resolveExecutable() {
 function getStatus() {
   const persisted = readPublicUrlFile();
   const manual = state.manualPublicUrl || persisted.manualPublicUrl || '';
-  const tunnelUrl = state.publicUrl || persisted.publicUrl || '';
+
+  // Quick Tunnel URLs are temporary. Do not reuse the persisted publicUrl after restart,
+  // otherwise QR Code may keep showing an expired trycloudflare URL.
+  const tunnelUrl = state.publicUrl || '';
+
   return {
     ...state,
     manualPublicUrl: manual,
@@ -157,7 +168,11 @@ function startTunnel(port = process.env.PORT || 5172) {
   state.running = false;
   state.lastError = '';
   state.publicUrl = '';
+  state.startedAt = Date.now();
+  state.lastHealthCheckAt = 0;
+  state.lastHealthOkAt = 0;
   state.updatedAt = new Date().toISOString();
+  persistPublicUrl({ publicUrl: '' });
 
   const executable = resolveExecutable();
   state.executable = executable;
@@ -182,6 +197,8 @@ function startTunnel(port = process.env.PORT || 5172) {
     const url = extractUrl(text);
     if (url) {
       state.publicUrl = url;
+      state.lastError = '';
+      state.lastHealthOkAt = Date.now();
       state.updatedAt = new Date().toISOString();
       persistPublicUrl({ publicUrl: url });
       console.log(`🌍 Cloudflare Tunnel ready: ${url}`);
@@ -200,6 +217,8 @@ function startTunnel(port = process.env.PORT || 5172) {
   child.on('exit', (code, signal) => {
     state.running = false;
     child = null;
+    state.publicUrl = '';
+    persistPublicUrl({ publicUrl: '' });
     const msg = `cloudflared stopped. code=${code ?? 'null'} signal=${signal ?? 'null'}`;
     state.lastError = code === 0 ? '' : msg;
     state.updatedAt = new Date().toISOString();
@@ -214,8 +233,72 @@ function startIfEnabled(port) {
 }
 
 function restartTunnel(port) {
+  const now = Date.now();
+  if (now - state.lastRestartAt < TUNNEL_RESTART_COOLDOWN_MS) return getStatus();
+  state.lastRestartAt = now;
+  state.restartCount += 1;
+  pushLog(`Restarting Cloudflare Quick Tunnel automatically (#${state.restartCount}).`);
   stopTunnel();
   return startTunnel(port);
+}
+
+async function checkTunnelUrl(publicUrl) {
+  const base = normalizeBaseUrl(publicUrl);
+  if (!base) return false;
+
+  const { status } = await axios.get(`${base}/api/hello?_t=${Date.now()}`, {
+    timeout: TUNNEL_HEALTH_TIMEOUT_MS,
+    validateStatus: s => s >= 200 && s < 500
+  });
+
+  return status >= 200 && status < 500;
+}
+
+async function ensureTunnelAlive(port = process.env.PORT || 5172) {
+  if (!state.enabled) return getStatus();
+
+  const now = Date.now();
+
+  if (!child && !state.running) {
+    pushLog('Tunnel is enabled but process is not running. Starting again.');
+    return startTunnel(port);
+  }
+
+  if (state.running && !state.publicUrl) {
+    if (state.startedAt && now - state.startedAt > TUNNEL_START_GRACE_MS) {
+      state.lastError = 'Tunnel 啟動太久仍未取得外網網址，正在自動重啟。';
+      pushLog(state.lastError);
+      return restartTunnel(port);
+    }
+    return getStatus();
+  }
+
+  if (!state.publicUrl) return getStatus();
+  if (healthCheckPromise) return healthCheckPromise;
+  if (now - state.lastHealthCheckAt < TUNNEL_HEALTH_CHECK_MS) return getStatus();
+
+  state.lastHealthCheckAt = now;
+  healthCheckPromise = (async () => {
+    try {
+      const ok = await checkTunnelUrl(state.publicUrl);
+      if (ok) {
+        state.lastHealthOkAt = Date.now();
+        state.lastError = '';
+        return getStatus();
+      }
+      state.lastError = 'Tunnel 外網網址健康檢查失敗，正在自動重啟。';
+      pushLog(state.lastError);
+      return restartTunnel(port);
+    } catch (err) {
+      state.lastError = `Tunnel 外網網址可能已失效：${err.message}，正在自動重啟。`;
+      pushLog(state.lastError);
+      return restartTunnel(port);
+    } finally {
+      healthCheckPromise = null;
+    }
+  })();
+
+  return healthCheckPromise;
 }
 
 module.exports = {
@@ -224,6 +307,7 @@ module.exports = {
   stopTunnel,
   restartTunnel,
   startIfEnabled,
+  ensureTunnelAlive,
   setManualPublicUrl,
   normalizeBaseUrl,
   resolveExecutable

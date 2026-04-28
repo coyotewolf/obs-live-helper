@@ -101,6 +101,16 @@ function saveRequests(list) {
   writeJson(REQUESTS_FILE, list);
 }
 
+function getPendingRequests() {
+  return readRequests().filter(r => r.status === 'pending');
+}
+
+function cleanupFinishedRequests() {
+  const pending = getPendingRequests();
+  saveRequests(pending);
+  return pending;
+}
+
 function clampInt(value, min, max) {
   const n = Number.parseInt(value, 10);
   if (!Number.isFinite(n)) return min;
@@ -321,6 +331,8 @@ router.get('/admin-info', async (req, res) => {
     return res.status(403).json({ ok: false, error: 'local_only', message: '管理資訊只能從本機 localhost / 127.0.0.1 讀取。' });
   }
 
+  await tunnelManager.ensureTunnelAlive(PORT);
+
   const security = getSecurity();
   const urls = getUrlBundle(security.requestPin);
   const qrDataUrl = await buildQrDataUrl(urls.preferredUrl).catch(() => '');
@@ -330,7 +342,7 @@ router.get('/admin-info', async (req, res) => {
     adminToken: security.adminToken,
     pin: security.requestPin,
     settings: getSettings(),
-    requests: readRequests().slice(-100).reverse(),
+    requests: getPendingRequests().slice(-100).reverse(),
     urls,
     qrDataUrl
   });
@@ -346,6 +358,8 @@ router.get('/qr-info', async (req, res) => {
       message: 'QR Overlay 資訊只能從本機 localhost / 127.0.0.1 讀取。'
     });
   }
+
+  await tunnelManager.ensureTunnelAlive(PORT);
 
   const security = getSecurity();
   const urls = getUrlBundle(security.requestPin);
@@ -367,6 +381,7 @@ router.get('/public-info', requirePin, (req, res) => {
 });
 
 router.get('/info', requireAdmin, async (req, res) => {
+  await tunnelManager.ensureTunnelAlive(PORT);
   const security = getSecurity();
   const urls = getUrlBundle(security.requestPin);
   const qrDataUrl = await buildQrDataUrl(urls.preferredUrl).catch(() => '');
@@ -374,6 +389,7 @@ router.get('/info', requireAdmin, async (req, res) => {
 });
 
 router.post('/rotate-pin', requireAdmin, async (req, res) => {
+  await tunnelManager.ensureTunnelAlive(PORT);
   const security = rotateRequestPin();
   const urls = getUrlBundle(security.requestPin);
   const qrDataUrl = await buildQrDataUrl(urls.preferredUrl).catch(() => '');
@@ -389,13 +405,13 @@ router.post('/settings', requireAdmin, (req, res) => {
 });
 
 router.get('/list', requireAdmin, (req, res) => {
-  res.json({ ok: true, requests: readRequests().slice(-100).reverse() });
+  const pending = cleanupFinishedRequests();
+  res.json({ ok: true, requests: pending.slice(-100).reverse() });
 });
 
 router.post('/clear-finished', requireAdmin, (req, res) => {
-  const keep = readRequests().filter(r => r.status === 'pending');
-  saveRequests(keep);
-  res.json({ ok: true, requests: keep.slice(-100).reverse() });
+  const pending = cleanupFinishedRequests();
+  res.json({ ok: true, requests: pending.slice(-100).reverse() });
 });
 
 router.post('/tunnel/start', requireAdmin, (req, res) => {
@@ -411,8 +427,9 @@ router.post('/tunnel/stop', requireAdmin, (req, res) => {
   res.json({ ok: true, tunnel: tunnelManager.getStatus() });
 });
 
-router.get('/tunnel/status', requireAdmin, (req, res) => {
-  res.json({ ok: true, tunnel: tunnelManager.getStatus() });
+router.get('/tunnel/status', requireAdmin, async (req, res) => {
+  const tunnel = await tunnelManager.ensureTunnelAlive(PORT);
+  res.json({ ok: true, tunnel });
 });
 
 router.get('/search', requirePin, async (req, res) => {
@@ -477,20 +494,15 @@ router.post('/submit', requirePin, async (req, res) => {
       if (shouldPlayNow) await playNow(track.uri, access_token);
       else await addToQueue(track.uri, access_token);
 
-      const done = makeRequest({ track, mode, nickname, ip });
-      done.status = shouldPlayNow ? 'played' : 'approved';
-      done.updatedAt = new Date().toISOString();
-      const list = readRequests();
-      list.push(done);
-      saveRequests(list.slice(-settings.maxPending));
-
-      return res.json({ ok: true, status: done.status, message: shouldPlayNow ? '已立即插播。' : '已自動加入佇列。' });
+      // 自動允許的請求不需要留在待審清單，避免 Dashboard 出現已處理項目。
+      cleanupFinishedRequests();
+      return res.json({ ok: true, status: shouldPlayNow ? 'played' : 'approved', message: shouldPlayNow ? '已立即插播。' : '已自動加入佇列。' });
     } catch (err) {
       return spotifyErrorResponse(res, err, shouldPlayNow ? '立即插播失敗' : '加入佇列失敗');
     }
   }
 
-  const list = readRequests();
+  const list = getPendingRequests();
   const item = makeRequest({ track, mode, nickname, ip });
   list.push(item);
   saveRequests(list.slice(-settings.maxPending));
@@ -515,8 +527,9 @@ router.post('/approve', requireAdmin, async (req, res) => {
     item.status = mode === 'play-now' ? 'played' : 'approved';
     item.mode = mode;
     item.updatedAt = new Date().toISOString();
-    saveRequests(list);
-    res.json({ ok: true, request: item, message: mode === 'play-now' ? '已立即插播。' : '已加入佇列。' });
+    const pending = list.filter(r => r.id !== id && r.status === 'pending');
+    saveRequests(pending);
+    res.json({ ok: true, request: item, requests: pending.slice(-100).reverse(), message: mode === 'play-now' ? '已立即插播。' : '已加入佇列。' });
   } catch (err) {
     spotifyErrorResponse(res, err, '審核點歌失敗');
   }
@@ -529,8 +542,9 @@ router.post('/reject', requireAdmin, (req, res) => {
   if (!item) return res.status(404).json({ ok: false, error: 'not_found', message: '找不到這筆點歌請求。' });
   item.status = 'rejected';
   item.updatedAt = new Date().toISOString();
-  saveRequests(list);
-  res.json({ ok: true, request: item, message: '已拒絕這筆點歌。' });
+  const pending = list.filter(r => r.id !== id && r.status === 'pending');
+  saveRequests(pending);
+  res.json({ ok: true, request: item, requests: pending.slice(-100).reverse(), message: '已拒絕這筆點歌。' });
 });
 
 router.post('/control', requirePin, async (req, res) => {

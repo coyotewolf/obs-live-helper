@@ -372,6 +372,7 @@ const settingInputs = {
 let adminToken = localStorage.getItem('obsHelperAdminToken') || '';
 let currentRequestPin = '';
 let requestRefreshTimer = null;
+const REQUEST_REFRESH_MS = 3000;
 
 function adminHeaders(){
   return {
@@ -561,14 +562,16 @@ requestList?.addEventListener('click', async e=>{
   const original = btn.textContent;
   btn.textContent = '處理中...';
   try{
+    let data;
     if(action === 'reject'){
-      await adminApi('/api/request/reject', { method:'POST', body: JSON.stringify({ id }) });
+      data = await adminApi('/api/request/reject', { method:'POST', body: JSON.stringify({ id }) });
       showToast('已拒絕點歌');
     }else{
-      await adminApi('/api/request/approve', { method:'POST', body: JSON.stringify({ id, mode: action === 'play-now' ? 'play-now' : 'queue' }) });
+      data = await adminApi('/api/request/approve', { method:'POST', body: JSON.stringify({ id, mode: action === 'play-now' ? 'play-now' : 'queue' }) });
       showToast(action === 'play-now' ? '已立即插播' : '已加入佇列');
     }
-    await loadRequestList();
+    if (Array.isArray(data?.requests)) renderRequests(data.requests);
+    else await loadRequestList();
     loadStatus();
   }catch(err){ showToast(err.message); }
   finally{ btn.disabled = false; btn.textContent = original; }
@@ -592,4 +595,4 @@ requestRefreshTimer = setInterval(()=>{
     refreshRequestInfo().catch(()=>{});
     loadRequestList().catch(()=>{});
   }
-}, 8000);
+}, REQUEST_REFRESH_MS);
