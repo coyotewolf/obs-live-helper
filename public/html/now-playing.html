@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>OBS Now Playing</title>
+  <link rel="stylesheet" href="../css/pages/now-playing.css" />
+</head>
+<body>
+  <main id="nowPlayingCard" class="now-playing-card hidden">
+    <section class="cover-wrap">
+      <img id="cover" class="cover" alt="Album cover" />
+    </section>
+
+    <section class="track-wrap">
+      <div class="label-row">
+        <span id="playState" class="play-state">NOW PLAYING</span>
+      </div>
+
+      <div id="songName" class="song-name">尚未播放</div>
+      <div id="artistName" class="artist-name">Spotify</div>
+
+      <div class="progress-section">
+        <div class="time-row">
+          <span id="currentTime">0:00</span>
+          <span id="durationTime">0:00</span>
+        </div>
+        <div class="progress-bg">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="../js/now-playing.js"></script>
+</body>
+</html>

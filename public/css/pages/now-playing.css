@@ -1,0 +1,186 @@
+:root {
+  --card-width: 760px;
+  --card-height: 180px;
+  --cover-size: 140px;
+
+  --text-main: #ffffff;
+  --text-sub: rgba(255, 255, 255, 0.72);
+  --accent: #7dd3fc;
+  --accent-2: #c084fc;
+
+  --card-bg: rgba(8, 13, 28, 0.72);
+  --card-border: rgba(255, 255, 255, 0.16);
+  --progress-bg: rgba(255, 255, 255, 0.22);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family:
+    "Noto Sans TC",
+    "Microsoft JhengHei",
+    "Segoe UI",
+    Arial,
+    sans-serif;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.now-playing-card {
+  width: var(--card-width);
+  min-height: var(--card-height);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 26px 20px 20px;
+  border-radius: 28px;
+  border: 1px solid var(--card-border);
+  background:
+    radial-gradient(circle at 15% 20%, rgba(125, 211, 252, 0.24), transparent 38%),
+    radial-gradient(circle at 85% 15%, rgba(192, 132, 252, 0.24), transparent 36%),
+    var(--card-bg);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(14px);
+  transform-origin: center;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease,
+    filter 0.25s ease;
+}
+
+.now-playing-card.hidden {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+}
+
+.now-playing-card.paused {
+  filter: saturate(0.72);
+}
+
+.cover-wrap {
+  width: var(--cover-size);
+  height: var(--cover-size);
+  flex: 0 0 var(--cover-size);
+  border-radius: 24px;
+  padding: 4px;
+  background:
+    linear-gradient(135deg, rgba(125, 211, 252, 0.9), rgba(192, 132, 252, 0.9));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+}
+
+.cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.track-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.label-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.play-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 16px rgba(125, 211, 252, 0.45);
+}
+
+.play-state::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 14px var(--accent);
+}
+
+.paused .play-state {
+  color: var(--text-sub);
+  text-shadow: none;
+}
+
+.paused .play-state::before {
+  background: var(--text-sub);
+  box-shadow: none;
+}
+
+.song-name {
+  color: var(--text-main);
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.12;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.32);
+}
+
+.artist-name {
+  margin-top: 7px;
+  color: var(--text-sub);
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.progress-section {
+  margin-top: 20px;
+}
+
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.progress-bg {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--progress-bg);
+}
+
+.progress-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 16px rgba(125, 211, 252, 0.55);
+  transition: width 0.35s linear;
+}

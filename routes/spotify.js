@@ -93,13 +93,31 @@ router.get('/status', async (req, res) => {
     }
 
     // 使用更新後的數據構建 track 物件
+    const images = updatedData.item?.album?.images || [];
+    const largestImage = images[0]?.url || '';
+    const mediumImage = images[1]?.url || largestImage;
+    const smallImage = images[2]?.url || mediumImage;
+
     const track = {
       id: updatedData.item?.id,
+      uri: updatedData.item?.uri,
       name: updatedData.item?.name,
       artists: updatedData.item?.artists?.map(a => a.name).join(', '),
-      progress_ms: updatedData.progress_ms,
-      duration_ms: updatedData.item?.duration_ms,
-      is_playing: updatedData.is_playing
+      album: updatedData.item?.album?.name || '',
+      album_images: images,
+      cover_url: mediumImage,
+      cover_large_url: largestImage,
+      cover_small_url: smallImage,
+      progress_ms: updatedData.progress_ms || 0,
+      duration_ms: updatedData.item?.duration_ms || 0,
+      is_playing: updatedData.is_playing,
+      external_url: updatedData.item?.external_urls?.spotify || '',
+      device: updatedData.device ? {
+        name: updatedData.device.name,
+        type: updatedData.device.type,
+        volume_percent: updatedData.device.volume_percent
+      } : null,
+      fetched_at: Date.now()
     };
 
     // lyrics sync flag placeholder (step4 will update)
