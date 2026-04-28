@@ -1,227 +1,213 @@
-/* -----------------  OBS Live Helper – Dashboard  ----------------- */
+/* OBS Live Helper – Dashboard */
 const bcStyle = new BroadcastChannel('obs-style-sync');
+const $ = id => document.getElementById(id);
 
-/* ---------- 先把內建清單 + 使用者自行上傳的字體併起來 ---------- */
 const builtinFonts = [
-  "DFKai-SB","Noto Sans TC","Microsoft JhengHei","PMingLiU",
-  "Segoe UI","Arial","Verdana","Helvetica","monospace",
-  "Noto Sans JP","Yu Gothic","MS PGothic","Meiryo"
+  'DFKai-SB','Noto Sans TC','Microsoft JhengHei','PMingLiU',
+  'Segoe UI','Arial','Verdana','Helvetica','monospace',
+  'Noto Sans JP','Yu Gothic','MS PGothic','Meiryo'
 ];
 const userFonts = JSON.parse(localStorage.getItem('userFonts') || '[]');
-const fontList  = Array.from(new Set([...builtinFonts, ...userFonts]));
+const fontList = Array.from(new Set([...builtinFonts, ...userFonts]));
 
-/* ---------- DOM ---------- */
-const $            = id=>document.getElementById(id);
-const editor       = $("editorArea");
-const preview      = $("previewArea");
-const toolbar      = $("toolbar");
-const fontSel      = $("fontSel");
-const fontFile     = $("fontFile");
-const uploadFontBtn= $("uploadFontBtn");
+const editor = $('editorArea');
+const preview = $('previewArea');
+const toolbar = $('toolbar');
+const fontSel = $('fontSel');
+const fontFile = $('fontFile');
+const uploadFontBtn = $('uploadFontBtn');
+const saveBtn = $('saveTextBtn');
+const clearBtn = $('clearTextBtn');
+const fontSizeCtrl = $('fontSizeCtrl');
+const pageBgColor = $('pageBgColor');
+const pageBgTransparent = $('pageBgTransparent');
+const toast = $('toast');
 
-const saveBtn      = $("saveTextBtn");
-const clearBtn     = $("clearTextBtn");
-const fontSizeInp  = $("fontSizeInp");           // 左側「整體」字級
-const fontColorInp = $("fontColorInp");
-const currentColorInp=$("currentColorInp");
-const boldChk      = $("boldChk");
-const alignSel     = $("alignSel");
+const DEFAULT_MESSAGE_FONT_SIZE = 28;
+const DEFAULT_MESSAGE_COLOR = '#ffffff';
 
-/* 單一欄位字號控制（作用於「選取文字」） */
-const fontSizeCtrl = $("fontSizeCtrl");
+function showToast(message){
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
 
-/* 新增：message.html 頁面底色控制（含透明） */
-const pageBgColor       = $("pageBgColor");
-const pageBgTransparent = $("pageBgTransparent");
-
-/* ---------- 字體下拉 ---------- */
-function rebuildFontOptions(selected = fontSel.value){
-  fontSel.innerHTML = fontList.map(f=>`<option value="${f}">${f}</option>`).join("");
+function rebuildFontOptions(selected = fontSel?.value){
+  if (!fontSel) return;
+  fontSel.innerHTML = fontList.map(f => `<option value="${f}">${f}</option>`).join('');
   if (fontList.includes(selected)) fontSel.value = selected;
 }
 rebuildFontOptions();
 
-fontSel.addEventListener("change",()=>{
-  document.execCommand("fontName",false,fontSel.value);
-  editor.focus();
+fontSel?.addEventListener('change', () => {
+  document.execCommand('fontName', false, fontSel.value);
+  editor?.focus();
   syncPreview();
 });
 
-/* ---------- 上傳自訂字體 ---------- */
-fontFile.addEventListener("change",()=>uploadFontBtn.style.display=fontFile.files.length?"":"none");
+fontFile?.addEventListener('change', () => {
+  if (uploadFontBtn) uploadFontBtn.style.display = fontFile.files.length ? '' : 'none';
+});
 
-uploadFontBtn.addEventListener("click",async()=>{
-  if(!fontFile.files.length) return;
-  uploadFontBtn.disabled=true; uploadFontBtn.textContent="⏳ 上傳中…";
+uploadFontBtn?.addEventListener('click', async () => {
+  if (!fontFile.files.length) return;
+  uploadFontBtn.disabled = true;
+  uploadFontBtn.textContent = '⏳ 上傳中…';
+  const fd = new FormData();
+  fd.append('font', fontFile.files[0]);
 
-  const fd=new FormData(); fd.append("font",fontFile.files[0]);
-  try{
-    // /api/font/upload 會把 @font-face 寫進 /storage/style.css，並回 {family:"xxx"}
-    const { family } = await fetch("/api/font/upload",{method:"POST",body:fd}).then(r=>r.json());
-
-    if(!fontList.includes(family)){
+  try {
+    const { family } = await fetch('/api/font/upload', { method: 'POST', body: fd }).then(r => r.json());
+    if (!fontList.includes(family)) {
       fontList.push(family);
       userFonts.push(family);
       localStorage.setItem('userFonts', JSON.stringify(userFonts));
       rebuildFontOptions(family);
-    }else fontSel.value = family;
-
-    document.execCommand("fontName",false,family);
+    } else {
+      fontSel.value = family;
+    }
+    document.execCommand('fontName', false, family);
     syncPreview();
-
-    // 通知 message.html 重載 /style.css
-    bcStyle.postMessage({type:'reload-style'});
-  }catch(err){ alert("字體上傳失敗！"); console.error(err);}
-  finally{
-    fontFile.value=""; uploadFontBtn.disabled=false;
-    uploadFontBtn.style.display="none"; uploadFontBtn.textContent="⬆ 上傳";
+    bcStyle.postMessage({ type: 'reload-style' });
+    showToast('字型已上傳');
+  } catch (err) {
+    console.error(err);
+    alert('字體上傳失敗！');
+  } finally {
+    fontFile.value = '';
+    uploadFontBtn.disabled = false;
+    uploadFontBtn.style.display = 'none';
+    uploadFontBtn.textContent = '上傳';
   }
 });
 
-/* ---------- 同步預覽 ---------- */
-function syncPreview(){ preview.innerHTML = editor.innerHTML; }
+function syncPreview(){
+  if (!preview || !editor) return;
+  preview.innerHTML = editor.innerHTML;
+}
 
-/* 預覽框的容器樣式 */
 function applyPreviewContainerStyle(){
+  if (!preview) return;
   preview.style.whiteSpace = 'nowrap';
-  preview.style.textAlign  = 'left';
+  preview.style.textAlign = 'left';
   preview.style.lineHeight = '1';
-  preview.style.fontSize   = `${parseInt(fontSizeInp.value||16,10)}px`;
-  preview.style.color      = fontColorInp.value || '#000000';
+  preview.style.fontSize = `${DEFAULT_MESSAGE_FONT_SIZE}px`;
+  preview.style.color = '#000000';
   preview.style.fontFamily = 'Arial, Helvetica, sans-serif';
   preview.style.fontVariantNumeric = 'lining-nums';
   preview.style.fontFeatureSettings = '"lnum" 1';
-  // 頁面底色 → 也讓預覽框同步顯示（支援透明）
-  const bg = pageBgTransparent.checked ? 'transparent' : (pageBgColor.value || '#ffffff');
-  preview.style.background = bg;
+  preview.style.background = pageBgTransparent?.checked ? 'transparent' : (pageBgColor?.value || '#ffffff');
 }
-[fontSizeInp, fontColorInp, boldChk, alignSel].forEach(ctrl=>{
-  if(!ctrl) return;
-  ctrl.addEventListener('input', ()=>{
-    applyPreviewContainerStyle();
-    syncPreview();
-    // 同時把 CSS 即時推送到 message.html
-    bcStyle.postMessage({type:'set-css', css: buildCSS()});
-  });
+
+pageBgColor?.addEventListener('input', () => {
+  applyPreviewContainerStyle();
+  bcStyle.postMessage({ type: 'set-css', css: buildCSS() });
+});
+pageBgTransparent?.addEventListener('change', () => {
+  applyPreviewContainerStyle();
+  bcStyle.postMessage({ type: 'set-css', css: buildCSS() });
 });
 
-/* 頁面底色改變：即時套用預覽 + 推送到 message.html */
-pageBgColor.addEventListener('input',()=>{
-  applyPreviewContainerStyle();
+toolbar?.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const cmd = btn.dataset.cmd;
+  if (cmd === 'transparent') document.execCommand('hiliteColor', false, 'transparent');
+  else document.execCommand(cmd, false, null);
+  editor?.focus();
   syncPreview();
 });
-pageBgTransparent.addEventListener('change',()=>{
-  // 不停用 color input，使用者可先選色、勾透明，之後再取消透明可回到那個色
-  applyPreviewContainerStyle();
+
+$('foreColor')?.addEventListener('input', e => {
+  document.execCommand('foreColor', false, e.target.value);
+  syncPreview();
+});
+$('backColor')?.addEventListener('input', e => {
+  document.execCommand('hiliteColor', false, e.target.value);
   syncPreview();
 });
 
-/* ---------- 工具列 ---------- */
-toolbar.addEventListener("click",e=>{
-  const btn=e.target.closest("button"); if(!btn) return;
-  let cmd=btn.dataset.cmd;
-  if(cmd==="strikethrough")   cmd="strikeThrough";
-  if(cmd==="transparent")     document.execCommand("hiliteColor",false,"transparent");
-  else                        document.execCommand(cmd,false,null);
-  editor.focus(); syncPreview();
+editor?.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'b') { document.execCommand('bold'); e.preventDefault(); }
+  if (e.ctrlKey && e.key === 'i') { document.execCommand('italic'); e.preventDefault(); }
+  if (e.ctrlKey && e.key === 's') { saveEditor(); e.preventDefault(); }
 });
-$("foreColor").oninput = e=>{ document.execCommand("foreColor", false, e.target.value); syncPreview(); };
-$("backColor").oninput = e=>{ document.execCommand("hiliteColor",false, e.target.value); syncPreview(); };
-editor.addEventListener("keydown",e=>{
-  if(e.ctrlKey&&e.key==='b'){document.execCommand('bold');  e.preventDefault();}
-  if(e.ctrlKey&&e.key==='i'){document.execCommand('italic');e.preventDefault();}
-  if(e.ctrlKey&&e.key==='s'){saveEditor();                 e.preventDefault();}
-});
-editor.addEventListener("input",syncPreview);
+editor?.addEventListener('input', syncPreview);
 
-/* ---------- 初始文字 ---------- */
-(async()=>{
-  const raw = await fetch('/api/editor').then(r=>r.text());
+(async () => {
+  if (!editor) return;
+  const raw = await fetch('/api/editor').then(r => r.text()).catch(() => '');
   editor.innerHTML = raw;
   syncPreview();
   applyPreviewContainerStyle();
 })();
 
-/* ---------- 針對「選取文字」套用字號（px） ---------- */
 let lastRange = null;
 function saveSelection(){
   const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
+  if (sel && sel.rangeCount > 0 && editor) {
     const r = sel.getRangeAt(0);
-    if (editor.contains(r.commonAncestorContainer)) {
-      lastRange = r.cloneRange();
-    }
+    if (editor.contains(r.commonAncestorContainer)) lastRange = r.cloneRange();
   }
 }
-editor.addEventListener('mouseup', saveSelection);
-editor.addEventListener('keyup',   saveSelection);
-editor.addEventListener('mouseleave', saveSelection);
-document.addEventListener('selectionchange', ()=>{
+editor?.addEventListener('mouseup', saveSelection);
+editor?.addEventListener('keyup', saveSelection);
+editor?.addEventListener('mouseleave', saveSelection);
+document.addEventListener('selectionchange', () => {
   if (document.activeElement === editor) saveSelection();
 });
 
 function applyFontSizeToSelection(px){
-  const size = parseInt(px,10);
-  if (!size || size <= 0) return;
-
+  const size = parseInt(px, 10);
+  if (!size || size <= 0 || !editor) return;
   const sel = window.getSelection();
-  let range = (lastRange && lastRange.cloneRange()) || (sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null);
-  if (!range || range.collapsed) return;
-  if (!editor.contains(range.commonAncestorContainer)) return;
-
-  const frag    = range.extractContents();
+  const range = (lastRange && lastRange.cloneRange()) || (sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null);
+  if (!range || range.collapsed || !editor.contains(range.commonAncestorContainer)) return;
+  const frag = range.extractContents();
   const wrapper = document.createElement('span');
   wrapper.style.fontSize = `${size}px`;
   wrapper.appendChild(frag);
   range.insertNode(wrapper);
-
   sel.removeAllRanges();
   range.selectNodeContents(wrapper);
   sel.addRange(range);
   saveSelection();
-
   syncPreview();
 }
 function handleFontSizeInput(){
   const v = fontSizeCtrl.value.trim();
-  const px = (v.endsWith('px') ? v.slice(0,-2) : v);
-  applyFontSizeToSelection(px);
+  applyFontSizeToSelection(v.endsWith('px') ? v.slice(0, -2) : v);
 }
-fontSizeCtrl.addEventListener('change', handleFontSizeInput);
-fontSizeCtrl.addEventListener('keydown', e=>{
+fontSizeCtrl?.addEventListener('change', handleFontSizeInput);
+fontSizeCtrl?.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); handleFontSizeInput(); }
 });
 
-/* ---------- 儲存前：把非 px 的字級轉為 px ---------- */
 function normalizeFontSizesToPx(rootEl){
   const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_ELEMENT, null);
   const els = [];
   while (walker.nextNode()) els.push(walker.currentNode);
-
-  els.forEach(el=>{
+  els.forEach(el => {
     if (el.tagName === 'FONT' && el.hasAttribute('size')) {
+      const map = { 1:10, 2:13, 3:16, 4:18, 5:24, 6:32, 7:48 };
       const s = el.getAttribute('size');
-      const map = {1:10,2:13,3:16,4:18,5:24,6:32,7:48};
-      const px = map[s] || parseInt(s,10) || 16;
-      el.style.fontSize = `${px}px`;
+      el.style.fontSize = `${map[s] || parseInt(s, 10) || DEFAULT_MESSAGE_FONT_SIZE}px`;
       el.removeAttribute('size');
     }
-    const fs = el.style.fontSize;
-    if (fs && !fs.endsWith('px')) {
-      const px = window.getComputedStyle(el).fontSize;
-      el.style.fontSize = px;
+    if (el.style.fontSize && !el.style.fontSize.endsWith('px')) {
+      el.style.fontSize = window.getComputedStyle(el).fontSize;
     }
   });
 }
 
-/* ---------- 組合要給 message.html 的容器 CSS ---------- */
 function buildCSS(){
-  const basePx = parseInt(fontSizeInp.value||16,10);
-  const pageBg = pageBgTransparent.checked ? 'transparent' : (pageBgColor.value || '#ffffff');
+  const pageBg = pageBgTransparent?.checked ? 'transparent' : (pageBgColor?.value || '#ffffff');
   return `html,body{background:${pageBg};margin:0;padding:0;}
 #msgBox{
-  font-size:${basePx}px;
-  color:${fontColorInp.value};
+  font-size:${DEFAULT_MESSAGE_FONT_SIZE}px;
+  color:${DEFAULT_MESSAGE_COLOR};
   white-space:nowrap;
   text-align:left;
   line-height:1;
@@ -238,184 +224,115 @@ function buildCSS(){
 }`;
 }
 
-/* ---------- 儲存文字 ---------- */
 async function saveEditor(){
+  if (!editor) return;
   normalizeFontSizesToPx(editor);
-
   const html = editor.innerHTML;
-  await fetch('/api/editor/save',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text:html})
+  const css = buildCSS();
+  await fetch('/api/editor/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: html })
   });
-
+  await fetch('/api/style/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ css })
+  }).catch(() => {});
   syncPreview();
   applyPreviewContainerStyle();
-
-  // 即時同步到 message.html
-  bcStyle.postMessage({type:'update-html',html});
-  bcStyle.postMessage({type:'set-css',css:buildCSS()});
-
-  // 觸發 /style.css 重新載入（若剛上傳字體）
-  const core = document.getElementById('coreStyle');
-  if (core) core.href = '/style.css?t=' + Date.now();
+  bcStyle.postMessage({ type: 'update-html', html });
+  bcStyle.postMessage({ type: 'set-css', css });
+  showToast('自訂文字已儲存');
 }
-saveBtn.onclick = saveEditor;
+saveBtn?.addEventListener('click', saveEditor);
 
-/* ---------- 清空 ---------- */
-clearBtn.onclick = async ()=>{
-  editor.innerHTML=''; syncPreview();
-  await fetch('/api/editor/clear',{method:'POST'});
-  bcStyle.postMessage({type:'update-html',html:''});
-  bcStyle.postMessage({type:'set-css',css:buildCSS()});
-};
+clearBtn?.addEventListener('click', async () => {
+  if (!editor) return;
+  editor.innerHTML = '';
+  syncPreview();
+  await fetch('/api/editor/clear', { method: 'POST' });
+  bcStyle.postMessage({ type: 'update-html', html: '' });
+  bcStyle.postMessage({ type: 'set-css', css: buildCSS() });
+  showToast('自訂文字已清空');
+});
 
-/* ---------- 儲存樣式（整體） ---------- */
-$("saveStyleBtn").onclick = async ()=>{
-  const css=buildCSS();
-  await fetch('/api/style/save',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({css})
-  });
-  // 即時推送
-  bcStyle.postMessage({type:'set-css',css});
-};
-
-/* ---------- Dashboard UI helpers ---------- */
-const toast = $("toast");
-
-function showToast(message){
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add('show');
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(()=>toast.classList.remove('show'), 1800);
-}
-
-function getLocalUrl(path){
-  return `${location.origin}${path}`;
-}
-
+function getLocalUrl(path){ return `${location.origin}${path}`; }
 function hydrateOverlayUrls(){
-  const pairs = [
+  [
     ['lyricsUrl', '/html/display.html'],
     ['nowPlayingUrl', '/html/now-playing.html'],
     ['queueUrl', '/html/queue.html'],
     ['messageUrl', '/html/message.html']
-  ];
-
-  pairs.forEach(([id, path])=>{
+  ].forEach(([id, path]) => {
     const el = $(id);
     if (el) el.textContent = getLocalUrl(path);
   });
 }
-
-document.querySelectorAll('[data-copy]').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
+document.querySelectorAll('[data-copy]').forEach(btn => {
+  btn.addEventListener('click', async () => {
     const target = document.querySelector(btn.dataset.copy);
     const text = target?.textContent?.trim();
     if (!text) return;
-
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast('已複製 Overlay URL');
-    } catch (err) {
-      console.warn('Clipboard failed:', err);
-      showToast('無法自動複製，請手動選取 URL');
-    }
+    try { await navigator.clipboard.writeText(text); showToast('已複製 Overlay URL'); }
+    catch { showToast('無法自動複製，請手動選取 URL'); }
   });
 });
-
 hydrateOverlayUrls();
 
-/* ---------- Spotify 區（原功能保留 + 狀態卡片強化） ---------- */
-const loginBtn  = $("loginBtn");
-const trackInfo = $("trackInfo");
-const logView   = $("logView");
-const spotifyStatusPill = $("spotifyStatusPill");
-const lyricsSyncState = $("lyricsSyncState");
-const trackSubInfo = $("trackSubInfo");
-const trackCover = $("trackCover");
-const clearLogViewBtn = $("clearLogViewBtn");
-
-loginBtn.onclick = () => window.open('/api/spotify/auth/login','_blank');
-
+const loginBtn = $('loginBtn');
+const trackInfo = $('trackInfo');
+const logView = $('logView');
+const spotifyStatusPill = $('spotifyStatusPill');
+const trackSubInfo = $('trackSubInfo');
+const trackCover = $('trackCover');
+const clearLogViewBtn = $('clearLogViewBtn');
+loginBtn?.addEventListener('click', () => window.open('/api/spotify/auth/login', '_blank'));
 function setSpotifyPill(text, state){
   if (!spotifyStatusPill) return;
   spotifyStatusPill.textContent = text;
-  spotifyStatusPill.className = `statusPill ${state}`;
+  spotifyStatusPill.className = `statusPill ${state || ''}`;
 }
-
 function renderTrackCover(track){
   if (!trackCover) return;
-
   const cover = track?.cover_url || track?.cover_large_url || track?.cover_small_url;
-  if (cover) {
-    trackCover.innerHTML = `<img src="${cover}" alt="Album cover">`;
-  } else {
-    trackCover.textContent = '♪';
-  }
+  trackCover.innerHTML = cover ? `<img src="${cover}" alt="Album cover">` : '♪';
 }
-
 async function loadStatus(){
   try {
-    const st = await fetch('/api/spotify/status').then(r=>r.json());
-
-    if(!st.authorized){
+    const st = await fetch('/api/spotify/status').then(r => r.json());
+    if (!st.authorized) {
       trackInfo.textContent = '尚未授權 Spotify';
       if (trackSubInfo) trackSubInfo.textContent = '請按上方「登入 / 重新授權 Spotify」。';
-      if (lyricsSyncState) lyricsSyncState.textContent = '--';
-      renderTrackCover(null);
-      setSpotifyPill('未授權', 'statusError');
-      return;
+      renderTrackCover(null); setSpotifyPill('未授權', 'statusError'); return;
     }
-
-    if(!st.playing){
+    if (!st.playing) {
       trackInfo.textContent = 'Spotify 暫停中';
       if (trackSubInfo) trackSubInfo.textContent = '開始播放歌曲後，歌詞、目前播放與佇列頁會自動更新。';
-      if (lyricsSyncState) lyricsSyncState.textContent = '--';
-      renderTrackCover(null);
-      setSpotifyPill('暫停中', 'statusWarn');
-      return;
+      renderTrackCover(null); setSpotifyPill('暫停中', 'statusWarn'); return;
     }
-
     const track = st.track || {};
     trackInfo.textContent = `${track.artists || '未知歌手'} - ${track.name || '未知歌曲'}`;
     if (trackSubInfo) {
       const album = track.album ? `專輯：${track.album}` : '正在播放';
       trackSubInfo.textContent = `${album}・${st.lyricsSynced ? '已找到同步歌詞' : '尚未找到同步歌詞'}`;
     }
-    if (lyricsSyncState) lyricsSyncState.textContent = st.lyricsSynced ? '✅ 已同步' : '❌ 無歌詞';
-    renderTrackCover(track);
-    setSpotifyPill('播放中', 'statusOk');
+    renderTrackCover(track); setSpotifyPill('播放中', 'statusOk');
   } catch (err) {
     console.error('Failed to load Spotify status:', err);
     trackInfo.textContent = '讀取 Spotify 狀態失敗';
     if (trackSubInfo) trackSubInfo.textContent = '請確認 helper server 還在執行，或重新整理 Dashboard。';
-    if (lyricsSyncState) lyricsSyncState.textContent = '--';
-    renderTrackCover(null);
-    setSpotifyPill('連線錯誤', 'statusError');
+    renderTrackCover(null); setSpotifyPill('連線錯誤', 'statusError');
   }
 }
-
 async function loadLog(){
+  if (!logView) return;
   try {
-    const txt = await fetch('/api/spotify/log').then(r=>r.text());
+    const txt = await fetch('/api/spotify/log').then(r => r.text());
     logView.textContent = txt || '目前沒有 log。';
     logView.scrollTop = logView.scrollHeight;
-  } catch (err) {
-    logView.textContent = '讀取 log 失敗。';
-  }
+  } catch { logView.textContent = '讀取 log 失敗。'; }
 }
-
-if (clearLogViewBtn) {
-  clearLogViewBtn.addEventListener('click', ()=>{
-    logView.textContent = '';
-    showToast('已清除畫面上的 log');
-  });
-}
-
+clearLogViewBtn?.addEventListener('click', () => {
+  if (logView) logView.textContent = '';
+  showToast('已清除畫面上的 log');
+});
 loadStatus(); loadLog();
-setInterval(loadStatus,3000);
-setInterval(loadLog,6000);
+setInterval(loadStatus, 3000);
+setInterval(loadLog, 6000);

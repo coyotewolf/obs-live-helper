@@ -2,309 +2,107 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OBS Live Helper Dashboard</title>
   <link rel="stylesheet" href="../css/pages/dashboard.css">
   <script>addEventListener('load',()=>document.body.classList.add('is-ready'));</script>
 </head>
-
 <body>
-  <main class="dashboard-shell">
-    <header class="hero">
-      <div class="heroText">
-        <span class="eyebrow">OBS Live Helper</span>
-        <h1>直播 Overlay 控制台</h1>
-        <p>集中管理 Spotify 歌詞、目前播放、佇列清單與自訂文字畫面。先登入 Spotify，再把需要的 Overlay URL 加到 OBS Browser Source。</p>
-      </div>
+<main class="wrapper">
 
-      <div class="heroActions">
-        <button id="loginBtn" class="btnPrimary">登入 / 重新授權 Spotify</button>
-        <a class="btnGhost" href="/html/display.html" target="_blank">打開歌詞頁</a>
-      </div>
-    </header>
+  <header class="heroPanel">
+    <div>
+      <span class="eyebrow">OBS Live Helper</span>
+      <h1>直播 Overlay 控制台</h1>
+      <p>集中管理 Spotify 歌詞、目前播放、佇列清單與自訂文字公告。先登入 Spotify，再把需要的 Overlay URL 加到 OBS Browser Source。</p>
+    </div>
+    <div class="heroActions">
+      <button id="loginBtn" class="btnPrimary">登入 / 重新授權 Spotify</button>
+      <a class="btnGhost" href="/html/display.html" target="_blank">預覽歌詞頁</a>
+    </div>
+  </header>
 
-    <section class="quickStart card">
-      <div>
-        <span class="sectionKicker">Quick Start</span>
-        <h2>第一次使用照這樣做</h2>
-      </div>
+  <section class="quickGuide panel">
+    <span class="eyebrow">Quick Start</span>
+    <h2>第一次使用照這樣做</h2>
+    <div class="guideGrid">
+      <article><strong>01 啟動 Helper</strong><p>在專案資料夾執行 <code>npm start</code>，保持終端機視窗開著。</p></article>
+      <article><strong>02 登入 Spotify</strong><p>按上方登入按鈕。若改過 scope、token 過期或 queue 抓不到，就重新授權一次。</p></article>
+      <article><strong>03 加入 OBS</strong><p>在 OBS 新增 Browser Source，貼上下方需要的 Overlay URL。</p></article>
+      <article><strong>04 播放音樂</strong><p>Spotify 需要有 active device，歌詞、目前播放與佇列才會正常更新。</p></article>
+    </div>
+  </section>
 
-      <div class="stepsGrid">
-        <article class="stepCard">
-          <span class="stepNum">01</span>
-          <h3>啟動 Helper</h3>
-          <p>在專案資料夾執行 <code>npm start</code>，保持這個視窗開著。</p>
-        </article>
-        <article class="stepCard">
-          <span class="stepNum">02</span>
-          <h3>登入 Spotify</h3>
-          <p>按上方登入按鈕。如果修改過 scope 或 token 過期，就重新授權一次。</p>
-        </article>
-        <article class="stepCard">
-          <span class="stepNum">03</span>
-          <h3>加入 OBS</h3>
-          <p>複製下方 Overlay URL，在 OBS 新增 Browser Source 貼上。</p>
-        </article>
-        <article class="stepCard">
-          <span class="stepNum">04</span>
-          <h3>播放音樂</h3>
-          <p>Spotify 必須有正在播放的裝置，歌詞與佇列才會正常更新。</p>
-        </article>
-      </div>
-    </section>
+  <section class="overlayGrid">
+    <article class="overlayCard panel">
+      <div class="overlayIcon">♪</div>
+      <div class="overlayBody"><h3>歌詞 Overlay</h3><p>透明背景、同步歌詞、連續滾動與上下淡入淡出。</p><code id="lyricsUrl"></code></div>
+      <div class="overlayActions"><a href="/html/display.html" target="_blank">預覽</a><button class="btnMini" data-copy="#lyricsUrl">複製</button></div>
+    </article>
+    <article class="overlayCard panel">
+      <div class="overlayIcon">▶</div>
+      <div class="overlayBody"><h3>目前播放 Overlay</h3><p>顯示歌曲、歌手、封面與播放進度條。</p><code id="nowPlayingUrl"></code></div>
+      <div class="overlayActions"><a href="/html/now-playing.html" target="_blank">預覽</a><button class="btnMini" data-copy="#nowPlayingUrl">複製</button></div>
+    </article>
+    <article class="overlayCard panel">
+      <div class="overlayIcon">≡</div>
+      <div class="overlayBody"><h3>Up Next 佇列 Overlay</h3><p>顯示 Spotify queue 裡接下來的歌曲。</p><code id="queueUrl"></code></div>
+      <div class="overlayActions"><a href="/html/queue.html" target="_blank">預覽</a><button class="btnMini" data-copy="#queueUrl">複製</button></div>
+    </article>
+    <article class="overlayCard panel">
+      <div class="overlayIcon">T</div>
+      <div class="overlayBody"><h3>自訂文字公告 Overlay</h3><p>用下方編輯器寫臨時公告、標語、QR Code 說明文字，儲存後會同步到 message.html。</p><code id="messageUrl"></code></div>
+      <div class="overlayActions"><a href="/html/message.html" target="_blank">預覽</a><button class="btnMini" data-copy="#messageUrl">複製</button></div>
+    </article>
+  </section>
 
-    <section class="overlayGrid">
-      <article class="overlayCard card">
-        <div class="overlayIcon">♪</div>
-        <div class="overlayBody">
-          <h3>歌詞 Overlay</h3>
-          <p>透明背景、同步歌詞、連續滾動與上下淡入淡出。</p>
-          <code id="lyricsUrl">http://127.0.0.1:5172/html/display.html</code>
-        </div>
-        <div class="overlayActions">
-          <a href="/html/display.html" target="_blank">預覽</a>
-          <button class="btnMini" data-copy="#lyricsUrl">複製</button>
-        </div>
-      </article>
-
-      <article class="overlayCard card">
-        <div class="overlayIcon">▶</div>
-        <div class="overlayBody">
-          <h3>目前播放 Overlay</h3>
-          <p>顯示歌曲、歌手、封面與播放進度條。</p>
-          <code id="nowPlayingUrl">http://127.0.0.1:5172/html/now-playing.html</code>
-        </div>
-        <div class="overlayActions">
-          <a href="/html/now-playing.html" target="_blank">預覽</a>
-          <button class="btnMini" data-copy="#nowPlayingUrl">複製</button>
-        </div>
-      </article>
-
-      <article class="overlayCard card">
-        <div class="overlayIcon">≡</div>
-        <div class="overlayBody">
-          <h3>Up Next 佇列 Overlay</h3>
-          <p>顯示 Spotify queue 裡接下來的歌曲。</p>
-          <code id="queueUrl">http://127.0.0.1:5172/html/queue.html</code>
-        </div>
-        <div class="overlayActions">
-          <a href="/html/queue.html" target="_blank">預覽</a>
-          <button class="btnMini" data-copy="#queueUrl">複製</button>
-        </div>
-      </article>
-
-      <article class="overlayCard card">
-        <div class="overlayIcon">T</div>
-        <div class="overlayBody">
-          <h3>自訂文字 Overlay</h3>
-          <p>顯示下方文字編輯器儲存的內容，可用於公告、標語或聊天室提示。</p>
-          <code id="messageUrl">http://127.0.0.1:5172/html/message.html</code>
-        </div>
-        <div class="overlayActions">
-          <a href="/html/message.html" target="_blank">預覽</a>
-          <button class="btnMini" data-copy="#messageUrl">複製</button>
-        </div>
-      </article>
-    </section>
-
-    <section class="mainGrid">
-      <aside class="sideColumn">
-        <section id="spotifyBlock" class="card spotifyPanel">
-          <div class="panelHeader">
-            <div>
-              <span class="sectionKicker">Spotify</span>
-              <h2>播放狀態</h2>
-            </div>
-            <span id="spotifyStatusPill" class="statusPill statusIdle">檢查中</span>
-          </div>
-
-          <div class="trackCard">
-            <div id="trackCover" class="trackCover">♪</div>
-            <div class="trackMeta">
-              <div id="trackInfo">尚未播放</div>
-              <p id="trackSubInfo">等待 Spotify 狀態更新...</p>
-            </div>
-          </div>
-
-          <div class="miniInfoGrid">
-            <div>
-              <span>歌詞同步</span>
-              <strong id="lyricsSyncState">--</strong>
-            </div>
-            <div>
-              <span>更新頻率</span>
-              <strong>3s / 6s</strong>
-            </div>
-          </div>
-
-          <details class="helperBox" open>
-            <summary>使用提醒</summary>
-            <ul>
-              <li>Spotify 要有 active device，queue 與播放狀態才會正常。</li>
-              <li>換過 Spotify 權限、Redirect URI 或 token 失效時，請重新授權。</li>
-              <li>OBS 沒更新時，請在 Browser Source 按 Refresh cache。</li>
-            </ul>
-          </details>
-
-          <div class="logHeader">
-            <span>歌詞 / Spotify Log</span>
-            <button class="btnMini" id="clearLogViewBtn" type="button">清除畫面</button>
-          </div>
-          <pre id="logView"></pre>
-        </section>
-
-        <section id="styleBlock" class="card stylePanel">
-          <div class="panelHeader">
-            <div>
-              <span class="sectionKicker">Message Overlay</span>
-              <h2>整體樣式</h2>
-            </div>
-          </div>
-
-          <div class="formGrid">
-            <label>
-              <span>字大小(px)</span>
-              <input type="number" id="fontSizeInp" value="28" min="10" max="160">
-            </label>
-
-            <label>
-              <span>文字顏色</span>
-              <input type="color" id="fontColorInp" value="#ffffff">
-            </label>
-
-            <label>
-              <span>當前行顏色</span>
-              <input type="color" id="currentColorInp" value="#ffeb3b">
-            </label>
-
-            <label class="checkLine">
-              <input type="checkbox" id="boldChk">
-              <span>當前行粗體</span>
-            </label>
-
-            <label class="wide">
-              <span>垂直對齊</span>
-              <select id="alignSel">
-                <option value="flex-start">頂端</option>
-                <option value="center" selected>中間</option>
-                <option value="flex-end">底端</option>
-              </select>
-            </label>
-          </div>
-
-          <button id="saveStyleBtn" class="btnPrimary fullWidth">儲存樣式</button>
-          <p class="hintText">這裡主要控制自訂文字 Overlay；歌詞與目前播放 Overlay 使用各自的 CSS 檔案調整。</p>
-        </section>
-      </aside>
-
-      <section id="editorBlock" class="card editorPanel">
-        <div class="panelHeader">
-          <div>
-            <span class="sectionKicker">Text Overlay</span>
-            <h2>畫面文字編輯器</h2>
-          </div>
-          <div class="panelTools">
-            <a class="btnGhost small" href="/html/message.html" target="_blank">預覽文字頁</a>
-          </div>
-        </div>
-
-        <p class="panelIntro">編輯完成後按「儲存文字」，OBS 的 <code>message.html</code> 會即時同步。適合放直播標題、臨時公告、QR Code 說明文字等。</p>
-
-        <div id="toolbar" class="toolbar">
-          <button data-cmd="bold" title="粗體"><b>B</b></button>
-          <button data-cmd="italic" title="斜體"><i>I</i></button>
-          <button data-cmd="strikeThrough" title="刪除線"><s>S</s></button>
-          <button data-cmd="transparent" title="背景透明">⛶</button>
-
-          <label class="toolColor" title="文字顏色">
-            <span>字</span>
-            <input type="color" id="foreColor">
-          </label>
-
-          <label class="toolColor" title="背景顏色">
-            <span>底</span>
-            <input type="color" id="backColor">
-          </label>
-
-          <button data-cmd="justifyLeft" title="靠左">⬅</button>
-          <button data-cmd="justifyCenter" title="置中">≡</button>
-          <button data-cmd="justifyRight" title="靠右">➡</button>
-
-          <input id="fontSizeCtrl" type="text" list="sizeList" placeholder="選取字號(px)" title="選取文字後輸入數字或選擇建議，Enter 套用">
-          <datalist id="sizeList">
-            <option value="12"><option value="14"><option value="16"><option value="18"><option value="20">
-            <option value="24"><option value="28"><option value="32"><option value="36"><option value="48">
-            <option value="56"><option value="64"><option value="72"><option value="96">
-          </datalist>
-
-          <select id="fontSel" title="字體"></select>
-
-          <label class="pageBgControl">
-            <span>頁面底色</span>
-            <input type="color" id="pageBgColor" value="#ffffff" title="message.html 背景色">
-            <span class="checkInline">
-              <input type="checkbox" id="pageBgTransparent">
-              透明
-            </span>
-          </label>
-        </div>
-
-        <div class="editWrap">
-          <div class="editorPane">
-            <div class="paneTitle">編輯區</div>
-            <div id="editorArea" contenteditable="true"></div>
-          </div>
-
-          <div class="editorPane">
-            <div class="paneTitle">預覽區</div>
-            <div id="previewArea"></div>
-          </div>
-        </div>
-
-        <div class="fontUploadBox">
-          <div>
-            <strong>自訂字型</strong>
-            <p>支援 .ttf / .otf / .woff / .woff2。上傳後會加入字體選單。</p>
-          </div>
-          <div class="fontUploadActions">
-            <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden>
-            <label class="btnGhost" for="fontFile">選擇字型檔</label>
-            <button id="uploadFontBtn" class="btnPrimary" style="display:none">上傳</button>
-          </div>
-        </div>
-
-        <div class="actionRow">
-          <button id="saveTextBtn" class="btnPrimary">儲存文字</button>
-          <button id="clearTextBtn" class="btnDanger">清空文字</button>
-        </div>
+  <section class="mainGrid">
+    <aside id="leftColumn">
+      <section id="spotifyBlock" class="panel">
+        <div class="titleRow"><div><span class="eyebrow">Spotify</span><h2>播放狀態</h2></div><span id="spotifyStatusPill" class="statusPill">檢查中</span></div>
+        <div class="trackBox"><div id="trackCover" class="trackCover">♪</div><div><div id="trackInfo">尚未播放</div><p id="trackSubInfo">等待 Spotify 狀態更新...</p></div></div>
+        <div class="infoBox"><strong>使用提醒</strong><ul><li>OBS 沒更新時，在 Browser Source 按 Refresh cache。</li><li>如果 queue 空白，確認 Spotify 正在播放並重新授權。</li><li>如果歌詞顯示「無歌詞」，通常是 LRCLib 找不到同步歌詞。</li></ul></div>
+        <div class="logTitle"><span>Spotify / Lyrics Log</span><button id="clearLogViewBtn" class="btnMini" type="button">清除畫面</button></div>
+        <pre id="logView"></pre>
       </section>
-    </section>
+    </aside>
 
-    <section class="card docsPanel">
-      <div>
-        <span class="sectionKicker">Guide</span>
-        <h2>OBS 建議設定</h2>
+    <section id="editorBlock" class="panel">
+      <div class="titleRow editorTitleRow"><div><span class="eyebrow">Text Overlay</span><h2>自訂文字公告編輯器</h2></div><a class="btnGhost small" href="/html/message.html" target="_blank">預覽 message.html</a></div>
+      <p class="introText">這就是原本的 Message Overlay 功能：編輯一段文字，儲存後讓 OBS 的 <code>message.html</code> 顯示。適合直播公告、點歌 QR Code 說明、暫停畫面標語等。</p>
+
+      <div id="toolbar">
+        <button data-cmd="bold" title="粗體"><b>B</b></button>
+        <button data-cmd="italic" title="斜體"><i>I</i></button>
+        <button data-cmd="strikeThrough" title="刪除線"><s>S</s></button>
+        <button data-cmd="transparent" title="選取文字背景透明">⛶</button>
+        <label class="toolControl" title="文字顏色"><span>字</span><input type="color" id="foreColor"></label>
+        <label class="toolControl" title="背景顏色"><span>底</span><input type="color" id="backColor"></label>
+        <button data-cmd="justifyLeft" title="靠左">⬅</button>
+        <button data-cmd="justifyCenter" title="置中">≡</button>
+        <button data-cmd="justifyRight" title="靠右">➡</button>
+        <input id="fontSizeCtrl" type="text" list="sizeList" placeholder="選取字號(px)" title="選取文字後輸入數字或選擇建議，Enter 套用">
+        <datalist id="sizeList"><option value="12"><option value="14"><option value="16"><option value="18"><option value="20"><option value="24"><option value="28"><option value="32"><option value="36"><option value="48"><option value="56"><option value="64"><option value="72"><option value="96"></datalist>
+        <select id="fontSel" title="字體"></select>
+        <label class="pageBgControl"><span>頁面底色</span><input type="color" id="pageBgColor" value="#ffffff" title="message.html 背景色"><span class="inlineCheck"><input type="checkbox" id="pageBgTransparent">透明</span></label>
       </div>
 
-      <div class="docsGrid">
-        <div>
-          <h3>Browser Source 尺寸</h3>
-          <p>歌詞頁可用 1920×360 或 1920×520；目前播放建議 900×240；佇列建議 650×520。</p>
-        </div>
-        <div>
-          <h3>透明背景</h3>
-          <p>歌詞、目前播放、佇列頁面都已設計成透明背景；自訂文字頁可在工具列勾選「透明」。</p>
-        </div>
-        <div>
-          <h3>常見問題</h3>
-          <p>如果歌詞顯示「無歌詞」，通常是 LRCLib 找不到同步歌詞；如果 queue 空白，請確認 Spotify 正在播放且已重新授權。</p>
-        </div>
+      <div class="editWrap">
+        <div class="editorPane"><div class="paneTitle">編輯區</div><div id="editorArea" contenteditable="true"></div></div>
+        <div class="editorPane"><div class="paneTitle">預覽區</div><div id="previewArea"></div></div>
       </div>
+
+      <div class="fontUploadBox">
+        <div><strong>自訂字型</strong><p>支援 .ttf / .otf / .woff / .woff2。上傳後會加入字體選單，也會同步給 message.html 使用。</p></div>
+        <div class="fontUploadActions"><input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden><label class="btnGhost" for="fontFile">選擇字型檔</label><button id="uploadFontBtn" class="btnPrimary" style="display:none">上傳</button></div>
+      </div>
+
+      <div class="btnRow"><button id="saveTextBtn" class="btnPrimary">儲存文字</button><button id="clearTextBtn" class="btnDanger">清空文字</button></div>
     </section>
-  </main>
+  </section>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-  <script src="../js/dashboard.js"></script>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="../js/dashboard.js"></script>
 </body>
 </html>
