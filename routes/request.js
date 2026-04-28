@@ -430,10 +430,17 @@ router.get('/search', requirePin, async (req, res) => {
   try {
     const { data } = await axios.get('https://api.spotify.com/v1/search', {
       headers: { Authorization: `Bearer ${access_token}` },
-      params: { q, type: 'track', limit: 8, market: 'from_token' }
+      params: { q, type: 'track', limit: 8 }
     });
     res.json({ ok: true, tracks: (data.tracks?.items || []).map(normalizeTrack).filter(Boolean), settings: publicSettings(settings) });
   } catch (err) {
+    if (err.response?.status === 403) {
+      return res.status(403).json({
+        ok: false,
+        error: 'search_forbidden',
+        message: 'Spotify 拒絕搜尋請求。請回 Dashboard 重新授權；如果仍失敗，請確認登入帳號已加入 Spotify Developer App 的使用者名單。搜尋本身不需要 Premium。'
+      });
+    }
     spotifyErrorResponse(res, err, '搜尋歌曲失敗');
   }
 });

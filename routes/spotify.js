@@ -2,9 +2,9 @@
  * /api/spotify routes
  */
 const router = require('express').Router();
-const axios = require('axios');
-const { generateCodePair, exchangeCodeForToken, getAccessToken } = require('../services/spotifyAuth');
-const { isLyricsSynced, performLyricSync } = require('../services/lyricsFetcher');
+const { generateCodePair, exchangeCodeForToken } = require('../services/spotifyAuth');
+const { isLyricsSynced } = require('../services/lyricsFetcher');
+const { getCurrentPlayback, getQueue } = require('../services/spotifyPlayback');
 const fs = require('fs');
 const path = require('path');
 
@@ -59,63 +59,42 @@ router.get('/callback', async (req, res) => {
 
 /**
  * Current playback / lyric sync status
+ * Uses shared cache; does NOT call Spotify directly every time.
  */
 router.get('/status', async (req, res) => {
-  const access_token = await getAccessToken();
-  if (!access_token) return res.json({ authorized: false });
-
   try {
-    const { data, status } = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
-      headers: { Authorization: `Bearer ${access_token}` },
+    const playback = await getCurrentPlayback();
+
+    if (!playback.authorized) return res.json({ authorized: false });
+    if (!playback.track) {
+      return res.json({
+        authorized: true,
+        playing: false,
+        rate_limited: Boolean(playback.rate_limited),
+        retry_after_ms: playback.retry_after_ms || 0
+      });
+    }
+
+    const lyricsSynced = isLyricsSynced(playback.track);
+    res.json({
+      authorized: true,
+      playing: Boolean(playback.playing),
+      track: playback.track,
+      lyricsSynced,
+      rate_limited: Boolean(playback.rate_limited),
+      retry_after_ms: playback.retry_after_ms || 0
     });
-
-    if (status === 204 || !data) {
-      return res.json({ authorized: true, playing: false });
-    }
-
-    await performLyricSync();
-
-    const updatedData = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
-      headers: { Authorization: `Bearer ${access_token}` },
-    }).then(r => r.data);
-
-    if (!updatedData || !updatedData.item) {
-      return res.json({ authorized: true, playing: false });
-    }
-
-    const images = updatedData.item?.album?.images || [];
-    const largestImage = images[0]?.url || '';
-    const mediumImage = images[1]?.url || largestImage;
-    const smallImage = images[2]?.url || mediumImage;
-
-    const track = {
-      id: updatedData.item?.id,
-      uri: updatedData.item?.uri,
-      name: updatedData.item?.name,
-      artists: updatedData.item?.artists?.map(a => a.name).join(', '),
-      album: updatedData.item?.album?.name || '',
-      album_images: images,
-      cover_url: mediumImage,
-      cover_large_url: largestImage,
-      cover_small_url: smallImage,
-      progress_ms: updatedData.progress_ms || 0,
-      duration_ms: updatedData.item?.duration_ms || 0,
-      is_playing: updatedData.is_playing,
-      external_url: updatedData.item?.external_urls?.spotify || '',
-      device: updatedData.device ? {
-        id: updatedData.device.id,
-        name: updatedData.device.name,
-        type: updatedData.device.type,
-        volume_percent: updatedData.device.volume_percent
-      } : null,
-      fetched_at: Date.now()
-    };
-
-    const lyricsSynced = isLyricsSynced(track);
-
-    res.json({ authorized: true, playing: true, track, lyricsSynced });
   } catch (err) {
     console.error('status error:', err.response?.data || err.message);
+
+    if (err.response?.status === 429) {
+      return res.status(429).json({
+        authorized: true,
+        error: 'rate_limited',
+        message: 'Spotify API 暫時限制請求，請稍後再試。'
+      });
+    }
+
     res.status(500).json({ authorized: true, error: 'failed to fetch playback' });
   }
 });
@@ -124,53 +103,17 @@ router.get('/status', async (req, res) => {
  * Upcoming Spotify queue for OBS "Up Next" overlay
  */
 router.get('/queue', async (req, res) => {
-  const access_token = await getAccessToken();
-  if (!access_token) {
-    return res.json({
-      authorized: false,
-      queue: []
-    });
-  }
-
   try {
-    const { data } = await axios.get('https://api.spotify.com/v1/me/player/queue', {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
-
-    const normalizeTrack = (item) => {
-      if (!item || item.type !== 'track') return null;
-
-      const images = item.album?.images || [];
-      const largestImage = images[0]?.url || '';
-      const mediumImage = images[1]?.url || largestImage;
-      const smallImage = images[2]?.url || mediumImage;
-
-      return {
-        id: item.id,
-        uri: item.uri,
-        name: item.name || '未知歌曲',
-        artists: item.artists?.map(a => a.name).join(', ') || '未知歌手',
-        album: item.album?.name || '',
-        album_images: images,
-        cover_url: mediumImage,
-        cover_large_url: largestImage,
-        cover_small_url: smallImage,
-        duration_ms: item.duration_ms || 0,
-        external_url: item.external_urls?.spotify || ''
-      };
-    };
-
-    const currentlyPlaying = normalizeTrack(data.currently_playing);
-    const queue = (data.queue || [])
-      .map(normalizeTrack)
-      .filter(Boolean)
-      .slice(0, 8);
+    const data = await getQueue();
+    if (!data.authorized) return res.json({ authorized: false, queue: [] });
 
     return res.json({
       authorized: true,
-      currently_playing: currentlyPlaying,
-      queue,
-      fetched_at: Date.now()
+      currently_playing: data.currently_playing || null,
+      queue: data.queue || [],
+      fetched_at: data.fetched_at || Date.now(),
+      rate_limited: Boolean(data.rate_limited),
+      retry_after_ms: data.retry_after_ms || 0
     });
   } catch (err) {
     const spotifyError = err.response?.data;
@@ -189,6 +132,14 @@ router.get('/queue', async (req, res) => {
         authorized: true,
         queue: [],
         error: 'no_active_device'
+      });
+    }
+
+    if (err.response?.status === 429) {
+      return res.status(429).json({
+        authorized: true,
+        queue: [],
+        error: 'rate_limited'
       });
     }
 

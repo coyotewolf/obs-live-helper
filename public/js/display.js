@@ -1,7 +1,7 @@
 // === CONFIG ===
 const LRC_URL = '/lyrics/current.lrc';
 const STATUS_URL = '/api/spotify/status';
-const POLL_MS = 1000;
+const POLL_MS = 2000;
 const NO_LYRICS_TEXT = '找沒歌詞><';
 const LOADING_TEXT = '正在載入歌詞...';
 
@@ -19,6 +19,7 @@ let trackEl = null;
 let lineEls = [];
 let retryTimer = null;
 let staleRetryCount = 0;
+let statusBackoffUntil = 0;
 
 function toMs(timeText) {
   const [min, sec] = timeText.split(':');
@@ -213,11 +214,19 @@ async function fetchLRC(expectedTrackKey = currentTrackKey) {
 }
 
 async function tick() {
+  if (statusBackoffUntil > Date.now()) return;
+
   try {
-    status = await fetch(`${STATUS_URL}?_t=${Date.now()}`, { cache: 'no-store' }).then(response => response.json());
+    const response = await fetch(`${STATUS_URL}?_t=${Date.now()}`, { cache: 'no-store' });
+    status = await response.json();
+
+    if (response.status === 429 || status.error === 'rate_limited') {
+      const waitMs = status.retry_after_ms || 8000;
+      statusBackoffUntil = Date.now() + waitMs;
+      return;
+    }
   } catch (error) {
     console.error('Failed to fetch Spotify status:', error);
-    clearLyrics();
     return;
   }
 
@@ -257,6 +266,11 @@ async function tick() {
   }
 
   if (lyricsState === 'not_found' || lrcLines.length === 0) {
+    // The backend may write current.lrc a moment after the track changed.
+    // Keep retrying slowly so OBS does not require manual Browser Source refresh.
+    if (!isLoadingLyrics && currentTrackKey) {
+      scheduleLrcRetry(2500);
+    }
     renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
     return;
   }
