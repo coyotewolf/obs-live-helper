@@ -56,12 +56,61 @@
     </article>
   </section>
 
+
+  <section class="requestPanel panel">
+    <div class="requestInfo">
+      <span class="eyebrow">Audience Control</span>
+      <h2>掃 QR Code 點歌 / 遙控 Spotify</h2>
+      <p>觀眾掃描後可以搜尋歌曲、加入佇列、立即插播，也可以暫停、開始播放、上一首與下一首。這個連結包含臨時權限碼，只建議在信任的直播或教室環境使用。</p>
+
+      <div class="requestUrlBox">
+        <span>觀眾手機開這個網址</span>
+        <code id="audienceRequestUrl">產生中...</code>
+        <button class="btnMini" data-copy="#audienceRequestUrl">複製</button>
+      </div>
+
+      <div class="requestUrlBox mutedBox">
+        <span>本機預覽</span>
+        <code id="audienceLocalUrl">產生中...</code>
+        <button class="btnMini" data-copy="#audienceLocalUrl">複製</button>
+      </div>
+
+      <div class="remoteControlRow">
+        <button class="btnGhost" data-remote-control="previous">上一首</button>
+        <button class="btnGhost" data-remote-control="pause">暫停</button>
+        <button class="btnPrimary" data-remote-control="play">播放</button>
+        <button class="btnGhost" data-remote-control="next">下一首</button>
+      </div>
+
+      <div class="infoBox warningBox">
+        <strong>重要提醒</strong>
+        <ul>
+          <li>第一次使用請重新授權 Spotify，這版新增了播放控制權限。</li>
+          <li>Spotify 播放控制通常需要 Premium，且必須有 active device。</li>
+          <li>QR Code 連結能控制你的 Spotify，不要公開貼給不信任的人。</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="qrCard">
+      <div class="qrFrame">
+        <img id="requestQrImg" alt="Audience request QR Code">
+      </div>
+      <div class="qrMeta">
+        <span>臨時權限碼</span>
+        <strong id="requestPin">------</strong>
+      </div>
+      <button id="refreshRequestQrBtn" class="btnGhost fullWidth" type="button">重新產生 / 重新讀取 QR Code</button>
+      <a class="btnPrimary fullWidth" href="/html/request.html" target="_blank">開啟點歌頁預覽</a>
+    </div>
+  </section>
+
   <section class="mainGrid">
     <aside id="leftColumn">
       <section id="spotifyBlock" class="panel">
         <div class="titleRow"><div><span class="eyebrow">Spotify</span><h2>播放狀態</h2></div><span id="spotifyStatusPill" class="statusPill">檢查中</span></div>
         <div class="trackBox"><div id="trackCover" class="trackCover">♪</div><div><div id="trackInfo">尚未播放</div><p id="trackSubInfo">等待 Spotify 狀態更新...</p></div></div>
-        <div class="infoBox"><strong>使用提醒</strong><ul><li>OBS 沒更新時，在 Browser Source 按 Refresh cache。</li><li>如果 queue 空白，確認 Spotify 正在播放並重新授權。</li><li>如果歌詞顯示「無歌詞」，通常是 LRCLib 找不到同步歌詞。</li></ul></div>
+        <div class="infoBox"><strong>使用提醒</strong><ul><li>OBS 沒更新時，在 Browser Source 按 Refresh cache。</li><li>如果 queue 空白或播放控制失敗，確認 Spotify 正在播放並重新授權。</li><li>如果歌詞顯示「無歌詞」，通常是 LRCLib 找不到同步歌詞。</li></ul></div>
         <div class="logTitle"><span>Spotify / Lyrics Log</span><button id="clearLogViewBtn" class="btnMini" type="button">清除畫面</button></div>
         <pre id="logView"></pre>
       </section>

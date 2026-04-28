@@ -336,3 +336,64 @@ clearLogViewBtn?.addEventListener('click', () => {
 loadStatus(); loadLog();
 setInterval(loadStatus, 3000);
 setInterval(loadLog, 6000);
+
+
+/* ---------- Audience QR request + remote controls ---------- */
+const audienceRequestUrl = $('audienceRequestUrl');
+const audienceLocalUrl = $('audienceLocalUrl');
+const requestQrImg = $('requestQrImg');
+const requestPinEl = $('requestPin');
+const refreshRequestQrBtn = $('refreshRequestQrBtn');
+let currentRequestPin = '';
+
+async function loadRequestInfo(){
+  try{
+    const info = await fetch('/api/request/info').then(r=>r.json());
+    if(!info.ok) throw new Error(info.message || 'QR Code 資訊讀取失敗');
+
+    currentRequestPin = info.pin || '';
+    if(audienceRequestUrl) audienceRequestUrl.textContent = info.lanUrl || '';
+    if(audienceLocalUrl) audienceLocalUrl.textContent = info.localUrl || '';
+    if(requestQrImg && info.qrDataUrl) requestQrImg.src = info.qrDataUrl;
+    if(requestPinEl) requestPinEl.textContent = info.pin || '------';
+  }catch(err){
+    console.error('Failed to load request info:', err);
+    if(audienceRequestUrl) audienceRequestUrl.textContent = 'QR Code 資訊讀取失敗';
+    showToast('QR Code 資訊讀取失敗');
+  }
+}
+
+refreshRequestQrBtn?.addEventListener('click', loadRequestInfo);
+
+document.querySelectorAll('[data-remote-control]').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    const action = btn.dataset.remoteControl;
+    if(!currentRequestPin){
+      await loadRequestInfo();
+    }
+
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = '處理中...';
+
+    try{
+      const res = await fetch('/api/request/control', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ pin: currentRequestPin, action })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok) throw new Error(data.message || '播放控制失敗');
+      showToast(data.message || '已送出播放控制');
+      loadStatus();
+    }catch(err){
+      console.error('Remote control failed:', err);
+      showToast(err.message || '播放控制失敗');
+    }finally{
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  });
+});
+
+loadRequestInfo();

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify 點歌與遙控</title>
+  <link rel="stylesheet" href="../css/pages/request.css">
+</head>
+<body>
+  <main class="requestShell">
+    <header class="hero">
+      <span class="eyebrow">OBS Live Helper</span>
+      <h1>點歌 / 遙控 Spotify</h1>
+      <p>搜尋歌曲後可以加入佇列，或立即插播。也可以控制播放、暫停、上一首與下一首。</p>
+    </header>
+
+    <section class="panel controlPanel">
+      <h2>播放控制</h2>
+      <div class="controlGrid">
+        <button data-action="previous">上一首</button>
+        <button data-action="pause">暫停</button>
+        <button data-action="play" class="primary">播放</button>
+        <button data-action="next">下一首</button>
+      </div>
+      <p id="controlHint" class="hint">如果按鈕失敗，可能是 Spotify 沒有正在播放的裝置，或帳號沒有播放控制權限。</p>
+    </section>
+
+    <section class="panel">
+      <h2>搜尋歌曲</h2>
+      <form id="searchForm" class="searchRow">
+        <input id="searchInput" type="search" placeholder="輸入歌名、歌手或關鍵字" autocomplete="off">
+        <button type="submit" class="primary">搜尋</button>
+      </form>
+      <div id="resultList" class="resultList">
+        <p class="emptyText">輸入關鍵字後開始搜尋。</p>
+      </div>
+    </section>
+
+    <footer>
+      <p>這個頁面只能透過 Dashboard 的 QR Code 使用。請不要把連結傳給不信任的人。</p>
+    </footer>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="../js/request.js"></script>
+</body>
+</html>

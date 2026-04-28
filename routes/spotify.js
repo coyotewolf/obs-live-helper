@@ -3,8 +3,8 @@
  */
 const router = require('express').Router();
 const axios = require('axios');
-const { generateCodePair, exchangeCodeForToken, getAccessToken, readTokens } = require('../services/spotifyAuth');
-const { isLyricsSynced, performLyricSync } = require('../services/lyricsFetcher'); // 引入 performLyricSync
+const { generateCodePair, exchangeCodeForToken, getAccessToken } = require('../services/spotifyAuth');
+const { isLyricsSynced, performLyricSync } = require('../services/lyricsFetcher');
 const fs = require('fs');
 const path = require('path');
 
@@ -12,10 +12,11 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 const SCOPES = [
   'user-read-playback-state',
-  'user-read-currently-playing'
+  'user-read-currently-playing',
+  'user-modify-playback-state'
 ].join(' ');
 
-// in-memory code verifier just for single‑user local app
+// in-memory code verifier just for single-user local app
 let CODE_VERIFIER = null;
 
 /**
@@ -72,27 +73,16 @@ router.get('/status', async (req, res) => {
       return res.json({ authorized: true, playing: false });
     }
 
-    // 獲取當前播放歌曲的識別符
-    const currentTrackIdentifier = data.item?.id || data.item?.name;
-
-    // 為了避免重複同步，我們需要檢查 lastTrackId 和 lastSyncedObj
-    // 由於這些變數在 lyricsFetcher.js 內部，我們不能直接訪問。
-    // 最好的方法是讓 performLyricSync 函數內部處理這個檢查。
-
-    // 強制執行一次歌詞同步，並等待其完成
     await performLyricSync();
 
-    // 重新獲取最新的 Spotify 狀態，因為 performLyricSync 可能會改變它
     const updatedData = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
-      headers: { Authorization: `Bearer ${access_token}` }, // 使用之前獲取的 token
+      headers: { Authorization: `Bearer ${access_token}` },
     }).then(r => r.data);
 
-    // 如果 updatedData 不存在，則返回錯誤
     if (!updatedData || !updatedData.item) {
       return res.json({ authorized: true, playing: false });
     }
 
-    // 使用更新後的數據構建 track 物件
     const images = updatedData.item?.album?.images || [];
     const largestImage = images[0]?.url || '';
     const mediumImage = images[1]?.url || largestImage;
@@ -113,6 +103,7 @@ router.get('/status', async (req, res) => {
       is_playing: updatedData.is_playing,
       external_url: updatedData.item?.external_urls?.spotify || '',
       device: updatedData.device ? {
+        id: updatedData.device.id,
         name: updatedData.device.name,
         type: updatedData.device.type,
         volume_percent: updatedData.device.volume_percent
@@ -120,7 +111,6 @@ router.get('/status', async (req, res) => {
       fetched_at: Date.now()
     };
 
-    // lyrics sync flag placeholder (step4 will update)
     const lyricsSynced = isLyricsSynced(track);
 
     res.json({ authorized: true, playing: true, track, lyricsSynced });
@@ -129,8 +119,6 @@ router.get('/status', async (req, res) => {
     res.status(500).json({ authorized: true, error: 'failed to fetch playback' });
   }
 });
-
-
 
 /**
  * Upcoming Spotify queue for OBS "Up Next" overlay
