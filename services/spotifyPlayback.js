@@ -169,7 +169,10 @@ async function getCurrentPlayback(options = {}) {
       if (err.response?.status === 429) {
         const waitMs = getRetryAfterMs(err);
         playbackBackoffUntil = Date.now() + waitMs;
-        console.warn(`Spotify playback rate limited. Backing off for ${Math.ceil(waitMs / 1000)}s.`);
+        const rawRetryAfter = err.response?.headers?.['retry-after'];
+        console.warn(
+          `Spotify playback rate limited. Retry-After=${rawRetryAfter || 'not provided'}, backing off for ${Math.ceil(waitMs / 1000)}s.`
+        );
         if (playbackCache) return { ...withLiveProgress(playbackCache), rate_limited: true, retry_after_ms: waitMs };
         return { authorized: true, playing: false, track: null, rate_limited: true, retry_after_ms: waitMs, fetched_at: Date.now() };
       }
@@ -224,7 +227,10 @@ async function getQueue(options = {}) {
       if (err.response?.status === 429) {
         const waitMs = getRetryAfterMs(err);
         queueBackoffUntil = Date.now() + waitMs;
-        console.warn(`Spotify queue rate limited. Backing off for ${Math.ceil(waitMs / 1000)}s.`);
+        const rawRetryAfter = err.response?.headers?.['retry-after'];
+        console.warn(
+          `Spotify queue rate limited. Retry-After=${rawRetryAfter || 'not provided'}, backing off for ${Math.ceil(waitMs / 1000)}s.`
+        );
         if (queueCache) return { ...queueCache, rate_limited: true, retry_after_ms: waitMs };
         return { authorized: true, queue: [], rate_limited: true, retry_after_ms: waitMs };
       }
