@@ -22,13 +22,14 @@ let lastSyncedObj = null;
 let lastLoggedTrackId = null;
 let lastLoggedLrcSynced = false;
 let lastLoggedLrcNotFound = false;
+let lastLoggedFuzzySearchTrackId = null;
 let activeSyncPromise = null;
 let lrclibBackoffUntil = 0;
 let currentTrackAttemptCount = 0;
 let lastLyricAttemptAt = 0;
 
 const SAME_TRACK_RETRY_MS = Number(process.env.LYRICS_SAME_TRACK_RETRY_MS || 8000);
-const MAX_SAME_TRACK_RETRIES = Number(process.env.LYRICS_MAX_SAME_TRACK_RETRIES || 12);
+const MAX_SAME_TRACK_RETRIES = Number(process.env.LYRICS_MAX_SAME_TRACK_RETRIES || 3);
 const LRCLIB_TIMEOUT_MS = Number(process.env.LRCLIB_TIMEOUT_MS || 8000);
 const LRCLIB_MAX_BACKOFF_MS = Number(process.env.LRCLIB_MAX_BACKOFF_MS || 60000);
 
@@ -50,8 +51,8 @@ function writeCurrentLrc(text) {
   fs.renameSync(tempPath, LRC_FILE);
 }
 
-function buildMetadata(trackId, artists, album) {
-  return `[ti:${trackId || ''}]\n[ar:${artists || ''}]\n[al:${album || ''}]\n`;
+function buildMetadata(trackId, artists, album, obsStatus = 'searching') {
+  return `[ti:${trackId || ''}]\n[ar:${artists || ''}]\n[al:${album || ''}]\n[obsstatus:${obsStatus}]\n`;
 }
 
 function getRetryAfterMs(err) {
@@ -299,13 +300,14 @@ async function searchLrclib(context) {
   throw new Error('LRCLib synced lyrics not found after exact + fuzzy search');
 }
 
-async function fetchLyricsLRC({ artists, title, album, duration_ms }) {
+async function fetchLyricsLRC({ trackId, artists, title, album, duration_ms }) {
   const artistList = splitArtists(artists);
   const firstArtist = artistList[0] || artists;
   const cleanedTitle = cleanTrackTitle(title);
   const durationSec = duration_ms ? Math.round(duration_ms / 1000) : null;
 
   const context = {
+    trackId,
     artists,
     firstArtist,
     title,
@@ -320,7 +322,10 @@ async function fetchLyricsLRC({ artists, title, album, duration_ms }) {
     return exact;
   }
 
-  logLine(`ℹ️ LRCLib exact match not found, trying fuzzy search: ${firstArtist} - ${cleanedTitle}`);
+  if (lastLoggedFuzzySearchTrackId !== trackId) {
+    logLine(`ℹ️ LRCLib exact match not found, trying fuzzy search: ${firstArtist} - ${cleanedTitle}`);
+    lastLoggedFuzzySearchTrackId = trackId;
+  }
   return searchLrclib(context);
 }
 
@@ -360,6 +365,7 @@ async function performLyricSyncCore() {
     lastSyncedAt = Date.now();
     lastLoggedLrcSynced = false;
     lastLoggedLrcNotFound = false;
+    lastLoggedFuzzySearchTrackId = null;
     currentTrackAttemptCount = 0;
     lastLyricAttemptAt = 0;
 
@@ -374,10 +380,11 @@ async function performLyricSyncCore() {
 
   // Important: remove stale lyrics immediately on track switch.
   // Keep metadata so display.js can tell which track the LRC belongs to.
-  writeCurrentLrc(buildMetadata(trackId, artists, album));
+  writeCurrentLrc(buildMetadata(trackId, artists, album, 'searching'));
 
   try {
     const result = await fetchLyricsLRC({
+      trackId,
       artists,
       title: name,
       album,
@@ -387,7 +394,7 @@ async function performLyricSyncCore() {
     // If another sync changed the track while LRCLib was responding, do not write stale lyrics.
     if (lastTrackId !== trackId) return;
 
-    writeCurrentLrc(buildMetadata(trackId, artists, album) + result.lyrics);
+    writeCurrentLrc(buildMetadata(trackId, artists, album, 'ready') + result.lyrics);
 
     if (!lastLoggedLrcSynced) {
       const matchedName = result.matched?.trackName || result.matched?.name || name;
@@ -400,13 +407,16 @@ async function performLyricSyncCore() {
     lastSyncedAt = Date.now();
     currentTrackAttemptCount = 0;
   } catch (err) {
-    if (lastTrackId === trackId) writeCurrentLrc(buildMetadata(trackId, artists, album));
+    const reachedLimit = currentTrackAttemptCount >= MAX_SAME_TRACK_RETRIES;
+    if (lastTrackId === trackId) {
+      writeCurrentLrc(buildMetadata(trackId, artists, album, reachedLimit ? 'not_found' : 'searching'));
+    }
     lastSyncedObj = null;
 
-    if (!lastLoggedLrcNotFound || currentTrackAttemptCount === MAX_SAME_TRACK_RETRIES) {
-      const retryNote = currentTrackAttemptCount < MAX_SAME_TRACK_RETRIES
+    if (!lastLoggedLrcNotFound || reachedLimit) {
+      const retryNote = !reachedLimit
         ? `，將自動重試 ${currentTrackAttemptCount}/${MAX_SAME_TRACK_RETRIES}`
-        : '，已達重試上限';
+        : `，已達查找上限 ${MAX_SAME_TRACK_RETRIES}/${MAX_SAME_TRACK_RETRIES}`;
       logLine(`❌ LRC not found: ${err.message}${retryNote}`);
       lastLoggedLrcNotFound = true;
     }

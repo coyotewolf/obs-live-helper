@@ -2,7 +2,7 @@
 const LRC_URL = '/lyrics/current.lrc';
 const STATUS_URL = '/api/spotify/status';
 const POLL_MS = 2000;
-const NO_LYRICS_TEXT = '找沒歌詞><';
+const NO_LYRICS_TEXT = '找沒歌詞';
 const LOADING_TEXT = '正在搜尋歌詞...';
 
 // === DOM ===
@@ -38,7 +38,7 @@ function parseLRC(text) {
   text.split(/\r?\n/).forEach(rawLine => {
     const line = rawLine.trimEnd();
 
-    const metaMatch = line.match(/^\[(ti|ar|al|by|offset):([^\]]*)\]/i);
+    const metaMatch = line.match(/^\[([a-z][a-z0-9_-]*):([^\]]*)\]/i);
     if (metaMatch) {
       metadata[metaMatch[1].toLowerCase()] = metaMatch[2] || '';
       return;
@@ -201,10 +201,12 @@ async function fetchLRC(expectedTrackKey = currentTrackKey) {
 
     if (!text.trim() || lines.length === 0) {
       lrcLines = [];
+      const obsStatus = String(metadata.obsstatus || '').toLowerCase();
 
-      // If current.lrc belongs to the current track but only contains metadata,
-      // the backend is probably still fetching or retrying LRCLib. Keep trying.
-      if (expectedTrackKey && lrcTrackKey === expectedTrackKey) {
+      // lyricsFetcher writes obsstatus:searching while exact/fuzzy LRCLib lookup
+      // is still running or waiting for retry. Keep OBS stable on the searching
+      // message, and only show no lyrics after obsstatus:not_found.
+      if (obsStatus === 'searching' || (expectedTrackKey && lrcTrackKey === expectedTrackKey && obsStatus !== 'not_found')) {
         lyricsState = 'loading';
         scheduleLrcRetry(2200);
         renderMessage(LOADING_TEXT, 'message loading');
@@ -282,10 +284,12 @@ async function tick() {
   }
 
   if (lyricsState === 'not_found' || lrcLines.length === 0) {
-    // The backend may write current.lrc a moment after the track changed.
-    // Keep retrying slowly so OBS does not require manual Browser Source refresh.
+    // Re-read current.lrc so obsstatus changes from searching -> ready/not_found
+    // are picked up without manually refreshing the OBS Browser Source.
     if (!isLoadingLyrics && currentTrackKey) {
-      scheduleLrcRetry(2500);
+      isLoadingLyrics = true;
+      fetchLRC(currentTrackKey);
+      return;
     }
     renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
     return;
