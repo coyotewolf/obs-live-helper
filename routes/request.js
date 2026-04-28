@@ -296,8 +296,23 @@ function publicSettings(settings = getSettings()) {
   };
 }
 
-async function buildQrDataUrl(url) {
-  return QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, scale: 8 });
+async function buildQrDataUrl(url, options = {}) {
+  return QRCode.toDataURL(url, {
+    errorCorrectionLevel: 'M',
+    margin: 1,
+    scale: 8,
+    ...options
+  });
+}
+
+async function buildQrOverlayDataUrl(url) {
+  return buildQrDataUrl(url, {
+    scale: 10,
+    color: {
+      dark: '#000000ff',
+      light: '#ffffffcc'
+    }
+  });
 }
 
 /* Local-only bootstrap: lets the owner Dashboard obtain admin token without exposing it through a public tunnel. */
@@ -318,6 +333,32 @@ router.get('/admin-info', async (req, res) => {
     requests: readRequests().slice(-100).reverse(),
     urls,
     qrDataUrl
+  });
+});
+
+
+/* Local-only OBS QR overlay endpoint. Does not expose adminToken. */
+router.get('/qr-info', async (req, res) => {
+  if (!isLocalRequest(req)) {
+    return res.status(403).json({
+      ok: false,
+      error: 'local_only',
+      message: 'QR Overlay 資訊只能從本機 localhost / 127.0.0.1 讀取。'
+    });
+  }
+
+  const security = getSecurity();
+  const urls = getUrlBundle(security.requestPin);
+  const preferredUrl = urls.publicUrl || urls.lanUrl || urls.localUrl;
+  const qrDataUrl = await buildQrOverlayDataUrl(preferredUrl).catch(() => '');
+
+  res.json({
+    ok: true,
+    pin: security.requestPin,
+    url: preferredUrl,
+    urls,
+    qrDataUrl,
+    settings: publicSettings(getSettings())
   });
 });
 

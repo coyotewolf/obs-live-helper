@@ -259,7 +259,8 @@ function hydrateOverlayUrls(){
     ['lyricsUrl', '/html/display.html'],
     ['nowPlayingUrl', '/html/now-playing.html'],
     ['queueUrl', '/html/queue.html'],
-    ['messageUrl', '/html/message.html']
+    ['messageUrl', '/html/message.html'],
+    ['songQrUrl', '/html/songqrcode.html']
   ].forEach(([id, path]) => {
     const el = $(id);
     if (el) el.textContent = getLocalUrl(path);

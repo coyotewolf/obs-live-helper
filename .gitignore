@@ -1,9 +1,15 @@
 node_modules/
 .env
+tools/cloudflared
+tools/cloudflared.exe
 storage/spotify.json
 storage/security.json
 storage/public-url.json
 storage/request-settings.json
 storage/song-requests.json
 storage/lyrics.log
+storage/style.css
+lyrics/current.lrc
 .DS_Store
+tools/node-*/
+tools/*.zip

@@ -1,7 +1,6 @@
 // === CONFIG ===
 const LRC_URL = '/lyrics/current.lrc';
 const STATUS_URL = '/api/spotify/status';
-const WINDOW_SIZE = 3; // 維持原本設定：前後各 3 行，畫面約保留 7 行的視覺密度
 const POLL_MS = 1000;
 const NO_LYRICS_TEXT = '找沒歌詞><';
 const LOADING_TEXT = '正在載入歌詞...';
@@ -18,24 +17,8 @@ let status = {};
 let activeIndex = null;
 let trackEl = null;
 let lineEls = [];
-
-// === 解析 LRC ===
-function parseLRC(text) {
-  return text
-    .split(/\r?\n/)
-    .map(line => line.trimEnd())
-    .filter(line => !/^\[(ti|ar|al|by|offset):/i.test(line))
-    .map(line => {
-      const match = line.match(/^\[([0-9:.]+)]\s*(.*)$/);
-      if (!match) return null;
-      return {
-        time: toMs(match[1]),
-        text: match[2]
-      };
-    })
-    .filter(Boolean)
-    .filter(line => Number.isFinite(line.time));
-}
+let retryTimer = null;
+let staleRetryCount = 0;
 
 function toMs(timeText) {
   const [min, sec] = timeText.split(':');
@@ -47,7 +30,50 @@ function getTrackKey(track) {
   return track.id || `${track.name || ''}-${track.artists || ''}`;
 }
 
+function parseLRC(text) {
+  const metadata = {};
+  const lines = [];
+
+  text.split(/\r?\n/).forEach(rawLine => {
+    const line = rawLine.trimEnd();
+
+    const metaMatch = line.match(/^\[(ti|ar|al|by|offset):([^\]]*)\]/i);
+    if (metaMatch) {
+      metadata[metaMatch[1].toLowerCase()] = metaMatch[2] || '';
+      return;
+    }
+
+    const lyricMatch = line.match(/^\[([0-9:.]+)]\s*(.*)$/);
+    if (!lyricMatch) return;
+
+    const time = toMs(lyricMatch[1]);
+    if (!Number.isFinite(time)) return;
+
+    lines.push({
+      time,
+      text: lyricMatch[2]
+    });
+  });
+
+  return { metadata, lines };
+}
+
+function clearRetryTimer() {
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
+}
+
+function scheduleLrcRetry(delay = 650) {
+  clearRetryTimer();
+  retryTimer = setTimeout(() => {
+    if (!currentTrackKey || isLoadingLyrics) return;
+    isLoadingLyrics = true;
+    fetchLRC(currentTrackKey);
+  }, delay);
+}
+
 function clearLyrics() {
+  clearRetryTimer();
   activeIndex = null;
   trackEl = null;
   lineEls = [];
@@ -67,6 +93,7 @@ function renderMessage(message, className = 'message') {
 }
 
 function renderLyricsList() {
+  clearRetryTimer();
   container.innerHTML = '';
 
   trackEl = document.createElement('div');
@@ -84,7 +111,6 @@ function renderLyricsList() {
   container.appendChild(trackEl);
   activeIndex = null;
 
-  // 初次渲染先不做動畫，避免剛載入時從畫面外飛進來。
   requestAnimationFrame(() => {
     updateActiveLine(0, { immediate: true });
     requestAnimationFrame(() => {
@@ -101,7 +127,6 @@ function getVisibleIndex(pos) {
     return pos >= line.time && (!nextLine || pos < nextLine.time);
   });
 
-  // 歌曲剛開始、還沒到第一句歌詞前：把第一句維持在垂直置中。
   if (idx === -1) return 0;
   return idx;
 }
@@ -143,27 +168,38 @@ function updateActiveLine(nextIndex, options = {}) {
   });
 }
 
-async function fetchLRC() {
+async function fetchLRC(expectedTrackKey = currentTrackKey) {
   try {
     lyricsState = 'loading';
     renderMessage(LOADING_TEXT, 'message loading');
 
-    await new Promise(resolve => setTimeout(resolve, 250));
-
-    const res = await fetch(`${LRC_URL}?_t=${Date.now()}`);
+    const res = await fetch(`${LRC_URL}?_t=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const text = await res.text();
-    const parsedLines = parseLRC(text);
+    const { metadata, lines } = parseLRC(text);
+    const lrcTrackKey = metadata.ti || null;
 
-    if (!text.trim() || parsedLines.length === 0) {
+    // If lyrics/current.lrc still belongs to the previous track, do not render it.
+    // Keep retrying briefly while lyricsFetcher catches up.
+    if (lrcTrackKey && expectedTrackKey && lrcTrackKey !== expectedTrackKey) {
+      lrcLines = [];
+      lyricsState = 'loading';
+      staleRetryCount += 1;
+      if (staleRetryCount <= 10) scheduleLrcRetry(500);
+      return;
+    }
+
+    staleRetryCount = 0;
+
+    if (!text.trim() || lines.length === 0) {
       lrcLines = [];
       lyricsState = 'not_found';
       renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
       return;
     }
 
-    lrcLines = parsedLines;
+    lrcLines = lines;
     lyricsState = 'ready';
     renderLyricsList();
   } catch (error) {
@@ -178,7 +214,7 @@ async function fetchLRC() {
 
 async function tick() {
   try {
-    status = await fetch(`${STATUS_URL}?_t=${Date.now()}`).then(response => response.json());
+    status = await fetch(`${STATUS_URL}?_t=${Date.now()}`, { cache: 'no-store' }).then(response => response.json());
   } catch (error) {
     console.error('Failed to fetch Spotify status:', error);
     clearLyrics();
@@ -189,6 +225,7 @@ async function tick() {
     currentTrackKey = null;
     lrcLines = [];
     lyricsState = 'idle';
+    staleRetryCount = 0;
     clearLyrics();
     return;
   }
@@ -196,18 +233,26 @@ async function tick() {
   const nextTrackKey = getTrackKey(status.track);
   const switchedTrack = nextTrackKey !== currentTrackKey;
 
-  if (switchedTrack && !isLoadingLyrics) {
+  if (switchedTrack) {
+    clearRetryTimer();
     currentTrackKey = nextTrackKey;
     lrcLines = [];
     lyricsState = 'loading';
     isLoadingLyrics = true;
     activeIndex = null;
-    fetchLRC();
+    staleRetryCount = 0;
+    fetchLRC(nextTrackKey);
     return;
   }
 
-  if (isLoadingLyrics || lyricsState === 'loading') {
+  if (isLoadingLyrics) {
     renderMessage(LOADING_TEXT, 'message loading');
+    return;
+  }
+
+  if (lyricsState === 'loading') {
+    isLoadingLyrics = true;
+    fetchLRC(nextTrackKey);
     return;
   }
 
@@ -226,6 +271,5 @@ async function tick() {
   updateActiveLine(nextIndex);
 }
 
-// === 啟動 ===
 tick();
 setInterval(tick, POLL_MS);
