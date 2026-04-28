@@ -3,7 +3,7 @@ const LRC_URL = '/lyrics/current.lrc';
 const STATUS_URL = '/api/spotify/status';
 const POLL_MS = 2000;
 const NO_LYRICS_TEXT = '找沒歌詞><';
-const LOADING_TEXT = '正在載入歌詞...';
+const LOADING_TEXT = '正在搜尋歌詞...';
 
 // === DOM ===
 const container = document.getElementById('lyrics');
@@ -205,9 +205,9 @@ async function fetchLRC(expectedTrackKey = currentTrackKey) {
       // If current.lrc belongs to the current track but only contains metadata,
       // the backend is probably still fetching or retrying LRCLib. Keep trying.
       if (expectedTrackKey && lrcTrackKey === expectedTrackKey) {
-        lyricsState = 'not_found';
+        lyricsState = 'loading';
         scheduleLrcRetry(2200);
-        renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
+        renderMessage(LOADING_TEXT, 'message loading');
         return;
       }
 
