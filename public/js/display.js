@@ -15,6 +15,7 @@ let currentTrackKey = null;
 let isLoadingLyrics = false;
 let lyricsState = 'idle'; // idle | loading | ready | not_found
 let status = {};
+let lastRenderedLineKey = null;
 
 // === 解析 LRC ===
 function parseLRC(text) {
@@ -53,7 +54,10 @@ function clearLyrics() {
 }
 
 function renderMessage(message, className = 'message') {
+  lastRenderedLineKey = null;
   container.innerHTML = '';
+  container.scrollTop = 0;
+
   const div = document.createElement('div');
   div.className = className;
   div.textContent = message;
@@ -63,6 +67,9 @@ function renderMessage(message, className = 'message') {
 function render(windowLines, currentIdx) {
   container.innerHTML = '';
 
+  let currentElement = null;
+  let currentLineKey = null;
+
   windowLines.forEach((line, index) => {
     const div = document.createElement('div');
     div.className = 'lyric-line';
@@ -70,10 +77,23 @@ function render(windowLines, currentIdx) {
 
     if (index === currentIdx) {
       div.classList.add('current');
+      currentElement = div;
+      currentLineKey = `${line.time}-${line.text}`;
     }
 
     container.appendChild(div);
   });
+
+  if (currentElement && currentLineKey !== lastRenderedLineKey) {
+    lastRenderedLineKey = currentLineKey;
+
+    requestAnimationFrame(() => {
+      currentElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    });
+  }
 }
 
 async function fetchLRC() {
@@ -134,6 +154,8 @@ async function tick() {
     lrcLines = [];
     lyricsState = 'loading';
     isLoadingLyrics = true;
+    lastRenderedLineKey = null;
+    container.scrollTop = 0;
     fetchLRC();
     return;
   }
