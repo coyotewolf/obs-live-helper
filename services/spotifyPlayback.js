@@ -11,7 +11,8 @@ const { getAccessToken } = require('./spotifyAuth');
 
 const PLAYBACK_TTL_MS = Number(process.env.SPOTIFY_PLAYBACK_CACHE_MS || 2500);
 const QUEUE_TTL_MS = Number(process.env.SPOTIFY_QUEUE_CACHE_MS || 5000);
-const DEFAULT_BACKOFF_MS = 8000;
+const DEFAULT_BACKOFF_MS = Number(process.env.SPOTIFY_DEFAULT_BACKOFF_MS || 8000);
+const MAX_BACKOFF_MS = Number(process.env.SPOTIFY_MAX_BACKOFF_MS || 60000);
 
 let playbackCache = null;
 let playbackFetchedAt = 0;
@@ -24,9 +25,28 @@ let queuePromise = null;
 let queueBackoffUntil = 0;
 
 function getRetryAfterMs(err) {
-  const retryAfter = Number(err.response?.headers?.['retry-after']);
-  if (Number.isFinite(retryAfter) && retryAfter > 0) return retryAfter * 1000;
-  return DEFAULT_BACKOFF_MS;
+  const raw = err.response?.headers?.['retry-after'];
+
+  if (typeof raw === 'string' && raw.trim()) {
+    const text = raw.trim();
+
+    // Spotify normally returns Retry-After as seconds.
+    // Some proxies / environments may surface unexpected large numbers.
+    // Cap it so one malformed header does not disable playback for hours.
+    const seconds = Number.parseFloat(text);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      const ms = seconds * 1000;
+      return Math.min(ms, MAX_BACKOFF_MS);
+    }
+
+    // HTTP also allows Retry-After to be an absolute date.
+    const dateMs = Date.parse(text);
+    if (Number.isFinite(dateMs)) {
+      return Math.min(Math.max(dateMs - Date.now(), DEFAULT_BACKOFF_MS), MAX_BACKOFF_MS);
+    }
+  }
+
+  return Math.min(DEFAULT_BACKOFF_MS, MAX_BACKOFF_MS);
 }
 
 function normalizeTrack(item) {
@@ -142,6 +162,7 @@ async function getCurrentPlayback(options = {}) {
     .then(payload => {
       playbackCache = payload;
       playbackFetchedAt = Date.now();
+      playbackBackoffUntil = 0;
       return payload;
     })
     .catch(err => {
@@ -196,6 +217,7 @@ async function getQueue(options = {}) {
     .then(payload => {
       queueCache = payload;
       queueFetchedAt = Date.now();
+      queueBackoffUntil = 0;
       return payload;
     })
     .catch(err => {
@@ -220,6 +242,8 @@ function clearPlaybackCache() {
   playbackFetchedAt = 0;
   queueCache = null;
   queueFetchedAt = 0;
+  playbackBackoffUntil = 0;
+  queueBackoffUntil = 0;
 }
 
 module.exports = {
