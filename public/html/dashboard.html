@@ -14,10 +14,11 @@
     <div>
       <span class="eyebrow">OBS Live Helper</span>
       <h1>直播 Overlay 控制台</h1>
-      <p>集中管理 Spotify 歌詞、目前播放、佇列清單、自訂文字公告與觀眾 QR Code 點歌。先登入 Spotify，再把需要的 Overlay URL 加到 OBS Browser Source。</p>
+      <p>集中管理 Spotify 歌詞、目前播放、佇列清單、自訂文字公告與觀眾 QR Code 點歌。第一次使用請先完成 Spotify Client ID 設定，再登入 Spotify，最後把需要的 Overlay URL 加到 OBS Browser Source。</p>
     </div>
     <div class="heroActions">
-      <button id="loginBtn" class="btnPrimary">登入 / 重新授權 Spotify</button>
+      <a class="btnPrimary" href="/html/setup.html">Spotify Client ID 設定</a>
+      <button id="loginBtn" class="btnGhost">登入 / 重新授權 Spotify</button>
       <a class="btnGhost" href="/html/display.html" target="_blank">預覽歌詞頁</a>
     </div>
   </header>
@@ -26,10 +27,11 @@
     <span class="eyebrow">Quick Start</span>
     <h2>第一次使用照這樣做</h2>
     <div class="guideGrid">
-      <article><strong>01 啟動 Helper</strong><p>在專案資料夾執行 <code>npm start</code>，保持終端機視窗開著。</p></article>
-      <article><strong>02 登入 Spotify</strong><p>按上方登入按鈕。若改過 scope、token 過期或 queue 抓不到，就重新授權一次。</p></article>
-      <article><strong>03 加入 OBS</strong><p>在 OBS 新增 Browser Source，貼上下方需要的 Overlay URL。</p></article>
-      <article><strong>04 開放點歌</strong><p>安裝 cloudflared 後可開外網 Tunnel，讓直播觀眾掃 QR Code 點歌。</p></article>
+      <article><strong>01 開啟軟體</strong><p>從 Start Menu 開啟 OBS Live Helper。第一次啟動時會自動帶到 Spotify Client ID 設定頁。</p></article>
+      <article><strong>02 設定 Client ID</strong><p>照設定頁指示到 Spotify Developer Dashboard 建立 App，填入 <code>CLIENT_ID</code> 並確認 Redirect URI。</p></article>
+      <article><strong>03 登入 Spotify</strong><p>回到控制台按「登入 / 重新授權 Spotify」。若改過 scope、token 過期或 queue 抓不到，就重新授權一次。</p></article>
+      <article><strong>04 加入 OBS</strong><p>在 OBS 新增 Browser Source，貼上下方需要的 Overlay URL，例如歌詞、目前播放或點歌 QR Code。</p></article>
+      <article><strong>05 開放點歌</strong><p>按「啟動 Tunnel」產生外網點歌網址，讓直播觀眾掃 QR Code 點歌。</p></article>
     </div>
   </section>
 

@@ -1,15 +1,18 @@
 {
   "name": "obs-live-helper",
   "version": "0.1.0",
-  "description": "OBS live helper v1.0",
-  "main": "server.js",
+  "description": "OBS Live Helper",
+  "author": "OBS Live Helper",
+  "main": "electron-main.js",
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
     "setup": "node scripts/setup.js",
     "download-cloudflared": "node scripts/download-cloudflared.js",
     "install-and-start": "npm install --no-audit --no-fund && node scripts/setup.js && node server.js",
-    "windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-launcher.ps1"
+    "windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-launcher.ps1",
+    "app": "electron .",
+    "dist": "electron-builder --win nsis"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -21,8 +24,41 @@
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
     "nodemon": "^3.0.3"
   },
   "type": "commonjs",
-  "license": "MIT"
+  "license": "MIT",
+  "build": {
+    "appId": "com.obs-live-helper.app",
+    "productName": "OBS Live Helper",
+    "asar": false,
+    "files": [
+      "electron-main.js",
+      "server.js",
+      "package.json",
+      ".env.example",
+      "public/**/*",
+      "routes/**/*",
+      "services/**/*",
+      "scripts/download-cloudflared.js",
+      "scripts/setup.js",
+      "tools/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OBS Live Helper"
+    }
+  }
 }

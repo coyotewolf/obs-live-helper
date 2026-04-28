@@ -94,3 +94,21 @@ http://127.0.0.1:5172/api/spotify/callback
 ### Q：播放 / 暫停 / 跳歌不能用？
 
 Spotify 播放控制通常需要 Spotify Premium，並且必須先有正在播放的 Spotify 裝置。請先在電腦或手機打開 Spotify 播一首歌，再操作。
+
+---
+
+## 打包成真正的 Windows 安裝檔（.exe）
+
+開發者要發行給一般使用者時，不要直接傳整包原始碼。請在 Windows 上執行：
+
+```bat
+BUILD-EXE-WINDOWS.bat
+```
+
+完成後會在 `dist/` 產生：
+
+```txt
+OBS Live Helper Setup 0.1.0.exe
+```
+
+把這個 `.exe` 給使用者即可。使用者安裝後會在 Start Menu / Programs 裡看到 `OBS Live Helper`，點開就是軟體視窗，不需要看到 terminal。

@@ -2,9 +2,10 @@
 const express = require('express');
 const fs      = require('fs');
 const path    = require('path');
+const { storagePath } = require('../services/runtimePaths');
 
 const router   = express.Router();
-const TXT_PATH = path.join(__dirname, '..', 'storage', 'editor.txt');
+const TXT_PATH = storagePath('editor.txt');
 
 /* === GET 目前內容（Dashboard / message.html 都用這條） === */
 router.get('/', (req, res) => {

@@ -13,6 +13,7 @@ const QRCode = require('qrcode');
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
+const { STORAGE_DIR, storagePath } = require('../services/runtimePaths');
 const { getAccessToken } = require('../services/spotifyAuth');
 const {
   getSecurity,
@@ -24,9 +25,8 @@ const {
 const tunnelManager = require('../services/tunnelManager');
 
 const PORT = process.env.PORT || 5172;
-const STORAGE_DIR = path.join(__dirname, '..', 'storage');
-const SETTINGS_FILE = path.join(STORAGE_DIR, 'request-settings.json');
-const REQUESTS_FILE = path.join(STORAGE_DIR, 'song-requests.json');
+const SETTINGS_FILE = storagePath('request-settings.json');
+const REQUESTS_FILE = storagePath('song-requests.json');
 
 const DEFAULT_SETTINGS = {
   requestsEnabled: true,

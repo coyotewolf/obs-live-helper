@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OBS Live Helper Setup</title>
+  <link rel="stylesheet" href="../css/pages/setup.css">
+</head>
+<body>
+  <main class="setupShell">
+    <section class="setupCard">
+      <span class="eyebrow">First Launch Setup</span>
+      <h1>先設定 Spotify Client ID</h1>
+      <p class="lead">OBS Live Helper 需要連到使用者自己的 Spotify App。這個設定只會存放在本機，不會上傳到雲端。</p>
+
+      <div id="statusBox" class="statusBox">正在檢查設定...</div>
+
+      <div class="steps">
+        <article>
+          <strong>01 開啟 Spotify Developer Dashboard</strong>
+          <p>登入 Spotify 後建立一個 App，名稱可以填 <b>OBS Live Helper</b>。</p>
+          <a class="btnGhost" href="https://developer.spotify.com/dashboard" target="_blank">開啟 Spotify Developer Dashboard</a>
+        </article>
+        <article>
+          <strong>02 加入 Redirect URI</strong>
+          <p>在 Spotify App 的 Settings 裡，把下面這個網址加到 Redirect URIs。</p>
+          <div class="copyRow"><code id="redirectUri">http://127.0.0.1:5172/api/spotify/callback</code><button id="copyRedirectBtn" class="btnMini">複製</button></div>
+        </article>
+        <article>
+          <strong>03 貼上 Client ID</strong>
+          <p>在 Spotify App Settings 找到 Client ID，貼到下方欄位後儲存。</p>
+          <label class="inputLabel">
+            <span>Spotify Client ID</span>
+            <input id="clientIdInput" type="text" spellcheck="false" autocomplete="off" placeholder="例如：81548dd5a7ab4f1cb06ed86f76842c95">
+          </label>
+          <button id="saveBtn" class="btnPrimary">儲存並前往控制台</button>
+        </article>
+      </div>
+
+      <details class="helpBox">
+        <summary>找不到 Client ID 或 Redirect URI 設定？</summary>
+        <ol>
+          <li>進入 Spotify Developer Dashboard。</li>
+          <li>點 Create app。</li>
+          <li>App name 可填 OBS Live Helper。</li>
+          <li>Redirect URI 必須填：<code>http://127.0.0.1:5172/api/spotify/callback</code></li>
+          <li>建立後進入 App Settings，複製 Client ID。</li>
+        </ol>
+      </details>
+    </section>
+  </main>
+  <div id="toast" class="toast"></div>
+  <script src="../js/setup.js"></script>
+</body>
+</html>

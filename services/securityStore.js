@@ -1,9 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const { storagePath, STORAGE_DIR } = require('./runtimePaths');
 const crypto = require('crypto');
 
-const STORAGE_DIR = path.join(__dirname, '..', 'storage');
-const SECURITY_FILE = path.join(STORAGE_DIR, 'security.json');
+const SECURITY_FILE = storagePath('security.json');
 
 function ensureStorageDir() {
   if (!fs.existsSync(STORAGE_DIR)) fs.mkdirSync(STORAGE_DIR, { recursive: true });

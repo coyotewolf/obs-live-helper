@@ -3,10 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const axios = require('axios');
+const { APP_ROOT_DIR, STORAGE_DIR, TOOLS_DIR, RESOURCE_DIR, storagePath, toolsPath } = require('./runtimePaths');
 
-const ROOT_DIR = path.join(__dirname, '..');
-const STORAGE_DIR = path.join(ROOT_DIR, 'storage');
-const PUBLIC_URL_FILE = path.join(STORAGE_DIR, 'public-url.json');
+const ROOT_DIR = APP_ROOT_DIR;
+const PUBLIC_URL_FILE = storagePath('public-url.json');
 const TRY_CLOUDFLARE_RE = /https:\/\/[-a-zA-Z0-9.]+\.trycloudflare\.com/g;
 
 const TUNNEL_HEALTH_CHECK_MS = Number(process.env.TUNNEL_HEALTH_CHECK_MS || 45000);
@@ -104,7 +104,9 @@ function candidateExecutables() {
 
   if (process.env.CLOUDFLARED_PATH) candidates.push(process.env.CLOUDFLARED_PATH);
 
+  candidates.push(toolsPath(exe));
   candidates.push(path.join(ROOT_DIR, 'tools', exe));
+  candidates.push(path.join(RESOURCE_DIR, 'tools', exe));
   candidates.push(path.join(ROOT_DIR, exe));
 
   if (process.env.USERPROFILE) {

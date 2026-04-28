@@ -2,34 +2,27 @@
  * server.js
  * -------------------------------------------
  * Local OBS helper server.
- * Security notes:
- * - Dashboard is local-only by default. Public tunnels can serve request.html,
- *   overlays, and APIs, but dashboard.html requires localhost or ?admin=<token>.
- * - Spotify tokens stay in storage/spotify.json on the local machine.
+ * Packaged Electron builds must not write to Program Files/resources/app.
+ * All mutable files are routed through services/runtimePaths.js.
  */
 
-require('dotenv').config();
+const runtimePaths = require('./services/runtimePaths');
+runtimePaths.ensureRuntimeDirs();
+require('dotenv').config({ path: runtimePaths.ENV_PATH });
+
 const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
-const fs      = require('fs');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 const { getAdminToken, isLocalRequest } = require('./services/securityStore');
 
 const app = express();
 const PORT = process.env.PORT || 5172;
 
-/* ---------- Basic settings ---------- */
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.text({ limit: '2mb', type: 'text/plain' }));
 
-/* ---------- Runtime directories ---------- */
-const storageDir = path.join(__dirname, 'storage');
-const lyricsDir = path.join(__dirname, 'lyrics');
-if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-if (!fs.existsSync(lyricsDir)) fs.mkdirSync(lyricsDir, { recursive: true });
-
-/* ---------- Dashboard guard before static files ---------- */
 function dashboardGuard(req, res, next) {
   const pathname = req.path.replace(/\\/g, '/');
   if (!pathname.endsWith('/html/dashboard.html') && pathname !== '/dashboard.html') return next();
@@ -49,18 +42,106 @@ function dashboardGuard(req, res, next) {
 }
 app.use(dashboardGuard);
 
-/* ---------- Static files ---------- */
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/lyrics', express.static(lyricsDir, {
+
+// ---------- Spotify Client ID setup ----------
+const REQUIRED_REDIRECT_URI = `http://127.0.0.1:${PORT}/api/spotify/callback`;
+
+function parseEnvFile(filePath) {
+  const env = {};
+  if (!fs.existsSync(filePath)) return env;
+  for (const raw of fs.readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const index = line.indexOf('=');
+    if (index <= 0) continue;
+    env[line.slice(0, index).trim()] = line.slice(index + 1).trim();
+  }
+  return env;
+}
+
+function writeEnvFile(filePath, patch) {
+  const current = parseEnvFile(filePath);
+  const next = { ...current, ...patch };
+  const order = ['PORT', 'CLIENT_ID', 'REDIRECT_URI', 'ENABLE_PUBLIC_TUNNEL', 'CLOUDFLARED_PATH'];
+  const keys = [...order, ...Object.keys(next).filter(k => !order.includes(k))];
+  const lines = ['# OBS Live Helper local settings', '# This file stays on this computer. Do not share it.'];
+  for (const key of keys) {
+    if (next[key] !== undefined && next[key] !== null && String(next[key]).length > 0) {
+      lines.push(`${key}=${next[key]}`);
+    }
+  }
+  fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
+}
+
+function getConfiguredClientId() {
+  const fromProcess = String(process.env.CLIENT_ID || '').trim();
+  if (fromProcess && !/^請|your_|paste_|replace_|TODO/i.test(fromProcess)) return fromProcess;
+  const fromFile = String(parseEnvFile(runtimePaths.ENV_PATH).CLIENT_ID || '').trim();
+  if (fromFile && !/^請|your_|paste_|replace_|TODO/i.test(fromFile)) return fromFile;
+  return '';
+}
+
+function hasSpotifyClientId() {
+  return Boolean(getConfiguredClientId());
+}
+
+app.get('/api/config/status', (req, res) => {
+  if (!isLocalRequest(req)) return res.status(403).json({ ok: false, error: 'local_only' });
+  const clientId = getConfiguredClientId();
+  res.json({
+    ok: true,
+    configured: Boolean(clientId),
+    clientIdMasked: clientId ? `${clientId.slice(0, 6)}...${clientId.slice(-4)}` : '',
+    redirectUri: REQUIRED_REDIRECT_URI,
+    envPath: runtimePaths.ENV_PATH,
+    dataDir: runtimePaths.DATA_DIR
+  });
+});
+
+app.post('/api/config/client-id', (req, res) => {
+  if (!isLocalRequest(req)) return res.status(403).json({ ok: false, error: 'local_only', message: 'Client ID 設定只能從本機修改。' });
+  const clientId = String(req.body?.clientId || '').trim();
+  if (!/^[A-Za-z0-9]{20,80}$/.test(clientId)) {
+    return res.status(400).json({ ok: false, error: 'invalid_client_id', message: 'Client ID 格式看起來不正確，請確認是 Spotify Developer Dashboard 裡的 Client ID。' });
+  }
+
+  const previous = getConfiguredClientId();
+  writeEnvFile(runtimePaths.ENV_PATH, {
+    PORT: String(PORT),
+    CLIENT_ID: clientId,
+    REDIRECT_URI: REQUIRED_REDIRECT_URI,
+    ENABLE_PUBLIC_TUNNEL: process.env.ENABLE_PUBLIC_TUNNEL || 'false'
+  });
+  process.env.CLIENT_ID = clientId;
+  process.env.REDIRECT_URI = REQUIRED_REDIRECT_URI;
+
+  if (previous && previous !== clientId) {
+    try { fs.unlinkSync(runtimePaths.storagePath('spotify.json')); } catch {}
+  }
+
+  res.json({ ok: true, configured: true, redirectUri: REQUIRED_REDIRECT_URI });
+});
+
+function spotifyClientSetupGuard(req, res, next) {
+  const pathname = req.path.replace(/\\/g, '/');
+  if ((pathname.endsWith('/html/dashboard.html') || pathname === '/dashboard.html') && !hasSpotifyClientId()) {
+    return res.redirect('/html/setup.html');
+  }
+  next();
+}
+app.use(spotifyClientSetupGuard);
+
+
+app.use(express.static(runtimePaths.PUBLIC_DIR));
+app.use('/lyrics', express.static(runtimePaths.LYRICS_DIR, {
   etag: false,
   lastModified: false,
   maxAge: 0
 }));
-app.use('/fonts', express.static(path.join(__dirname, 'public', 'fonts')));
-app.use(express.static(storageDir));
+app.use('/fonts', express.static(runtimePaths.FONTS_DIR));
+app.use(express.static(runtimePaths.STORAGE_DIR));
 
-/* ---------- /style.css for message.html ---------- */
-const stylePath = path.join(storageDir, 'style.css');
+const stylePath = runtimePaths.storagePath('style.css');
 
 app.get('/style.css', (_, res) => {
   if (!fs.existsSync(stylePath)) {
@@ -83,21 +164,27 @@ app.post('/api/style/save', (req, res) => {
   });
 });
 
-/* ---------- APIs ---------- */
 app.use('/api/editor', require('./routes/editor'));
 app.use('/api', require('./routes'));
 app.use('/api/font', require('./routes/font'));
 
-/* ---------- Lyrics sync ---------- */
-const { startLyricSync } = require('./services/lyricsFetcher');
+const { startLyricSync, stopLyricSync } = require('./services/lyricsFetcher');
 startLyricSync();
 
-/* ---------- Optional public tunnel ---------- */
 const tunnelManager = require('./services/tunnelManager');
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('Server running on', PORT);
   console.log('Dashboard:', `http://127.0.0.1:${PORT}/html/dashboard.html`);
+  console.log('Runtime data:', runtimePaths.DATA_DIR);
   console.log('Audience page will be generated in Dashboard.');
   tunnelManager.startIfEnabled(PORT);
 });
+
+async function shutdown() {
+  try { stopLyricSync?.(); } catch {}
+  try { tunnelManager.stopTunnel?.(); } catch {}
+  await new Promise(resolve => server.close(() => resolve()));
+}
+
+module.exports = { app, server, shutdown };

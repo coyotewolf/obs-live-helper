@@ -7,9 +7,16 @@ const { isLyricsSynced } = require('../services/lyricsFetcher');
 const { getCurrentPlayback, getQueue } = require('../services/spotifyPlayback');
 const fs = require('fs');
 const path = require('path');
+const { storagePath } = require('../services/runtimePaths');
 
-const CLIENT_ID = process.env.CLIENT_ID;
-const REDIRECT_URI = process.env.REDIRECT_URI;
+function getClientId() {
+  return String(process.env.CLIENT_ID || '').trim();
+}
+
+function getRedirectUri() {
+  return process.env.REDIRECT_URI || 'http://127.0.0.1:5172/api/spotify/callback';
+}
+
 const SCOPES = [
   'user-read-playback-state',
   'user-read-currently-playing',
@@ -23,13 +30,20 @@ let CODE_VERIFIER = null;
  * Step 1 — redirect user to Spotify consent page (PKCE)
  */
 router.get('/auth/login', (req, res) => {
+  const clientId = getClientId();
+  const redirectUri = getRedirectUri();
+
+  if (!clientId) {
+    return res.redirect('/html/setup.html');
+  }
+
   const { verifier, challenge } = generateCodePair();
   CODE_VERIFIER = verifier;
 
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
+    client_id: clientId,
+    redirect_uri: redirectUri,
     code_challenge_method: 'S256',
     code_challenge: challenge,
     scope: SCOPES,
@@ -155,7 +169,7 @@ router.get('/queue', async (req, res) => {
  * Serve the raw log file for dashboard
  */
 router.get('/log', (req, res) => {
-  const logPath = path.join(__dirname, '..', 'storage', 'lyrics.log');
+  const logPath = storagePath('lyrics.log');
   if (!fs.existsSync(logPath)) return res.send('');
   res.send(fs.readFileSync(logPath, 'utf8'));
 });

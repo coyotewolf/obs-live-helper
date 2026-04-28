@@ -13,3 +13,10 @@ lyrics/current.lrc
 .DS_Store
 tools/node-*/
 tools/*.zip
+
+dist/
+*.exe
+
+dist/
+
+dist/

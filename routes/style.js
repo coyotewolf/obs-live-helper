@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const fs = require('fs');
 const path = require('path');
+const { storagePath } = require('../services/runtimePaths');
 
-const FILE = path.join(__dirname, '..', 'storage', 'style.css');
+const FILE = storagePath('style.css');
 
 // get current style
 router.get('/', (req, res) => {

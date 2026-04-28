@@ -4,12 +4,21 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { storagePath } = require('./runtimePaths');
 const axios = require('axios');
 const crypto = require('crypto');
 
-const CLIENT_ID = process.env.CLIENT_ID;
-const REDIRECT_URI = process.env.REDIRECT_URI;
-const TOKEN_FILE = path.join(__dirname, '..', 'storage', 'spotify.json');
+function getClientId() {
+  const clientId = String(process.env.CLIENT_ID || '').trim();
+  if (!clientId) throw new Error('Spotify CLIENT_ID is not configured.');
+  return clientId;
+}
+
+function getRedirectUri() {
+  return process.env.REDIRECT_URI || 'http://127.0.0.1:5172/api/spotify/callback';
+}
+
+const TOKEN_FILE = storagePath('spotify.json');
 
 // ----------------------------------------------------------------------------
 // utils
@@ -87,7 +96,7 @@ async function refreshAccessToken(refresh_token) {
   const params = new URLSearchParams();
   params.append('grant_type', 'refresh_token');
   params.append('refresh_token', refresh_token);
-  params.append('client_id', CLIENT_ID);
+  params.append('client_id', getClientId());
 
   const { data } = await axios.post('https://accounts.spotify.com/api/token', params.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -109,8 +118,8 @@ async function exchangeCodeForToken(code, code_verifier) {
   const params = new URLSearchParams();
   params.append('grant_type', 'authorization_code');
   params.append('code', code);
-  params.append('redirect_uri', REDIRECT_URI);
-  params.append('client_id', CLIENT_ID);
+  params.append('redirect_uri', getRedirectUri());
+  params.append('client_id', getClientId());
   params.append('code_verifier', code_verifier);
 
   const { data } = await axios.post('https://accounts.spotify.com/api/token', params.toString(), {

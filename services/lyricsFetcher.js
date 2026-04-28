@@ -7,12 +7,13 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { LYRICS_DIR, lyricsPath, storagePath } = require('./runtimePaths');
 const axios = require('axios');
 const { getCurrentPlayback } = require('./spotifyPlayback');
 
-const LRC_DIR = path.join(__dirname, '..', 'lyrics');
-const LRC_FILE = path.join(LRC_DIR, 'current.lrc');
-const LOG_FILE = path.join(__dirname, '..', 'storage', 'lyrics.log');
+const LRC_DIR = LYRICS_DIR;
+const LRC_FILE = lyricsPath('current.lrc');
+const LOG_FILE = storagePath('lyrics.log');
 
 if (!fs.existsSync(LRC_DIR)) fs.mkdirSync(LRC_DIR, { recursive: true });
 
@@ -24,6 +25,7 @@ let lastLoggedLrcSynced = false;
 let lastLoggedLrcNotFound = false;
 let lastLoggedFuzzySearchTrackId = null;
 let activeSyncPromise = null;
+let syncInterval = null;
 let lrclibBackoffUntil = 0;
 let currentTrackAttemptCount = 0;
 let lastLyricAttemptAt = 0;
@@ -442,8 +444,14 @@ async function syncLoopWrapper() {
 }
 
 function startLyricSync(intervalMs = 2000) {
+  if (syncInterval) return;
   performLyricSync();
-  setInterval(syncLoopWrapper, intervalMs);
+  syncInterval = setInterval(syncLoopWrapper, intervalMs);
+}
+
+function stopLyricSync() {
+  if (syncInterval) clearInterval(syncInterval);
+  syncInterval = null;
 }
 
 function isLyricsSynced(track) {
@@ -455,5 +463,6 @@ function isLyricsSynced(track) {
 module.exports = {
   startLyricSync,
   isLyricsSynced,
-  performLyricSync
+  performLyricSync,
+  stopLyricSync
 };
