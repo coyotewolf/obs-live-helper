@@ -2,9 +2,9 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>OBS Live Helper Dashboard</title>
   <link rel="stylesheet" href="../css/pages/dashboard.css">
-  <link id="coreStyle" rel="stylesheet" href="/style.css">
   <script>addEventListener('load',()=>document.body.classList.add('is-ready'));</script>
 </head>
 
@@ -56,7 +56,7 @@
     <section class="overlayGrid">
       <article class="overlayCard card">
         <div class="overlayIcon">♪</div>
-        <div>
+        <div class="overlayBody">
           <h3>歌詞 Overlay</h3>
           <p>透明背景、同步歌詞、連續滾動與上下淡入淡出。</p>
           <code id="lyricsUrl">http://127.0.0.1:5172/html/display.html</code>
@@ -69,7 +69,7 @@
 
       <article class="overlayCard card">
         <div class="overlayIcon">▶</div>
-        <div>
+        <div class="overlayBody">
           <h3>目前播放 Overlay</h3>
           <p>顯示歌曲、歌手、封面與播放進度條。</p>
           <code id="nowPlayingUrl">http://127.0.0.1:5172/html/now-playing.html</code>
@@ -82,7 +82,7 @@
 
       <article class="overlayCard card">
         <div class="overlayIcon">≡</div>
-        <div>
+        <div class="overlayBody">
           <h3>Up Next 佇列 Overlay</h3>
           <p>顯示 Spotify queue 裡接下來的歌曲。</p>
           <code id="queueUrl">http://127.0.0.1:5172/html/queue.html</code>
@@ -95,7 +95,7 @@
 
       <article class="overlayCard card">
         <div class="overlayIcon">T</div>
-        <div>
+        <div class="overlayBody">
           <h3>自訂文字 Overlay</h3>
           <p>顯示下方文字編輯器儲存的內容，可用於公告、標語或聊天室提示。</p>
           <code id="messageUrl">http://127.0.0.1:5172/html/message.html</code>
