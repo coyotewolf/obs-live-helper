@@ -9,6 +9,10 @@ const LOADING_TEXT = '正在載入歌詞...';
 // === DOM ===
 const container = document.getElementById('lyrics');
 
+const trackEl = document.createElement('div');
+trackEl.className = 'lyrics-track';
+container.appendChild(trackEl);
+
 // === STATE ===
 let lrcLines = [];
 let currentTrackKey = null;
@@ -16,6 +20,8 @@ let isLoadingLyrics = false;
 let lyricsState = 'idle'; // idle | loading | ready | not_found
 let status = {};
 let lastRenderedLineKey = null;
+let lastRenderedSignature = '';
+let currentTranslateY = 0;
 
 // === 解析 LRC ===
 function parseLRC(text) {
@@ -49,23 +55,100 @@ function getTrackKey(track) {
   return track.id || `${track.name || ''}-${track.artists || ''}`;
 }
 
+function resetTrackPosition({ animate = false } = {}) {
+  currentTranslateY = 0;
+  trackEl.classList.toggle('no-transition', !animate);
+  trackEl.style.transform = 'translate3d(0, 0px, 0)';
+
+  if (!animate) {
+    requestAnimationFrame(() => {
+      trackEl.classList.remove('no-transition');
+    });
+  }
+}
+
 function clearLyrics() {
-  container.innerHTML = '';
+  trackEl.innerHTML = '';
+  lastRenderedLineKey = null;
+  lastRenderedSignature = '';
+  resetTrackPosition({ animate: false });
 }
 
 function renderMessage(message, className = 'message') {
   lastRenderedLineKey = null;
-  container.innerHTML = '';
-  container.scrollTop = 0;
+  lastRenderedSignature = `message-${message}-${className}`;
+  trackEl.innerHTML = '';
+  resetTrackPosition({ animate: false });
 
   const div = document.createElement('div');
   div.className = className;
   div.textContent = message;
-  container.appendChild(div);
+  trackEl.appendChild(div);
+}
+
+function getRenderSignature(windowLines, currentIdx) {
+  return windowLines
+    .map((line, index) => `${index === currentIdx ? '*' : ''}${line.time}:${line.text}`)
+    .join('|');
+}
+
+function centerActiveLine(currentElement, currentLineKey, shouldAnimate) {
+  if (!currentElement) {
+    resetTrackPosition({ animate: shouldAnimate });
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    const containerRect = container.getBoundingClientRect();
+    const currentRect = currentElement.getBoundingClientRect();
+    const currentCenter = currentRect.top + currentRect.height / 2;
+    const containerCenter = containerRect.top + containerRect.height / 2;
+    const delta = containerCenter - currentCenter;
+    const nextTranslateY = currentTranslateY + delta;
+
+    trackEl.classList.toggle('no-transition', !shouldAnimate);
+    trackEl.style.transform = `translate3d(0, ${nextTranslateY}px, 0)`;
+    currentTranslateY = nextTranslateY;
+
+    if (!shouldAnimate) {
+      requestAnimationFrame(() => {
+        trackEl.classList.remove('no-transition');
+      });
+    }
+
+    lastRenderedLineKey = currentLineKey;
+  });
+}
+
+function centerWholeBlock({ animate = false } = {}) {
+  requestAnimationFrame(() => {
+    const containerRect = container.getBoundingClientRect();
+    const trackRect = trackEl.getBoundingClientRect();
+    const trackCenter = trackRect.top + trackRect.height / 2;
+    const containerCenter = containerRect.top + containerRect.height / 2;
+    const delta = containerCenter - trackCenter;
+    const nextTranslateY = currentTranslateY + delta;
+
+    trackEl.classList.toggle('no-transition', !animate);
+    trackEl.style.transform = `translate3d(0, ${nextTranslateY}px, 0)`;
+    currentTranslateY = nextTranslateY;
+
+    if (!animate) {
+      requestAnimationFrame(() => {
+        trackEl.classList.remove('no-transition');
+      });
+    }
+  });
 }
 
 function render(windowLines, currentIdx) {
-  container.innerHTML = '';
+  const signature = getRenderSignature(windowLines, currentIdx);
+  const didLineChange = signature !== lastRenderedSignature;
+
+  if (!didLineChange) return;
+
+  lastRenderedSignature = signature;
+  trackEl.innerHTML = '';
 
   let currentElement = null;
   let currentLineKey = null;
@@ -81,19 +164,19 @@ function render(windowLines, currentIdx) {
       currentLineKey = `${line.time}-${line.text}`;
     }
 
-    container.appendChild(div);
+    trackEl.appendChild(div);
   });
 
-  if (currentElement && currentLineKey !== lastRenderedLineKey) {
-    lastRenderedLineKey = currentLineKey;
-
-    requestAnimationFrame(() => {
-      currentElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
-    });
+  if (currentIdx === -1 || !currentElement) {
+    centerWholeBlock({ animate: false });
+    return;
   }
+
+  centerActiveLine(
+    currentElement,
+    currentLineKey,
+    lastRenderedLineKey !== null && currentLineKey !== lastRenderedLineKey
+  );
 }
 
 async function fetchLRC() {
@@ -155,7 +238,8 @@ async function tick() {
     lyricsState = 'loading';
     isLoadingLyrics = true;
     lastRenderedLineKey = null;
-    container.scrollTop = 0;
+    lastRenderedSignature = '';
+    resetTrackPosition({ animate: false });
     fetchLRC();
     return;
   }
@@ -177,8 +261,9 @@ async function tick() {
   });
 
   if (!status.track.is_playing || idx === -1) {
-    // 未播放或歌曲尚未進入第一句前：維持原本預覽邏輯，顯示前幾行，不標示 current
-    const previewLines = lrcLines.slice(0, Math.min(lrcLines.length, WINDOW_SIZE));
+    // 未播放或歌曲尚未進入第一句前：顯示開頭的既有行數，整組垂直置中
+    const previewCount = Math.min(lrcLines.length, WINDOW_SIZE * 2 + 1);
+    const previewLines = lrcLines.slice(0, previewCount);
     render(previewLines, -1);
     return;
   }

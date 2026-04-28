@@ -41,23 +41,31 @@ body {
 }
 
 #lyrics {
+  position: relative;
   width: min(1200px, 96vw);
   height: 78vh;
   max-height: 78vh;
-  overflow-y: auto;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
+  overflow: hidden;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
+  justify-content: center;
   text-align: center;
   color: var(--text-main);
 }
 
-#lyrics::-webkit-scrollbar {
-  display: none;
+.lyrics-track {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  will-change: transform;
+  transition: transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lyrics-track.no-transition {
+  transition: none !important;
 }
 
 .lyric-line,
@@ -72,10 +80,11 @@ body {
     0 4px 18px rgba(0, 0, 0, 0.42),
     0 0 16px rgba(125, 211, 252, 0.14);
   transition:
-    color 0.22s ease,
-    opacity 0.22s ease,
-    transform 0.22s ease,
-    filter 0.22s ease;
+    color 260ms ease,
+    opacity 260ms ease,
+    transform 420ms ease,
+    filter 260ms ease,
+    font-size 260ms ease;
 }
 
 .lyric-line.current {
@@ -107,7 +116,7 @@ body {
 #lyrics .message {
   color: var(--text-main);
   font-size: clamp(30px, 3.8vw, 54px);
-  font-weight: 900;;
+  font-weight: 900;
   text-shadow:
     0 5px 22px rgba(0, 0, 0, 0.48),
     0 0 18px var(--glow),
