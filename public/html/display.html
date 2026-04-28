@@ -1,20 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
   <title>OBS Lyrics Display</title>
-
-  <!-- 連結剛才放的樣式檔 -->
   <link rel="stylesheet" href="../css/pages/display.css" />
-  
-  <!-- 如果你想背景透明給 OBS 用，可取消註解 ↓ -->
-  <!-- <style>body{background:transparent;}</style> -->
 </head>
 <body>
-  <!-- 歌詞會插進這個 div -->
-  <div id="lyrics"></div>
+  <main class="lyrics-stage">
+    <section id="lyrics" class="lyrics-panel"></section>
+  </main>
 
-  <!-- 前端腳本：解析 LRC、顯示 7 行 -->
   <script src="../js/display.js"></script>
 </body>
 </html>
