@@ -73,6 +73,8 @@ async function getAccessToken() {
     if (err.response?.data?.error === 'invalid_grant') {
       fs.unlinkSync(TOKEN_FILE);
       console.warn('⚠️  Refresh token invalid, deleted token file.');
+    } else {
+      console.error('Error refreshing access token:', err);
     }
     return null;
   }
