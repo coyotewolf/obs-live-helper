@@ -3,7 +3,7 @@ const LRC_URL = '/lyrics/current.lrc';
 const STATUS_URL = '/api/spotify/status';
 const WINDOW_SIZE = 3; // 維持原本設定：前後各 3 行，畫面約保留 7 行的視覺密度
 const POLL_MS = 1000;
-const NO_LYRICS_TEXT = '找沒歌詞';
+const NO_LYRICS_TEXT = '找沒歌詞><';
 const LOADING_TEXT = '正在載入歌詞...';
 
 // === DOM ===

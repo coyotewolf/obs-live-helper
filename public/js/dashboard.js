@@ -282,23 +282,140 @@ $("saveStyleBtn").onclick = async ()=>{
   bcStyle.postMessage({type:'set-css',css});
 };
 
-/* ---------- Spotify 區（原功能保留） ---------- */
+/* ---------- Dashboard UI helpers ---------- */
+const toast = $("toast");
+
+function showToast(message){
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(()=>toast.classList.remove('show'), 1800);
+}
+
+function getLocalUrl(path){
+  return `${location.origin}${path}`;
+}
+
+function hydrateOverlayUrls(){
+  const pairs = [
+    ['lyricsUrl', '/html/display.html'],
+    ['nowPlayingUrl', '/html/now-playing.html'],
+    ['queueUrl', '/html/queue.html'],
+    ['messageUrl', '/html/message.html']
+  ];
+
+  pairs.forEach(([id, path])=>{
+    const el = $(id);
+    if (el) el.textContent = getLocalUrl(path);
+  });
+}
+
+document.querySelectorAll('[data-copy]').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    const target = document.querySelector(btn.dataset.copy);
+    const text = target?.textContent?.trim();
+    if (!text) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('已複製 Overlay URL');
+    } catch (err) {
+      console.warn('Clipboard failed:', err);
+      showToast('無法自動複製，請手動選取 URL');
+    }
+  });
+});
+
+hydrateOverlayUrls();
+
+/* ---------- Spotify 區（原功能保留 + 狀態卡片強化） ---------- */
 const loginBtn  = $("loginBtn");
 const trackInfo = $("trackInfo");
 const logView   = $("logView");
+const spotifyStatusPill = $("spotifyStatusPill");
+const lyricsSyncState = $("lyricsSyncState");
+const trackSubInfo = $("trackSubInfo");
+const trackCover = $("trackCover");
+const clearLogViewBtn = $("clearLogViewBtn");
+
 loginBtn.onclick = () => window.open('/api/spotify/auth/login','_blank');
 
+function setSpotifyPill(text, state){
+  if (!spotifyStatusPill) return;
+  spotifyStatusPill.textContent = text;
+  spotifyStatusPill.className = `statusPill ${state}`;
+}
+
+function renderTrackCover(track){
+  if (!trackCover) return;
+
+  const cover = track?.cover_url || track?.cover_large_url || track?.cover_small_url;
+  if (cover) {
+    trackCover.innerHTML = `<img src="${cover}" alt="Album cover">`;
+  } else {
+    trackCover.textContent = '♪';
+  }
+}
+
 async function loadStatus(){
-  const st = await fetch('/api/spotify/status').then(r=>r.json());
-  if(!st.authorized){ trackInfo.textContent='未授權'; return; }
-  if(!st.playing){   trackInfo.textContent='暫停中'; return; }
-  trackInfo.textContent = `${st.track.artists} - ${st.track.name} (${st.lyricsSynced?'✅':'❌'})`;
+  try {
+    const st = await fetch('/api/spotify/status').then(r=>r.json());
+
+    if(!st.authorized){
+      trackInfo.textContent = '尚未授權 Spotify';
+      if (trackSubInfo) trackSubInfo.textContent = '請按上方「登入 / 重新授權 Spotify」。';
+      if (lyricsSyncState) lyricsSyncState.textContent = '--';
+      renderTrackCover(null);
+      setSpotifyPill('未授權', 'statusError');
+      return;
+    }
+
+    if(!st.playing){
+      trackInfo.textContent = 'Spotify 暫停中';
+      if (trackSubInfo) trackSubInfo.textContent = '開始播放歌曲後，歌詞、目前播放與佇列頁會自動更新。';
+      if (lyricsSyncState) lyricsSyncState.textContent = '--';
+      renderTrackCover(null);
+      setSpotifyPill('暫停中', 'statusWarn');
+      return;
+    }
+
+    const track = st.track || {};
+    trackInfo.textContent = `${track.artists || '未知歌手'} - ${track.name || '未知歌曲'}`;
+    if (trackSubInfo) {
+      const album = track.album ? `專輯：${track.album}` : '正在播放';
+      trackSubInfo.textContent = `${album}・${st.lyricsSynced ? '已找到同步歌詞' : '尚未找到同步歌詞'}`;
+    }
+    if (lyricsSyncState) lyricsSyncState.textContent = st.lyricsSynced ? '✅ 已同步' : '❌ 無歌詞';
+    renderTrackCover(track);
+    setSpotifyPill('播放中', 'statusOk');
+  } catch (err) {
+    console.error('Failed to load Spotify status:', err);
+    trackInfo.textContent = '讀取 Spotify 狀態失敗';
+    if (trackSubInfo) trackSubInfo.textContent = '請確認 helper server 還在執行，或重新整理 Dashboard。';
+    if (lyricsSyncState) lyricsSyncState.textContent = '--';
+    renderTrackCover(null);
+    setSpotifyPill('連線錯誤', 'statusError');
+  }
 }
+
 async function loadLog(){
-  const txt = await fetch('/api/spotify/log').then(r=>r.text());
-  logView.textContent = txt;
-  logView.scrollTop   = logView.scrollHeight;
+  try {
+    const txt = await fetch('/api/spotify/log').then(r=>r.text());
+    logView.textContent = txt || '目前沒有 log。';
+    logView.scrollTop = logView.scrollHeight;
+  } catch (err) {
+    logView.textContent = '讀取 log 失敗。';
+  }
 }
+
+if (clearLogViewBtn) {
+  clearLogViewBtn.addEventListener('click', ()=>{
+    logView.textContent = '';
+    showToast('已清除畫面上的 log');
+  });
+}
+
 loadStatus(); loadLog();
 setInterval(loadStatus,3000);
-setInterval(loadLog,   6000);
+setInterval(loadLog,6000);
