@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>OBS Spotify Queue</title>
+  <link rel="stylesheet" href="../css/pages/queue.css" />
+</head>
+<body>
+  <main id="queueCard" class="queue-card hidden">
+    <header class="queue-header">
+      <span class="queue-kicker">SPOTIFY QUEUE</span>
+      <h1>Up Next</h1>
+    </header>
+
+    <section id="queueList" class="queue-list" aria-live="polite"></section>
+
+    <p id="queueMessage" class="queue-message">讀取佇列中...</p>
+  </main>
+
+  <script src="../js/queue.js"></script>
+</body>
+</html>

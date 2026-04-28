@@ -130,6 +130,88 @@ router.get('/status', async (req, res) => {
   }
 });
 
+
+
+/**
+ * Upcoming Spotify queue for OBS "Up Next" overlay
+ */
+router.get('/queue', async (req, res) => {
+  const access_token = await getAccessToken();
+  if (!access_token) {
+    return res.json({
+      authorized: false,
+      queue: []
+    });
+  }
+
+  try {
+    const { data } = await axios.get('https://api.spotify.com/v1/me/player/queue', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+
+    const normalizeTrack = (item) => {
+      if (!item || item.type !== 'track') return null;
+
+      const images = item.album?.images || [];
+      const largestImage = images[0]?.url || '';
+      const mediumImage = images[1]?.url || largestImage;
+      const smallImage = images[2]?.url || mediumImage;
+
+      return {
+        id: item.id,
+        uri: item.uri,
+        name: item.name || '未知歌曲',
+        artists: item.artists?.map(a => a.name).join(', ') || '未知歌手',
+        album: item.album?.name || '',
+        album_images: images,
+        cover_url: mediumImage,
+        cover_large_url: largestImage,
+        cover_small_url: smallImage,
+        duration_ms: item.duration_ms || 0,
+        external_url: item.external_urls?.spotify || ''
+      };
+    };
+
+    const currentlyPlaying = normalizeTrack(data.currently_playing);
+    const queue = (data.queue || [])
+      .map(normalizeTrack)
+      .filter(Boolean)
+      .slice(0, 8);
+
+    return res.json({
+      authorized: true,
+      currently_playing: currentlyPlaying,
+      queue,
+      fetched_at: Date.now()
+    });
+  } catch (err) {
+    const spotifyError = err.response?.data;
+    console.error('queue error:', spotifyError || err.message);
+
+    if (err.response?.status === 403) {
+      return res.status(403).json({
+        authorized: true,
+        queue: [],
+        error: 'missing_scope_or_forbidden'
+      });
+    }
+
+    if (err.response?.status === 404) {
+      return res.json({
+        authorized: true,
+        queue: [],
+        error: 'no_active_device'
+      });
+    }
+
+    return res.status(500).json({
+      authorized: true,
+      queue: [],
+      error: 'failed_to_fetch_queue'
+    });
+  }
+});
+
 /**
  * Serve the raw log file for dashboard
  */

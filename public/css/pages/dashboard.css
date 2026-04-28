@@ -35,3 +35,17 @@ pre{background:#000;color:#0f0;height:160px;overflow:auto;padding:8px}
 }
 #extCssWrap summary{cursor:pointer;margin:10px 0;font-weight:bold}
 #extCssWrap[open] summary{margin-bottom:6px}
+
+.obsLinkBox{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin:12px 0;
+  padding:10px;
+  background:#101820;
+  border:1px solid #2d4154;
+  border-radius:8px;
+}
+.obsLinkTitle{font-weight:bold;color:#9ddcff;margin-bottom:2px}
+.obsLinkBox a{color:#7dd3fc;text-decoration:none}
+.obsLinkBox a:hover{text-decoration:underline}
