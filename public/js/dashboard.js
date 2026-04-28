@@ -338,62 +338,257 @@ setInterval(loadStatus, 3000);
 setInterval(loadLog, 6000);
 
 
-/* ---------- Audience QR request + remote controls ---------- */
+
+/* ---------- Audience QR request + admin moderation ---------- */
 const audienceRequestUrl = $('audienceRequestUrl');
+const audienceLanUrl = $('audienceLanUrl');
 const audienceLocalUrl = $('audienceLocalUrl');
 const requestQrImg = $('requestQrImg');
 const requestPinEl = $('requestPin');
-const refreshRequestQrBtn = $('refreshRequestQrBtn');
+const requestPreviewLink = $('requestPreviewLink');
+const requestList = $('requestList');
+const saveRequestSettingsBtn = $('saveRequestSettingsBtn');
+const rotateRequestPinBtn = $('rotateRequestPinBtn');
+const reloadRequestsBtn = $('reloadRequestsBtn');
+const clearFinishedRequestsBtn = $('clearFinishedRequestsBtn');
+const startTunnelBtn = $('startTunnelBtn');
+const restartTunnelBtn = $('restartTunnelBtn');
+const stopTunnelBtn = $('stopTunnelBtn');
+const tunnelState = $('tunnelState');
+const tunnelHint = $('tunnelHint');
+
+const settingInputs = {
+  requestsEnabled: $('requestsEnabled'),
+  autoApproveQueue: $('autoApproveQueue'),
+  allowPlayNow: $('allowPlayNow'),
+  allowPlaybackControl: $('allowPlaybackControl'),
+  allowSkipControl: $('allowSkipControl'),
+  blockExplicit: $('blockExplicit'),
+  cooldownSeconds: $('cooldownSeconds'),
+  controlCooldownSeconds: $('controlCooldownSeconds')
+};
+
+let adminToken = localStorage.getItem('obsHelperAdminToken') || '';
 let currentRequestPin = '';
+let requestRefreshTimer = null;
 
-async function loadRequestInfo(){
-  try{
-    const info = await fetch('/api/request/info').then(r=>r.json());
-    if(!info.ok) throw new Error(info.message || 'QR Code 資訊讀取失敗');
+function adminHeaders(){
+  return {
+    'Content-Type': 'application/json',
+    'x-admin-token': adminToken
+  };
+}
 
-    currentRequestPin = info.pin || '';
-    if(audienceRequestUrl) audienceRequestUrl.textContent = info.lanUrl || '';
-    if(audienceLocalUrl) audienceLocalUrl.textContent = info.localUrl || '';
-    if(requestQrImg && info.qrDataUrl) requestQrImg.src = info.qrDataUrl;
-    if(requestPinEl) requestPinEl.textContent = info.pin || '------';
-  }catch(err){
-    console.error('Failed to load request info:', err);
-    if(audienceRequestUrl) audienceRequestUrl.textContent = 'QR Code 資訊讀取失敗';
-    showToast('QR Code 資訊讀取失敗');
+async function adminApi(path, options = {}){
+  const res = await fetch(path, {
+    ...options,
+    headers: {
+      ...adminHeaders(),
+      ...(options.headers || {})
+    }
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok || data.ok === false) throw new Error(data.message || '管理 API 操作失敗');
+  return data;
+}
+
+function formatDuration(ms){
+  const total = Math.floor((ms || 0) / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function escapeHtml2(text){
+  return String(text || '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'
+  }[ch]));
+}
+
+function getSettingPayload(){
+  return {
+    requestsEnabled: Boolean(settingInputs.requestsEnabled?.checked),
+    autoApproveQueue: Boolean(settingInputs.autoApproveQueue?.checked),
+    allowPlayNow: Boolean(settingInputs.allowPlayNow?.checked),
+    allowPlaybackControl: Boolean(settingInputs.allowPlaybackControl?.checked),
+    allowSkipControl: Boolean(settingInputs.allowSkipControl?.checked),
+    blockExplicit: Boolean(settingInputs.blockExplicit?.checked),
+    cooldownSeconds: Number(settingInputs.cooldownSeconds?.value || 0),
+    controlCooldownSeconds: Number(settingInputs.controlCooldownSeconds?.value || 0)
+  };
+}
+
+function renderSettings(settings = {}){
+  Object.entries(settingInputs).forEach(([key, el])=>{
+    if(!el) return;
+    if(el.type === 'checkbox') el.checked = Boolean(settings[key]);
+    else el.value = settings[key] ?? '';
+  });
+}
+
+function renderTunnel(tunnel = {}){
+  const publicUrl = tunnel.publicUrl || '';
+  if(tunnelState){
+    if(publicUrl) tunnelState.textContent = 'Tunnel 已可用';
+    else if(tunnel.running) tunnelState.textContent = 'Tunnel 啟動中，等待網址...';
+    else if(tunnel.lastError) tunnelState.textContent = 'Tunnel 未啟動 / 發生錯誤';
+    else tunnelState.textContent = 'Tunnel 未啟動';
+  }
+  if(tunnelHint){
+    if(publicUrl) tunnelHint.textContent = `外網網址已產生：${publicUrl}`;
+    else if(tunnel.lastError) tunnelHint.textContent = tunnel.lastError;
+    else tunnelHint.textContent = '外網觀眾需要 Cloudflare Tunnel；請先安裝 cloudflared，再按「啟動 Tunnel」。';
   }
 }
 
-refreshRequestQrBtn?.addEventListener('click', loadRequestInfo);
+function renderRequestUrls(data = {}){
+  const urls = data.urls || {};
+  const preferred = urls.publicUrl || urls.lanUrl || urls.localUrl || '';
+  currentRequestPin = data.pin || currentRequestPin;
+  if(audienceRequestUrl) audienceRequestUrl.textContent = preferred || '尚未產生';
+  if(audienceLanUrl) audienceLanUrl.textContent = urls.lanUrl || '尚未產生';
+  if(audienceLocalUrl) audienceLocalUrl.textContent = urls.localUrl || '尚未產生';
+  if(requestQrImg && data.qrDataUrl) requestQrImg.src = data.qrDataUrl;
+  if(requestPinEl) requestPinEl.textContent = currentRequestPin || '------';
+  if(requestPreviewLink) requestPreviewLink.href = urls.localUrl || '/html/request.html';
+  renderTunnel(urls.tunnel || {});
+}
 
-document.querySelectorAll('[data-remote-control]').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
-    const action = btn.dataset.remoteControl;
-    if(!currentRequestPin){
-      await loadRequestInfo();
+function requestStatusLabel(status){
+  const map = {
+    pending: '待審',
+    approved: '已加入佇列',
+    played: '已插播',
+    rejected: '已拒絕'
+  };
+  return map[status] || status || '未知';
+}
+
+function renderRequests(requests = []){
+  if(!requestList) return;
+  if(!requests.length){
+    requestList.innerHTML = '<p class="emptyText">目前沒有點歌請求。</p>';
+    return;
+  }
+
+  requestList.innerHTML = requests.map(req=>{
+    const track = req.track || {};
+    const isPending = req.status === 'pending';
+    return `
+      <article class="requestItem ${isPending ? 'isPending' : ''}">
+        <img class="requestCover" src="${escapeHtml2(track.cover_url || '')}" alt="">
+        <div class="requestMeta">
+          <strong>${escapeHtml2(track.name || '未知歌曲')}</strong>
+          <span>${escapeHtml2(track.artists || '未知歌手')}</span>
+          <small>${escapeHtml2(req.nickname || '匿名觀眾')}・${requestStatusLabel(req.status)}・${req.mode === 'play-now' ? '插播' : '佇列'}・${formatDuration(track.duration_ms)}</small>
+        </div>
+        <div class="requestActions">
+          ${isPending ? `<button class="btnPrimary" data-request-action="approve" data-id="${req.id}">加入佇列</button>
+          <button class="btnGhost" data-request-action="play-now" data-id="${req.id}">立即插播</button>
+          <button class="btnDanger" data-request-action="reject" data-id="${req.id}">拒絕</button>` : `<span class="statusPill">${requestStatusLabel(req.status)}</span>`}
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+async function loadAdminInfo(){
+  try{
+    const data = await fetch('/api/request/admin-info').then(r=>r.json());
+    if(!data.ok) throw new Error(data.message || '管理資訊讀取失敗');
+    adminToken = data.adminToken;
+    localStorage.setItem('obsHelperAdminToken', adminToken);
+    renderSettings(data.settings || {});
+    renderRequestUrls(data);
+    renderRequests(data.requests || []);
+  }catch(err){
+    console.warn('Local admin-info failed, fallback to existing admin token:', err.message);
+    if(!adminToken){
+      showToast('請用本機 127.0.0.1 開啟 Dashboard 以取得管理權限');
+      if(requestList) requestList.innerHTML = '<p class="emptyText">無法取得管理權限。請用本機 127.0.0.1 開啟 Dashboard。</p>';
+      return;
     }
+    await refreshRequestInfo().catch(e=>showToast(e.message));
+    await loadRequestList().catch(()=>{});
+  }
+}
 
-    btn.disabled = true;
-    const original = btn.textContent;
-    btn.textContent = '處理中...';
+async function refreshRequestInfo(){
+  const data = await adminApi('/api/request/info');
+  renderSettings(data.settings || {});
+  renderRequestUrls(data);
+  return data;
+}
 
-    try{
-      const res = await fetch('/api/request/control', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ pin: currentRequestPin, action })
-      });
-      const data = await res.json();
-      if(!res.ok || !data.ok) throw new Error(data.message || '播放控制失敗');
-      showToast(data.message || '已送出播放控制');
-      loadStatus();
-    }catch(err){
-      console.error('Remote control failed:', err);
-      showToast(err.message || '播放控制失敗');
-    }finally{
-      btn.disabled = false;
-      btn.textContent = original;
-    }
-  });
+async function loadRequestList(){
+  const data = await adminApi('/api/request/list');
+  renderRequests(data.requests || []);
+}
+
+saveRequestSettingsBtn?.addEventListener('click', async ()=>{
+  try{
+    await adminApi('/api/request/settings', { method:'POST', body: JSON.stringify(getSettingPayload()) });
+    await refreshRequestInfo();
+    showToast('觀眾權限設定已儲存');
+  }catch(err){ showToast(err.message); }
 });
 
-loadRequestInfo();
+rotateRequestPinBtn?.addEventListener('click', async ()=>{
+  if(!confirm('重新產生權限碼後，舊 QR Code 會失效。確定要繼續嗎？')) return;
+  try{
+    const data = await adminApi('/api/request/rotate-pin', { method:'POST', body:'{}' });
+    renderRequestUrls(data);
+    showToast('已重新產生 QR Code 權限碼');
+  }catch(err){ showToast(err.message); }
+});
+
+reloadRequestsBtn?.addEventListener('click', ()=>loadRequestList().catch(err=>showToast(err.message)));
+clearFinishedRequestsBtn?.addEventListener('click', async ()=>{
+  try{
+    const data = await adminApi('/api/request/clear-finished', { method:'POST', body:'{}' });
+    renderRequests(data.requests || []);
+    showToast('已清除已處理請求');
+  }catch(err){ showToast(err.message); }
+});
+
+requestList?.addEventListener('click', async e=>{
+  const btn = e.target.closest('[data-request-action]');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  const action = btn.dataset.requestAction;
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = '處理中...';
+  try{
+    if(action === 'reject'){
+      await adminApi('/api/request/reject', { method:'POST', body: JSON.stringify({ id }) });
+      showToast('已拒絕點歌');
+    }else{
+      await adminApi('/api/request/approve', { method:'POST', body: JSON.stringify({ id, mode: action === 'play-now' ? 'play-now' : 'queue' }) });
+      showToast(action === 'play-now' ? '已立即插播' : '已加入佇列');
+    }
+    await loadRequestList();
+    loadStatus();
+  }catch(err){ showToast(err.message); }
+  finally{ btn.disabled = false; btn.textContent = original; }
+});
+
+async function tunnelAction(path, message){
+  try{
+    const data = await adminApi(path, { method:'POST', body:'{}' });
+    renderTunnel(data.tunnel || {});
+    setTimeout(()=>refreshRequestInfo().catch(()=>{}), 2500);
+    showToast(message);
+  }catch(err){ showToast(err.message); }
+}
+startTunnelBtn?.addEventListener('click', ()=>tunnelAction('/api/request/tunnel/start', '已嘗試啟動 Tunnel'));
+restartTunnelBtn?.addEventListener('click', ()=>tunnelAction('/api/request/tunnel/restart', '已嘗試重啟 Tunnel'));
+stopTunnelBtn?.addEventListener('click', ()=>tunnelAction('/api/request/tunnel/stop', '已停止 Tunnel'));
+
+loadAdminInfo();
+requestRefreshTimer = setInterval(()=>{
+  if(adminToken){
+    refreshRequestInfo().catch(()=>{});
+    loadRequestList().catch(()=>{});
+  }
+}, 8000);

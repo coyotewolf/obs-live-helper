@@ -62,6 +62,13 @@ app.use('/api/font', require('./routes/font')); // 字型上傳
 const { startLyricSync } = require('./services/lyricsFetcher');
 startLyricSync();
 
+/* ---------- Optional public tunnel for audience QR page ---------- */
+const tunnelManager = require('./services/tunnelManager');
+
 /* ---------- 伺服器啟動 ---------- */
 const PORT = process.env.PORT || 5172;
-app.listen(PORT, () => console.log('Server running on', PORT));
+app.listen(PORT, () => {
+  console.log('Server running on', PORT);
+  console.log('Dashboard:', `http://127.0.0.1:${PORT}/html/dashboard.html`);
+  tunnelManager.startIfEnabled(PORT);
+});

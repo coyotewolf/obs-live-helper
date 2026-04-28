@@ -3,41 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spotify 點歌與遙控</title>
+  <title>Spotify 點歌</title>
   <link rel="stylesheet" href="../css/pages/request.css">
 </head>
 <body>
   <main class="requestShell">
     <header class="hero">
       <span class="eyebrow">OBS Live Helper</span>
-      <h1>點歌 / 遙控 Spotify</h1>
-      <p>搜尋歌曲後可以加入佇列，或立即插播。也可以控制播放、暫停、上一首與下一首。</p>
+      <h1>觀眾點歌</h1>
+      <p id="pageSubtitle">搜尋 Spotify 歌曲，送出後會依主播設定加入佇列或等待審核。</p>
     </header>
 
-    <section class="panel controlPanel">
+    <section class="panel statusPanel">
+      <div>
+        <h2>目前開放狀態</h2>
+        <p id="settingsHint" class="hint">讀取設定中...</p>
+      </div>
+      <div id="modeBadges" class="modeBadges"></div>
+    </section>
+
+    <section id="controlPanel" class="panel controlPanel hidden">
       <h2>播放控制</h2>
       <div class="controlGrid">
-        <button data-action="previous">上一首</button>
-        <button data-action="pause">暫停</button>
-        <button data-action="play" class="primary">播放</button>
-        <button data-action="next">下一首</button>
+        <button data-action="previous" data-kind="skip">上一首</button>
+        <button data-action="pause" data-kind="playback">暫停</button>
+        <button data-action="play" data-kind="playback" class="primary">播放</button>
+        <button data-action="next" data-kind="skip">下一首</button>
       </div>
-      <p id="controlHint" class="hint">如果按鈕失敗，可能是 Spotify 沒有正在播放的裝置，或帳號沒有播放控制權限。</p>
+      <p class="hint">是否可控制播放由主播 Dashboard 設定；操作太頻繁會被暫時限制。</p>
     </section>
 
     <section class="panel">
       <h2>搜尋歌曲</h2>
+      <label class="nicknameRow">
+        <span>你的暱稱</span>
+        <input id="nicknameInput" type="text" maxlength="40" placeholder="匿名觀眾">
+      </label>
+
       <form id="searchForm" class="searchRow">
         <input id="searchInput" type="search" placeholder="輸入歌名、歌手或關鍵字" autocomplete="off">
         <button type="submit" class="primary">搜尋</button>
       </form>
+
       <div id="resultList" class="resultList">
         <p class="emptyText">輸入關鍵字後開始搜尋。</p>
       </div>
     </section>
 
     <footer>
-      <p>這個頁面只能透過 Dashboard 的 QR Code 使用。請不要把連結傳給不信任的人。</p>
+      <p>這個頁面只能透過主播提供的 QR Code 使用。請不要把連結轉傳給不相關的人。</p>
     </footer>
   </main>
 
