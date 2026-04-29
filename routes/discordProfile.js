@@ -86,218 +86,18 @@ function injectedStyle() {
   --font:'Segoe UI', system-ui, sans-serif;
   --speak-pad:calc((var(--avatar) * (var(--scale) - 1)) * 0.6 + 6px);
 }
-html,body{
-  background:transparent !important;
-  overflow:visible !important;
-  margin:0 !important;
-  padding:0 !important;
-  height:100% !important;
-}
-
-/* 外層：改成完全向左對齊，不再置中 */
-[class^="Voice_voiceStates"], [class*=" Voice_voiceStates"]{
-  display:flex !important;
-  justify-content:flex-start !important;
-  align-items:flex-start !important;
-  align-content:flex-start !important;
-  gap:var(--gap) !important;
-  column-gap:var(--gap) !important;
-  row-gap:0 !important;
-  padding:var(--speak-pad) 0 0 0 !important;
-  margin:0 !important;
-  width:100% !important;
-  overflow:visible !important;
-  text-align:left !important;
-}
-
-[class^="Voice_voiceStates"] > *,
-[class*=" Voice_voiceStates"] > *{
-  margin:0 !important;
-  overflow:visible !important;
-}
-
-/* 每個使用者卡片也靠左，避免整排頭像被置中 */
-[class^="Voice_voiceState"], [class*=" Voice_voiceState"]{
-  display:flex !important;
-  align-items:flex-start !important;
-  justify-content:flex-start !important;
-  flex-wrap:wrap !important;
-  gap:0 !important;
-  padding:var(--speak-pad) 0 var(--speak-pad) 0 !important;
-  margin:0 !important;
-  border:none !important;
-  background:transparent !important;
-  box-shadow:none !important;
-  backdrop-filter:none !important;
-  border-radius:0 !important;
-  min-width:var(--avatar) !important;
-  width:var(--avatar) !important;
-  max-width:var(--avatar) !important;
-  overflow:visible !important;
-  text-align:left !important;
-}
-
-[class^="Voice_voiceState"]:not(:first-child),
-[class*=" Voice_voiceState"]:not(:first-child){
-  margin-left:calc(-1 * var(--overlap-x)) !important;
-}
-
-img[class^="Voice_avatar"], img[class*=" Voice_avatar"]{
-  order:1 !important;
-  width:var(--avatar) !important;
-  height:var(--avatar) !important;
-  object-fit:cover !important;
-  border-radius:18px !important;
-  border:2px solid rgba(125,211,252,.32) !important;
-  box-shadow:inset 0 0 0 2px rgba(0,0,0,.65),0 8px 24px rgba(0,0,0,.22) !important;
-  transition:transform .15s ease, box-shadow .2s ease, opacity .2s ease, filter .2s ease, border-color .2s ease !important;
-  transform-origin:center center !important;
-  opacity:var(--idle) !important;
-  filter:saturate(.82) brightness(.92) !important;
-}
-
-img[class*="Voice_avatarSpeaking"]{
-  opacity:1 !important;
-  transform:scale(var(--scale)) !important;
-  filter:saturate(1.08) brightness(1.16) !important;
-  border-color:var(--accent) !important;
-  box-shadow:
-    0 0 var(--glow) rgba(125,211,252,.95),
-    0 0 calc(var(--glow)*.85) rgba(167,139,250,.75),
-    0 0 calc(var(--glow)*.55) rgba(125,211,252,.55) inset,
-    0 6px 18px rgba(0,0,0,.36) !important;
-  animation:obs-discord-pulse 1.1s ease-in-out infinite alternate !important;
-}
-
-[class^="Voice_user"], [class*=" Voice_user"]{
-  order:2 !important;
-  flex:0 0 100% !important;
-  display:block !important;
-  width:var(--avatar) !important;
-  max-width:var(--avatar) !important;
-  font-family:var(--font) !important;
-  line-height:1.05 !important;
-  margin-top:0 !important;
-  overflow:hidden !important;
-  text-align:left !important;
-}
-
-/* 名字：超出頭像寬度時用跑馬燈，不再省略號 */
-span[class^="Voice_name"], span[class*=" Voice_name"],
-div[class^="Voice_name"], div[class*=" Voice_name"],
-span[class*="userName"], div[class*="userName"]{
-  display:inline-block !important;
-  visibility:visible !important;
-  opacity:1 !important;
-  width:max-content !important;
-  min-width:100% !important;
-  max-width:none !important;
-  box-sizing:border-box !important;
-  text-align:left !important;
-  font-weight:800 !important;
-  letter-spacing:.2px !important;
-  color:#ffffff !important;
-  text-shadow:0 0 12px rgba(125,211,252,.45),0 0 18px rgba(167,139,250,.28) !important;
-  overflow:visible !important;
-  text-overflow:clip !important;
-  white-space:nowrap !important;
-  margin:0 !important;
-  padding-right:28px !important;
-  will-change:transform !important;
-  animation:obs-discord-name-marquee 7s linear infinite alternate !important;
-}
-
-/* 若瀏覽器支援 :has，只有真的溢出的名字才會動；未溢出的名字保持不動 */
-@supports selector(:has(*)) {
-  [class^="Voice_user"]:has(span[class^="Voice_name"]),
-  [class*=" Voice_user"]:has(span[class*=" Voice_name"]),
-  [class^="Voice_user"]:has(div[class^="Voice_name"]),
-  [class*=" Voice_user"]:has(div[class*=" Voice_name"]),
-  [class^="Voice_user"]:has(span[class*="userName"]),
-  [class*=" Voice_user"]:has(span[class*="userName"]),
-  [class^="Voice_user"]:has(div[class*="userName"]),
-  [class*=" Voice_user"]:has(div[class*="userName"]){
-    overflow:hidden !important;
-  }
-}
-
-/* aria-label 備援無法量測文字寬度，仍用裁切避免 duplicated label 跑版 */
-[class^="Voice_voiceState"][aria-label]::after,
-[class*=" Voice_voiceState"][aria-label]::after{
-  content:attr(aria-label) !important;
-  order:2 !important;
-  flex:0 0 100% !important;
-  display:block !important;
-  margin-top:0 !important;
-  width:var(--avatar) !important;
-  max-width:var(--avatar) !important;
-  box-sizing:border-box !important;
-  font-family:var(--font) !important;
-  font-weight:800 !important;
-  letter-spacing:.2px !important;
-  text-align:left !important;
-  color:#ffffff !important;
-  text-shadow:0 0 12px rgba(125,211,252,.45),0 0 18px rgba(167,139,250,.28) !important;
-  overflow:hidden !important;
-  text-overflow:ellipsis !important;
-  white-space:nowrap !important;
-}
-
-@keyframes obs-discord-pulse{
-  0%{filter:brightness(1.02) saturate(1.02);}
-  100%{filter:brightness(1.36) saturate(1.14);}
-}
-
-@keyframes obs-discord-name-marquee{
-  0%,18%{transform:translateX(0);}
-  82%,100%{transform:translateX(calc(var(--avatar) - 100% - 28px));}
-}
+html,body{background:transparent !important;overflow:visible !important;margin:0 !important;padding:0 !important;height:100% !important;}
+[class^="Voice_voiceStates"], [class*=" Voice_voiceStates"]{display:flex !important;justify-content:flex-start !important;align-items:flex-start !important;align-content:flex-start !important;gap:var(--gap) !important;column-gap:var(--gap) !important;row-gap:0 !important;padding:var(--speak-pad) 0 0 0 !important;margin:0 !important;width:100% !important;overflow:visible !important;}
+[class^="Voice_voiceStates"] > *, [class*=" Voice_voiceStates"] > *{margin:0 !important;overflow:visible !important;}
+[class^="Voice_voiceState"], [class*=" Voice_voiceState"]{display:flex !important;align-items:center !important;justify-content:center !important;flex-wrap:wrap !important;gap:0 !important;padding:var(--speak-pad) 0 var(--speak-pad) 0 !important;margin:0 !important;border:none !important;background:transparent !important;box-shadow:none !important;backdrop-filter:none !important;border-radius:0 !important;min-width:auto !important;overflow:visible !important;}
+[class^="Voice_voiceState"]:not(:first-child), [class*=" Voice_voiceState"]:not(:first-child){margin-left:calc(-1 * var(--overlap-x)) !important;}
+img[class^="Voice_avatar"], img[class*=" Voice_avatar"]{order:1 !important;width:var(--avatar) !important;height:var(--avatar) !important;object-fit:cover !important;border-radius:18px !important;border:2px solid rgba(125,211,252,.32) !important;box-shadow:inset 0 0 0 2px rgba(0,0,0,.65),0 8px 24px rgba(0,0,0,.22) !important;transition:transform .15s ease, box-shadow .2s ease, opacity .2s ease, filter .2s ease, border-color .2s ease !important;transform-origin:center center !important;opacity:var(--idle) !important;filter:saturate(.82) brightness(.92) !important;}
+img[class*="Voice_avatarSpeaking"]{opacity:1 !important;transform:scale(var(--scale)) !important;filter:saturate(1.08) brightness(1.16) !important;border-color:var(--accent) !important;box-shadow:0 0 var(--glow) rgba(125,211,252,.95),0 0 calc(var(--glow)*.85) rgba(167,139,250,.75),0 0 calc(var(--glow)*.55) rgba(125,211,252,.55) inset,0 6px 18px rgba(0,0,0,.36) !important;animation:obs-discord-pulse 1.1s ease-in-out infinite alternate !important;}
+[class^="Voice_user"], [class*=" Voice_user"]{order:2 !important;flex:0 0 100% !important;display:flex !important;flex-direction:column !important;align-items:center !important;justify-content:center !important;font-family:var(--font) !important;line-height:1.05 !important;margin-top:0 !important;overflow:visible !important;}
+span[class^="Voice_name"], span[class*=" Voice_name"], div[class^="Voice_name"], div[class*=" Voice_name"], span[class*="userName"], div[class*="userName"]{display:block !important;visibility:visible !important;opacity:1 !important;width:var(--avatar) !important;max-width:var(--avatar) !important;box-sizing:border-box !important;text-align:center !important;font-weight:800 !important;letter-spacing:.2px !important;color:#ffffff !important;text-shadow:0 0 12px rgba(125,211,252,.45),0 0 18px rgba(167,139,250,.28) !important;overflow:hidden !important;text-overflow:ellipsis !important;white-space:nowrap !important;margin:0 !important;}
+[class^="Voice_voiceState"][aria-label]::after, [class*=" Voice_voiceState"][aria-label]::after{content:attr(aria-label) !important;order:2 !important;flex:0 0 100% !important;display:block !important;margin-top:0 !important;width:var(--avatar) !important;max-width:var(--avatar) !important;box-sizing:border-box !important;font-family:var(--font) !important;font-weight:800 !important;letter-spacing:.2px !important;text-align:center !important;color:#ffffff !important;text-shadow:0 0 12px rgba(125,211,252,.45),0 0 18px rgba(167,139,250,.28) !important;overflow:hidden !important;text-overflow:ellipsis !important;white-space:nowrap !important;}
+@keyframes obs-discord-pulse{0%{filter:brightness(1.02) saturate(1.02);}100%{filter:brightness(1.36) saturate(1.14);}}
 </style>`;
-}
-
-function injectedMarqueeScript() {
-  return `
-<script id="obs-live-helper-discord-marquee">
-(function(){
-  function applyMarquee(){
-    var names = document.querySelectorAll(
-      'span[class^="Voice_name"], span[class*=" Voice_name"], div[class^="Voice_name"], div[class*=" Voice_name"], span[class*="userName"], div[class*="userName"]'
-    );
-    names.forEach(function(name){
-      var parent = name.closest('[class^="Voice_user"], [class*=" Voice_user"]') || name.parentElement;
-      if (!parent) return;
-      parent.style.overflow = 'hidden';
-      parent.style.width = 'var(--avatar)';
-      parent.style.maxWidth = 'var(--avatar)';
-      if (name.scrollWidth > parent.clientWidth + 2) {
-        name.classList.add('obs-marquee-active');
-        name.style.animationPlayState = 'running';
-      } else {
-        name.classList.remove('obs-marquee-active');
-        name.style.animation = 'none';
-        name.style.transform = 'translateX(0)';
-      }
-    });
-  }
-
-  var style = document.createElement('style');
-  style.id = 'obs-live-helper-discord-marquee-runtime-style';
-  style.textContent = '.obs-marquee-active{animation:obs-discord-name-marquee 7s linear infinite alternate !important;}';
-  document.head.appendChild(style);
-
-  window.addEventListener('load', function(){
-    applyMarquee();
-    setInterval(applyMarquee, 1200);
-  });
-
-  new MutationObserver(applyMarquee).observe(document.documentElement, {
-    childList:true,
-    subtree:true,
-    attributes:true,
-    attributeFilter:['class','style','aria-label']
-  });
-})();
-</script>`;
 }
 
 function injectIntoHtml(html) {
@@ -306,7 +106,7 @@ function injectIntoHtml(html) {
   // Cloudflare challenge scripts are not useful in the local proxy and can break MIME checks.
   out = out.replace(/<script[^>]+src=["'][^"']*\/cdn-cgi\/challenge-platform[^"']*["'][^>]*><\/script>/gi, '');
 
-  const injection = `${injectedBridgeScript()}${injectedStyle()}${injectedMarqueeScript()}`;
+  const injection = `${injectedBridgeScript()}${injectedStyle()}`;
   if (out.includes('</head>')) return out.replace('</head>', `${injection}</head>`);
   return `${injection}${out}`;
 }
