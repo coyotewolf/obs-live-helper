@@ -4,6 +4,7 @@ router.use('/spotify', require('./spotify'));
 router.use('/editor', require('./editor'));
 router.use('/style', require('./style'));
 router.use('/request', require('./request'));
+router.use('/discord-profile', require('./discordProfile'));
 
 router.get('/hello', (req, res) => {
   res.json({ message: 'API is working! 👋' });

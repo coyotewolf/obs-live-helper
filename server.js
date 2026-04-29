@@ -42,7 +42,6 @@ function dashboardGuard(req, res, next) {
 }
 app.use(dashboardGuard);
 
-
 // ---------- Spotify Client ID setup ----------
 const REQUIRED_REDIRECT_URI = `http://127.0.0.1:${PORT}/api/spotify/callback`;
 
@@ -131,6 +130,24 @@ function spotifyClientSetupGuard(req, res, next) {
 }
 app.use(spotifyClientSetupGuard);
 
+// ---------- Dashboard extension injection ----------
+// Keep the original dashboard.html untouched, but add a small script that inserts
+// the Discord voice avatar overlay card into the Overlay URL grid.
+app.get('/html/dashboard.html', (req, res, next) => {
+  const dashboardPath = path.join(runtimePaths.PUBLIC_DIR, 'html', 'dashboard.html');
+  fs.readFile(dashboardPath, 'utf8', (err, html) => {
+    if (err) return next(err);
+    if (!html.includes('dashboard-discord-extra.js')) {
+      html = html.replace('</body>', '<script src="../js/dashboard-discord-extra.js"></script>\n</body>');
+    }
+    res.type('html').send(html);
+  });
+});
+
+// ---------- Discord StreamKit local proxy ----------
+// StreamKit refuses normal iframe embedding. To keep an OBS-friendly local URL,
+// we serve the StreamKit overlay path under localhost /overlay/voice/... and inject CSS.
+app.use('/overlay', require('./routes/discordProfile'));
 
 app.use(express.static(runtimePaths.PUBLIC_DIR));
 app.use('/lyrics', express.static(runtimePaths.LYRICS_DIR, {
