@@ -45,7 +45,6 @@ app.use(dashboardGuard);
 
 // ---------- First launch setup ----------
 const REQUIRED_REDIRECT_URI = `http://127.0.0.1:${PORT}/api/spotify/callback`;
-const DEFAULT_STREAMKIT_URL = '';
 
 function parseEnvFile(filePath) {
   const env = {};
@@ -112,6 +111,16 @@ function getConfiguredStreamKitUrl() {
   return '';
 }
 
+function getDefaultStreamKitUrl() {
+  const fromProcess = normalizeStreamKitUrl(process.env.DEFAULT_STREAMKIT_URL);
+  if (fromProcess) return fromProcess;
+
+  const fromFile = normalizeStreamKitUrl(parseEnvFile(runtimePaths.ENV_PATH).DEFAULT_STREAMKIT_URL);
+  if (fromFile) return fromFile;
+
+  return '';
+}
+
 function buildLocalStreamKitProxyUrl(streamKitUrl) {
   const normalized = normalizeStreamKitUrl(streamKitUrl);
   if (!normalized) return '';
@@ -141,8 +150,8 @@ app.get('/api/config/status', (req, res) => {
     clientIdMasked: clientId ? `${clientId.slice(0, 6)}...${clientId.slice(-4)}` : '',
     redirectUri: REQUIRED_REDIRECT_URI,
     streamKitUrl,
-    streamKitDefaultUrl: DEFAULT_STREAMKIT_URL,
-    streamKitProxyUrl: buildLocalStreamKitProxyUrl(streamKitUrl || DEFAULT_STREAMKIT_URL),
+    streamKitDefaultUrl: getDefaultStreamKitUrl(),
+    streamKitProxyUrl: buildLocalStreamKitProxyUrl(streamKitUrl || getDefaultStreamKitUrl()),
     envPath: runtimePaths.ENV_PATH,
     dataDir: runtimePaths.DATA_DIR
   });
