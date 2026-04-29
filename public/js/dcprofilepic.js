@@ -1,5 +1,5 @@
-const DEFAULT_GUILD_ID = '0000000000000000000';
-const DEFAULT_CHANNEL_ID = '0000000000000000000';
+const DEFAULT_GUILD_ID = '';
+const DEFAULT_CHANNEL_ID = '';
 
 const params = new URLSearchParams(location.search);
 const iframe = document.getElementById('discordStreamkitFrame');
