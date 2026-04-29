@@ -20,6 +20,7 @@ let lineEls = [];
 let retryTimer = null;
 let staleRetryCount = 0;
 let statusBackoffUntil = 0;
+let confirmedNoLyricsTrackKey = null;
 
 function toMs(timeText) {
   const [min, sec] = timeText.split(':');
@@ -65,15 +66,13 @@ function clearRetryTimer() {
 }
 
 function scheduleLrcRetry(delay = 650) {
-  // Do not keep canceling and rescheduling on every tick.
-  // The previous version called clearRetryTimer() here, but tick() runs every 2s
-  // and the retry delay is often 2.5s, so the timer was repeatedly canceled
-  // before it could fire. That made OBS stay on "找沒歌詞><" until manual refresh.
   if (retryTimer) return;
+  if (confirmedNoLyricsTrackKey && confirmedNoLyricsTrackKey === currentTrackKey) return;
 
   retryTimer = setTimeout(() => {
     retryTimer = null;
     if (!currentTrackKey || isLoadingLyrics) return;
+    if (confirmedNoLyricsTrackKey && confirmedNoLyricsTrackKey === currentTrackKey) return;
     isLoadingLyrics = true;
     fetchLRC(currentTrackKey);
   }, delay);
@@ -101,6 +100,7 @@ function renderMessage(message, className = 'message') {
 
 function renderLyricsList() {
   clearRetryTimer();
+  confirmedNoLyricsTrackKey = null;
   container.innerHTML = '';
 
   trackEl = document.createElement('div');
@@ -177,6 +177,13 @@ function updateActiveLine(nextIndex, options = {}) {
 
 async function fetchLRC(expectedTrackKey = currentTrackKey) {
   try {
+    // Once backend confirms no lyrics for this track, do not re-enter loading on every tick.
+    if (confirmedNoLyricsTrackKey && confirmedNoLyricsTrackKey === expectedTrackKey) {
+      lyricsState = 'not_found';
+      renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
+      return;
+    }
+
     lyricsState = 'loading';
     renderMessage(LOADING_TEXT, 'message loading');
 
@@ -186,9 +193,8 @@ async function fetchLRC(expectedTrackKey = currentTrackKey) {
     const text = await res.text();
     const { metadata, lines } = parseLRC(text);
     const lrcTrackKey = metadata.ti || null;
+    const obsStatus = String(metadata.obsstatus || '').toLowerCase();
 
-    // If lyrics/current.lrc still belongs to the previous track, do not render it.
-    // Keep retrying briefly while lyricsFetcher catches up.
     if (lrcTrackKey && expectedTrackKey && lrcTrackKey !== expectedTrackKey) {
       lrcLines = [];
       lyricsState = 'loading';
@@ -201,12 +207,16 @@ async function fetchLRC(expectedTrackKey = currentTrackKey) {
 
     if (!text.trim() || lines.length === 0) {
       lrcLines = [];
-      const obsStatus = String(metadata.obsstatus || '').toLowerCase();
 
-      // lyricsFetcher writes obsstatus:searching while exact/fuzzy LRCLib lookup
-      // is still running or waiting for retry. Keep OBS stable on the searching
-      // message, and only show no lyrics after obsstatus:not_found.
-      if (obsStatus === 'searching' || (expectedTrackKey && lrcTrackKey === expectedTrackKey && obsStatus !== 'not_found')) {
+      if (obsStatus === 'not_found') {
+        confirmedNoLyricsTrackKey = expectedTrackKey || lrcTrackKey || currentTrackKey;
+        lyricsState = 'not_found';
+        clearRetryTimer();
+        renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
+        return;
+      }
+
+      if (obsStatus === 'searching' || (expectedTrackKey && lrcTrackKey === expectedTrackKey)) {
         lyricsState = 'loading';
         scheduleLrcRetry(2200);
         renderMessage(LOADING_TEXT, 'message loading');
@@ -218,14 +228,21 @@ async function fetchLRC(expectedTrackKey = currentTrackKey) {
       return;
     }
 
+    confirmedNoLyricsTrackKey = null;
     lrcLines = lines;
     lyricsState = 'ready';
     renderLyricsList();
   } catch (error) {
     console.error('Failed to fetch LRC:', error);
     lrcLines = [];
-    lyricsState = 'not_found';
-    renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
+    if (confirmedNoLyricsTrackKey && confirmedNoLyricsTrackKey === expectedTrackKey) {
+      lyricsState = 'not_found';
+      renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
+    } else {
+      lyricsState = 'loading';
+      scheduleLrcRetry(2500);
+      renderMessage(LOADING_TEXT, 'message loading');
+    }
   } finally {
     isLoadingLyrics = false;
   }
@@ -253,6 +270,7 @@ async function tick() {
     lrcLines = [];
     lyricsState = 'idle';
     staleRetryCount = 0;
+    confirmedNoLyricsTrackKey = null;
     clearLyrics();
     return;
   }
@@ -268,12 +286,23 @@ async function tick() {
     isLoadingLyrics = true;
     activeIndex = null;
     staleRetryCount = 0;
+    confirmedNoLyricsTrackKey = null;
     fetchLRC(nextTrackKey);
     return;
   }
 
   if (isLoadingLyrics) {
-    renderMessage(LOADING_TEXT, 'message loading');
+    if (confirmedNoLyricsTrackKey && confirmedNoLyricsTrackKey === currentTrackKey) {
+      renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
+    } else {
+      renderMessage(LOADING_TEXT, 'message loading');
+    }
+    return;
+  }
+
+  if (confirmedNoLyricsTrackKey && confirmedNoLyricsTrackKey === currentTrackKey) {
+    lyricsState = 'not_found';
+    renderMessage(NO_LYRICS_TEXT, 'message no-lyrics');
     return;
   }
 
@@ -284,8 +313,6 @@ async function tick() {
   }
 
   if (lyricsState === 'not_found' || lrcLines.length === 0) {
-    // Re-read current.lrc so obsstatus changes from searching -> ready/not_found
-    // are picked up without manually refreshing the OBS Browser Source.
     if (!isLoadingLyrics && currentTrackKey) {
       isLoadingLyrics = true;
       fetchLRC(currentTrackKey);

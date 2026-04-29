@@ -7,7 +7,10 @@
  * - This module makes one shared cached request and applies backoff when Spotify asks us to slow down.
  */
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const { getAccessToken } = require('./spotifyAuth');
+const { storagePath } = require('./runtimePaths');
 
 const PLAYBACK_TTL_MS = Number(process.env.SPOTIFY_PLAYBACK_CACHE_MS || 2500);
 const QUEUE_TTL_MS = Number(process.env.SPOTIFY_QUEUE_CACHE_MS || 5000);
@@ -24,22 +27,48 @@ let queueFetchedAt = 0;
 let queuePromise = null;
 let queueBackoffUntil = 0;
 
+let lastPlaybackRateLogAt = 0;
+let lastQueueRateLogAt = 0;
+
+function appendLyricsLog(message) {
+  try {
+    const file = storagePath('lyrics.log');
+    const dir = path.dirname(file);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const stamp = new Date().toISOString();
+    fs.appendFileSync(file, `[${stamp}] ${message}\n`);
+  } catch (err) {
+    console.warn('Failed to append lyrics log:', err.message);
+  }
+}
+
+function logRateLimit(kind, rawRetryAfter, waitMs) {
+  const now = Date.now();
+  const isPlayback = kind === 'playback';
+  const lastAt = isPlayback ? lastPlaybackRateLogAt : lastQueueRateLogAt;
+
+  // Avoid flooding the Dashboard log while the same backoff is active.
+  if (now - lastAt < 3000) return;
+  if (isPlayback) lastPlaybackRateLogAt = now;
+  else lastQueueRateLogAt = now;
+
+  const message = `⚠️ Spotify ${kind} rate limited. Retry-After=${rawRetryAfter || 'not provided'}, backing off for ${Math.ceil(waitMs / 1000)}s.`;
+  console.warn(message);
+  appendLyricsLog(message);
+}
+
 function getRetryAfterMs(err) {
   const raw = err.response?.headers?.['retry-after'];
 
   if (typeof raw === 'string' && raw.trim()) {
     const text = raw.trim();
 
-    // Spotify normally returns Retry-After as seconds.
-    // Some proxies / environments may surface unexpected large numbers.
-    // Cap it so one malformed header does not disable playback for hours.
     const seconds = Number.parseFloat(text);
     if (Number.isFinite(seconds) && seconds > 0) {
       const ms = seconds * 1000;
       return Math.min(ms, MAX_BACKOFF_MS);
     }
 
-    // HTTP also allows Retry-After to be an absolute date.
     const dateMs = Date.parse(text);
     if (Number.isFinite(dateMs)) {
       return Math.min(Math.max(dateMs - Date.now(), DEFAULT_BACKOFF_MS), MAX_BACKOFF_MS);
@@ -170,9 +199,7 @@ async function getCurrentPlayback(options = {}) {
         const waitMs = getRetryAfterMs(err);
         playbackBackoffUntil = Date.now() + waitMs;
         const rawRetryAfter = err.response?.headers?.['retry-after'];
-        console.warn(
-          `Spotify playback rate limited. Retry-After=${rawRetryAfter || 'not provided'}, backing off for ${Math.ceil(waitMs / 1000)}s.`
-        );
+        logRateLimit('playback', rawRetryAfter, waitMs);
         if (playbackCache) return { ...withLiveProgress(playbackCache), rate_limited: true, retry_after_ms: waitMs };
         return { authorized: true, playing: false, track: null, rate_limited: true, retry_after_ms: waitMs, fetched_at: Date.now() };
       }
@@ -228,9 +255,7 @@ async function getQueue(options = {}) {
         const waitMs = getRetryAfterMs(err);
         queueBackoffUntil = Date.now() + waitMs;
         const rawRetryAfter = err.response?.headers?.['retry-after'];
-        console.warn(
-          `Spotify queue rate limited. Retry-After=${rawRetryAfter || 'not provided'}, backing off for ${Math.ceil(waitMs / 1000)}s.`
-        );
+        logRateLimit('queue', rawRetryAfter, waitMs);
         if (queueCache) return { ...queueCache, rate_limited: true, retry_after_ms: waitMs };
         return { authorized: true, queue: [], rate_limited: true, retry_after_ms: waitMs };
       }

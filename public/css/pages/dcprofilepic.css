@@ -1,0 +1,64 @@
+:root {
+  --accent: #7dd3fc;
+  --accent-2: #a78bfa;
+  --text: #ffffff;
+  --frame-radius: 28px;
+  --frame-border: rgba(125, 211, 252, 0.28);
+  --frame-bg: rgba(7, 11, 24, 0.02);
+  --glow-size: 42px;
+}
+
+* { box-sizing: border-box; }
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  background: transparent;
+  font-family: "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", Arial, sans-serif;
+}
+
+.discord-overlay-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: visible;
+  background: transparent;
+}
+
+.glow-layer {
+  position: absolute;
+  inset: 8px;
+  pointer-events: none;
+  border-radius: var(--frame-radius);
+  border: 1px solid var(--frame-border);
+  background:
+    radial-gradient(circle at 16% 28%, rgba(125, 211, 252, 0.18), transparent 40%),
+    radial-gradient(circle at 78% 22%, rgba(167, 139, 250, 0.16), transparent 42%),
+    var(--frame-bg);
+  box-shadow:
+    0 0 var(--glow-size) rgba(125, 211, 252, 0.18),
+    inset 0 0 28px rgba(167, 139, 250, 0.08);
+  opacity: 0.86;
+}
+
+.discord-frame {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color-scheme: dark;
+  filter:
+    drop-shadow(0 0 12px rgba(125, 211, 252, 0.24))
+    drop-shadow(0 0 22px rgba(167, 139, 250, 0.16));
+}
+
+/*
+  Discord StreamKit is loaded as a cross-origin iframe, so its internal .Voice_*
+  classes cannot be styled from this local page. The sci-fi frame/glow is applied
+  around the iframe; internal avatar layout still follows StreamKit settings.
+*/
