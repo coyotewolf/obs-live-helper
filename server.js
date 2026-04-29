@@ -19,7 +19,6 @@ const { getAdminToken, isLocalRequest } = require('./services/securityStore');
 
 const app = express();
 const PORT = process.env.PORT || 5172;
-const DISCORD_STREAMKIT_ORIGIN = 'https://streamkit.discord.com';
 
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
@@ -234,18 +233,17 @@ app.get('/html/dashboard.html', (req, res, next) => {
 // ---------- Discord StreamKit local proxy ----------
 const discordProfileRouter = require('./routes/discordProfile');
 
-// StreamKit main overlay HTML and /overlay/token.
+// StreamKit main overlay page and /overlay/token live here.
 app.use('/overlay', discordProfileRouter);
 
-// StreamKit React assets are referenced as absolute /static/... paths inside
-// the proxied StreamKit HTML. These MUST be registered before express.static,
-// otherwise the local public/static fallback returns HTML/404 and Chrome rejects
-// CSS/JS because the MIME type is wrong.
+// StreamKit's generated HTML references these as root-level paths.
+// They must be mounted BEFORE express.static(), otherwise the app returns local HTML
+// with wrong MIME type and StreamKit fails to boot.
 app.use('/static', discordProfileRouter.staticRouter);
+app.use('/cdn-cgi', discordProfileRouter.noOpScriptRouter);
 app.use('/asset-manifest.json', discordProfileRouter.proxyAsset('/asset-manifest.json'));
 app.use('/manifest.json', discordProfileRouter.proxyAsset('/manifest.json'));
 app.use('/favicon.ico', discordProfileRouter.proxyAsset('/favicon.ico'));
-app.use('/cdn-cgi', discordProfileRouter.noOpScriptRouter);
 
 app.use(express.static(runtimePaths.PUBLIC_DIR));
 app.use('/lyrics', express.static(runtimePaths.LYRICS_DIR, {
@@ -297,83 +295,110 @@ const server = app.listen(PORT, () => {
 });
 
 // ---------- Discord local RPC WebSocket bridge ----------
-// StreamKit normally connects to Discord's local RPC websocket at ws://127.0.0.1:6463.
-// When hosted from localhost:5172, Discord rejects the original origin. The injected
-// StreamKit patch rewrites the browser connection to /discord-rpc, and this bridge
-// forwards it to Discord RPC with Origin: https://streamkit.discord.com.
+// StreamKit uses the Discord desktop RPC socket at ws://127.0.0.1:6463.
+// When proxied through localhost:5172, Discord may reject the page origin.
+// This bridge accepts StreamKit's local WebSocket first, then forwards it to
+// Discord desktop RPC with Origin: https://streamkit.discord.com.
+//
+// Important implementation detail:
+// Do NOT wait for the upstream Discord socket before handleUpgrade().
+// StreamKit expects the browser WebSocket to open quickly. If we delay the
+// upgrade until upstream opens, StreamKit can race its first handshake payload
+// and end up with repeated "WS Open -> WS Closed" loops.
 const discordRpcWss = new WebSocket.Server({ noServer: true });
 
-function safeCloseWs(ws) {
-  try {
-    if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) ws.close();
-  } catch {}
-}
-
-function bridgeDiscordRpc(clientWs, req) {
-  const incomingUrl = new URL(req.url, `http://127.0.0.1:${PORT}`);
-  const targetUrl = `ws://127.0.0.1:6463/${incomingUrl.search || ''}`;
-  const targetWs = new WebSocket(targetUrl, {
-    headers: {
-      Origin: DISCORD_STREAMKIT_ORIGIN
-    }
-  });
-
-  const queued = [];
-
-  clientWs.on('message', data => {
-    if (targetWs.readyState === WebSocket.OPEN) {
-      targetWs.send(data);
-    } else if (targetWs.readyState === WebSocket.CONNECTING) {
-      queued.push(data);
-    }
-  });
-
-  targetWs.on('open', () => {
-    while (queued.length) targetWs.send(queued.shift());
-  });
-
-  targetWs.on('message', data => {
-    if (clientWs.readyState !== WebSocket.OPEN) return;
-
-    // StreamKit expects JSON strings. Avoid forwarding empty/null payloads.
-    let payload = data;
-    if (Buffer.isBuffer(data)) payload = data.toString('utf8');
-    if (payload === null || payload === undefined || String(payload).trim() === '') return;
-
-    clientWs.send(payload);
-  });
-
-  targetWs.on('close', (code, reason) => {
-    if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.close(code || 1000, reason?.toString?.() || '');
-    }
-  });
-
-  targetWs.on('error', err => {
-    console.warn('Discord RPC target error:', err.message);
-    safeCloseWs(clientWs);
-  });
-
-  clientWs.on('close', () => safeCloseWs(targetWs));
-  clientWs.on('error', () => safeCloseWs(targetWs));
-}
-
 server.on('upgrade', (req, socket, head) => {
-  const pathname = new URL(req.url, `http://127.0.0.1:${PORT}`).pathname;
-  if (pathname !== '/discord-rpc') {
-    socket.destroy();
-    return;
-  }
+  const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
+  if (url.pathname !== '/discord-rpc') return;
 
-  discordRpcWss.handleUpgrade(req, socket, head, ws => {
-    bridgeDiscordRpc(ws, req);
+  discordRpcWss.handleUpgrade(req, socket, head, client => {
+    const targetUrl = `ws://127.0.0.1:6463${url.search || ''}`;
+    const upstream = new WebSocket(targetUrl, {
+      headers: {
+        Origin: 'https://streamkit.discord.com'
+      }
+    });
+
+    let closed = false;
+    const clientQueue = [];
+    const upstreamQueue = [];
+
+    function safeClose(ws, code = 1000, reason = '') {
+      try {
+        if (ws && ws.readyState === WebSocket.OPEN) ws.close(code, reason);
+        else if (ws && ws.readyState === WebSocket.CONNECTING) ws.terminate();
+      } catch {}
+    }
+
+    function closeBoth(source, code = 1000, reason = '') {
+      if (closed) return;
+      closed = true;
+      const textReason = Buffer.isBuffer(reason) ? reason.toString('utf8') : String(reason || '');
+      if (source) console.warn(`Discord RPC bridge closed by ${source}: code=${code || ''} reason=${textReason || ''}`);
+      safeClose(client, code, textReason.slice(0, 120));
+      safeClose(upstream, code, textReason.slice(0, 120));
+    }
+
+    function normalizeWsPayload(data) {
+      let payload = data;
+      if (Buffer.isBuffer(data)) payload = data.toString('utf8');
+      if (payload instanceof ArrayBuffer) payload = Buffer.from(payload).toString('utf8');
+      if (ArrayBuffer.isView(payload)) payload = Buffer.from(payload.buffer, payload.byteOffset, payload.byteLength).toString('utf8');
+      if (payload === null || payload === undefined) return '';
+      return typeof payload === 'string' ? payload : String(payload);
+    }
+
+    function isJsonLike(payload) {
+      const text = String(payload || '').trim();
+      return text.startsWith('{') || text.startsWith('[');
+    }
+
+    function sendToUpstream(data) {
+      const payload = normalizeWsPayload(data);
+      if (!payload) return;
+
+      // Discord RPC closes with 1003 "Payload not json" if it receives a binary
+      // frame or a non-JSON text frame. StreamKit sends JSON strings, but the ws
+      // server can surface them as Buffer, so force text before forwarding.
+      if (!isJsonLike(payload)) {
+        console.warn('Discord RPC bridge ignored non-JSON client payload:', payload.slice(0, 80));
+        return;
+      }
+
+      if (upstream.readyState === WebSocket.OPEN) upstream.send(payload);
+      else if (upstream.readyState === WebSocket.CONNECTING) clientQueue.push(payload);
+    }
+
+    function sendToClient(data) {
+      const payload = normalizeWsPayload(data);
+      if (!payload) return;
+      if (client.readyState === WebSocket.OPEN) client.send(payload);
+      else if (client.readyState === WebSocket.CONNECTING) upstreamQueue.push(payload);
+    }
+
+    client.on('message', sendToUpstream);
+    client.on('close', (code, reason) => closeBoth('client', code, reason));
+    client.on('error', err => closeBoth('client-error', 1011, err.message));
+
+    upstream.on('open', () => {
+      while (clientQueue.length && upstream.readyState === WebSocket.OPEN) {
+        upstream.send(clientQueue.shift());
+      }
+    });
+
+    upstream.on('message', sendToClient);
+    upstream.on('close', (code, reason) => closeBoth('upstream', code, reason));
+    upstream.on('error', err => closeBoth('upstream-error', 1011, err.message));
+
+    while (upstreamQueue.length && client.readyState === WebSocket.OPEN) {
+      client.send(upstreamQueue.shift());
+    }
   });
 });
 
 async function shutdown() {
   try { stopLyricSync?.(); } catch {}
   try { tunnelManager.stopTunnel?.(); } catch {}
-  try { discordRpcWss.close(); } catch {}
   await new Promise(resolve => server.close(() => resolve()));
 }
 
