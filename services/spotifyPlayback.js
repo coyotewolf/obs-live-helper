@@ -18,8 +18,9 @@ try {
   storagePath = (fileName) => path.join(__dirname, '..', 'storage', fileName);
 }
 
-const PLAYBACK_TTL_MS = Number(process.env.SPOTIFY_PLAYBACK_CACHE_MS || 2500);
-const QUEUE_TTL_MS = Number(process.env.SPOTIFY_QUEUE_CACHE_MS || 5000);
+// Safer defaults for Spotify's rolling 30-second rate-limit window.
+const PLAYBACK_TTL_MS = Number(process.env.SPOTIFY_PLAYBACK_CACHE_MS || 10000);
+const QUEUE_TTL_MS = Number(process.env.SPOTIFY_QUEUE_CACHE_MS || 30000);
 const DEFAULT_BACKOFF_MS = Number(process.env.SPOTIFY_DEFAULT_BACKOFF_MS || 8000);
 const MAX_BACKOFF_MS = Number(process.env.SPOTIFY_MAX_BACKOFF_MS || 60000);
 
@@ -48,7 +49,7 @@ function appendSpotifyLog(message) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.appendFileSync(file, line, 'utf8');
   } catch (err) {
-    console.warn('Failed to write Spotify rate-limit log:', err.message);
+    console.warn('Failed to write Spotify log:', err.message);
   }
 }
 
@@ -60,7 +61,6 @@ function warnAndLogRateLimit(kind, rawRetryAfter, waitMs) {
   const isPlayback = kind === 'playback';
   const last = isPlayback ? lastPlaybackRateLimitLogAt : lastQueueRateLimitLogAt;
 
-  // Avoid writing identical rate-limit noise to the Dashboard log too frequently.
   if (now - last > 5000) {
     appendSpotifyLog(message);
     if (isPlayback) lastPlaybackRateLimitLogAt = now;
@@ -325,14 +325,22 @@ function clearSpotifyRateLimitLocks() {
 function clearPlaybackCache() {
   playbackCache = null;
   playbackFetchedAt = 0;
+  playbackBackoffUntil = 0;
+  playbackManualRetryRequired = false;
+  playbackRateLimitInfo = null;
+}
+
+function clearQueueCache() {
   queueCache = null;
   queueFetchedAt = 0;
-  playbackBackoffUntil = 0;
   queueBackoffUntil = 0;
-  playbackManualRetryRequired = false;
   queueManualRetryRequired = false;
-  playbackRateLimitInfo = null;
   queueRateLimitInfo = null;
+}
+
+function clearAllSpotifyCache() {
+  clearPlaybackCache();
+  clearQueueCache();
 }
 
 module.exports = {
@@ -340,5 +348,7 @@ module.exports = {
   getQueue,
   normalizeTrack,
   clearPlaybackCache,
+  clearQueueCache,
+  clearAllSpotifyCache,
   clearSpotifyRateLimitLocks
 };

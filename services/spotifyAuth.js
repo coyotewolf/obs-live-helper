@@ -49,8 +49,17 @@ function readTokens() {
   try {
     return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
   } catch (e) {
-    console.error('Failed to parse token file:', e);
+    console.error('Failed to parse token file:', e.message);
     return null;
+  }
+}
+
+function deleteTokens(reason = 'unknown') {
+  try {
+    if (fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE);
+    console.warn(`⚠️ Spotify token file deleted: ${reason}`);
+  } catch (err) {
+    console.warn(`⚠️ Failed to delete Spotify token file: ${err.message}`);
   }
 }
 
@@ -58,7 +67,21 @@ function readTokens() {
  * Save tokens to disk
  */
 function saveTokens(data) {
+  fs.mkdirSync(path.dirname(TOKEN_FILE), { recursive: true });
   fs.writeFileSync(TOKEN_FILE, JSON.stringify(data, null, 2));
+}
+
+function getSpotifyTokenError(err) {
+  return err?.response?.data?.error || '';
+}
+
+function getSpotifyTokenErrorDescription(err) {
+  return err?.response?.data?.error_description || err?.response?.data?.message || err?.message || 'unknown error';
+}
+
+function shouldDeleteStoredToken(err) {
+  const error = getSpotifyTokenError(err);
+  return error === 'invalid_grant' || error === 'invalid_client';
 }
 
 /**
@@ -70,21 +93,22 @@ async function getAccessToken() {
 
   const now = Date.now() / 1000;
   if (tokens.expires_at && tokens.expires_at - 60 > now) {
-    return tokens.access_token;          // 尚未過期
+    return tokens.access_token;
   }
 
-  // 需要刷新
   try {
     const refreshed = await refreshAccessToken(tokens.refresh_token);
     return refreshed.access_token;
   } catch (err) {
-    // 自動移除無效 token
-    if (err.response?.data?.error === 'invalid_grant') {
-      fs.unlinkSync(TOKEN_FILE);
-      console.warn('⚠️  Refresh token invalid, deleted token file.');
-    } else {
-      console.error('Error refreshing access token:', err);
+    const error = getSpotifyTokenError(err);
+    const description = getSpotifyTokenErrorDescription(err);
+
+    if (shouldDeleteStoredToken(err)) {
+      deleteTokens(`${error || 'token_error'}: ${description}`);
+      return null;
     }
+
+    console.error(`Error refreshing Spotify access token: ${error || err.response?.status || 'request_failed'} - ${description}`);
     return null;
   }
 }
@@ -140,4 +164,5 @@ module.exports = {
   getAccessToken,
   exchangeCodeForToken,
   readTokens,
+  deleteTokens,
 };

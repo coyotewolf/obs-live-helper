@@ -1,9 +1,10 @@
 /**
  * lyricsFetcher.js
  *  - Uses centralized Spotify playback cache to avoid API rate limits.
- *  - When track changes, immediately clears stale lyrics and writes [ti:<track-id>] metadata.
- *  - Fetches LRCLib synced lyrics and writes lyrics/current.lrc atomically.
- *  - Uses exact LRCLib lookup first, then fuzzy search fallback to avoid false "not found".
+ *  - Polls Spotify at a low frequency only to detect track changes.
+ *  - Fetches LRCLib only when the track changes, or when retrying the same track.
+ *  - Same-track lyric retries reuse the cached track context and do NOT call Spotify again.
+ *  - Writes lyrics/current.lrc atomically for OBS overlays.
  */
 const fs = require('fs');
 const path = require('path');
@@ -27,9 +28,16 @@ let lastLoggedFuzzySearchTrackId = null;
 let activeSyncPromise = null;
 let syncInterval = null;
 let lrclibBackoffUntil = 0;
+
+// Current track context is intentionally cached here.
+// Same-track LRCLib retries use this object directly, so they do not call Spotify again.
+let currentTrackContext = null;
 let currentTrackAttemptCount = 0;
 let lastLyricAttemptAt = 0;
+let lyricRetryPending = false;
 
+const PLAYBACK_POLL_TTL_MS = Number(process.env.SPOTIFY_PLAYBACK_CACHE_MS || 10000);
+const LYRICS_LOOP_INTERVAL_MS = Number(process.env.LYRICS_LOOP_INTERVAL_MS || 5000);
 const SAME_TRACK_RETRY_MS = Number(process.env.LYRICS_SAME_TRACK_RETRY_MS || 8000);
 const MAX_SAME_TRACK_RETRIES = Number(process.env.LYRICS_MAX_SAME_TRACK_RETRIES || 3);
 const LRCLIB_TIMEOUT_MS = Number(process.env.LRCLIB_TIMEOUT_MS || 8000);
@@ -89,7 +97,6 @@ function normalizeText(value = '') {
 function cleanTrackTitle(title = '') {
   let cleaned = String(title);
 
-  // Remove common version/credit suffixes that often break LRCLib exact matching.
   cleaned = cleaned.replace(/\s*[-–—]\s*(remaster(?:ed)?|[0-9]{4}\s*remaster(?:ed)?|radio edit|single edit|album version|live|acoustic|instrumental|karaoke|sped up|slowed|nightcore).*$/i, '');
   cleaned = cleaned.replace(/\s*\((?:feat\.?|ft\.?|with|remaster(?:ed)?|[0-9]{4}\s*remaster(?:ed)?|radio edit|single edit|album version|live|acoustic|instrumental|karaoke|sped up|slowed|nightcore)[^)]*\)/ig, '');
   cleaned = cleaned.replace(/\s*\[(?:feat\.?|ft\.?|with|remaster(?:ed)?|[0-9]{4}\s*remaster(?:ed)?|radio edit|single edit|album version|live|acoustic|instrumental|karaoke|sped up|slowed|nightcore)[^\]]*\]/ig, '');
@@ -121,7 +128,6 @@ function makeLrclibClient() {
     baseURL: 'https://lrclib.net',
     timeout: LRCLIB_TIMEOUT_MS,
     headers: {
-      // LRCLib asks clients to identify themselves; this also helps debugging.
       'User-Agent': 'OBS-Live-Helper/1.0 (https://github.com/coyotewolf/obs-live-helper)'
     },
     validateStatus: status => (status >= 200 && status < 300) || status === 404
@@ -178,18 +184,14 @@ function scoreSearchResult(item, context) {
 async function callLrclib(pathname, params) {
   const now = Date.now();
   if (lrclibBackoffUntil > now) {
-    throw new Error(`LRCLib rate limited, retry later`);
+    throw new Error('LRCLib rate limited, retry later');
   }
 
   const client = makeLrclibClient();
 
   try {
     const response = await client.get(pathname, { params });
-
-    if (response.status === 404) {
-      return null;
-    }
-
+    if (response.status === 404) return null;
     return response.data;
   } catch (err) {
     if (err.response?.status === 429) {
@@ -320,9 +322,7 @@ async function fetchLyricsLRC({ trackId, artists, title, album, duration_ms }) {
   };
 
   const exact = await tryExactGet(context);
-  if (exact?.lyrics) {
-    return exact;
-  }
+  if (exact?.lyrics) return exact;
 
   if (lastLoggedFuzzySearchTrackId !== trackId) {
     logLine(`ℹ️ LRCLib exact match not found, trying fuzzy search: ${firstArtist} - ${cleanedTitle}`);
@@ -331,58 +331,40 @@ async function fetchLyricsLRC({ trackId, artists, title, album, duration_ms }) {
   return searchLrclib(context);
 }
 
-function shouldRetrySameTrack(trackId) {
-  if (!trackId || lastSyncedObj?.id === trackId) return false;
+function makeTrackContext(item) {
+  const trackId = item.id || `${item.name || ''}-${item.artists || ''}`;
+  return {
+    trackId,
+    name: item.name || '未知歌曲',
+    artists: item.artists || '未知歌手',
+    album: item.album || '',
+    durationMs: item.duration_ms || 0
+  };
+}
+
+function isSameTrackContext(a, b) {
+  return Boolean(a?.trackId && b?.trackId && a.trackId === b.trackId);
+}
+
+function shouldRetryCurrentTrackWithoutSpotify() {
+  if (!lyricRetryPending || !currentTrackContext) return false;
   if (currentTrackAttemptCount >= MAX_SAME_TRACK_RETRIES) return false;
   return Date.now() - lastLyricAttemptAt >= SAME_TRACK_RETRY_MS;
 }
 
-async function performLyricSyncCore() {
-  const playback = await getCurrentPlayback({ ttlMs: 1800 });
-  if (!playback.authorized || playback.rate_limited) return;
+async function fetchLyricsForCurrentTrack(reason = 'track-change') {
+  if (!currentTrackContext) return;
 
-  if (!playback.track) {
-    if (lastTrackId !== null) {
-      lastTrackId = null;
-      lastSyncedObj = null;
-      writeCurrentLrc('');
-    }
-    return;
-  }
-
-  const item = playback.track;
-  const trackId = item.id || `${item.name || ''}-${item.artists || ''}`;
-  const name = item.name || '未知歌曲';
-  const artists = item.artists || '未知歌手';
-  const album = item.album || '';
-  const durationMs = item.duration_ms || 0;
-
-  const switchedTrack = trackId !== lastTrackId;
-
-  if (!switchedTrack && !shouldRetrySameTrack(trackId)) return;
-
-  if (switchedTrack) {
-    lastTrackId = trackId;
-    lastSyncedObj = null;
-    lastSyncedAt = Date.now();
-    lastLoggedLrcSynced = false;
-    lastLoggedLrcNotFound = false;
-    lastLoggedFuzzySearchTrackId = null;
-    currentTrackAttemptCount = 0;
-    lastLyricAttemptAt = 0;
-
-    if (trackId !== lastLoggedTrackId) {
-      logLine(`🎵 Now playing: ${artists} - ${name}`);
-      lastLoggedTrackId = trackId;
-    }
-  }
-
+  const { trackId, name, artists, album, durationMs } = currentTrackContext;
   currentTrackAttemptCount += 1;
   lastLyricAttemptAt = Date.now();
 
-  // Important: remove stale lyrics immediately on track switch.
-  // Keep metadata so display.js can tell which track the LRC belongs to.
+  // Remove stale lyrics immediately while searching/retrying this track.
   writeCurrentLrc(buildMetadata(trackId, artists, album, 'searching'));
+
+  if (reason === 'retry') {
+    logLine(`🔁 Retrying LRCLib for same track without Spotify API: ${artists} - ${name} (${currentTrackAttemptCount}/${MAX_SAME_TRACK_RETRIES})`);
+  }
 
   try {
     const result = await fetchLyricsLRC({
@@ -393,8 +375,8 @@ async function performLyricSyncCore() {
       duration_ms: durationMs
     });
 
-    // If another sync changed the track while LRCLib was responding, do not write stale lyrics.
-    if (lastTrackId !== trackId) return;
+    // If the track changed while LRCLib was responding, do not write stale lyrics.
+    if (!currentTrackContext || currentTrackContext.trackId !== trackId || lastTrackId !== trackId) return;
 
     writeCurrentLrc(buildMetadata(trackId, artists, album, 'ready') + result.lyrics);
 
@@ -408,21 +390,71 @@ async function performLyricSyncCore() {
     lastSyncedObj = { id: trackId, name, artists };
     lastSyncedAt = Date.now();
     currentTrackAttemptCount = 0;
+    lyricRetryPending = false;
   } catch (err) {
-    const reachedLimit = currentTrackAttemptCount >= MAX_SAME_TRACK_RETRIES;
-    if (lastTrackId === trackId) {
-      writeCurrentLrc(buildMetadata(trackId, artists, album, reachedLimit ? 'not_found' : 'searching'));
-    }
-    lastSyncedObj = null;
+    if (!currentTrackContext || currentTrackContext.trackId !== trackId || lastTrackId !== trackId) return;
 
-    if (!lastLoggedLrcNotFound || reachedLimit) {
-      const retryNote = !reachedLimit
-        ? `，將自動重試 ${currentTrackAttemptCount}/${MAX_SAME_TRACK_RETRIES}`
-        : `，已達查找上限 ${MAX_SAME_TRACK_RETRIES}/${MAX_SAME_TRACK_RETRIES}`;
-      logLine(`❌ LRC not found: ${err.message}${retryNote}`);
-      lastLoggedLrcNotFound = true;
-    }
+    const reachedLimit = currentTrackAttemptCount >= MAX_SAME_TRACK_RETRIES;
+    writeCurrentLrc(buildMetadata(trackId, artists, album, reachedLimit ? 'not_found' : 'searching'));
+    lastSyncedObj = null;
+    lyricRetryPending = !reachedLimit;
+
+    const retryNote = reachedLimit
+      ? `，已達查找上限 ${MAX_SAME_TRACK_RETRIES}/${MAX_SAME_TRACK_RETRIES}`
+      : `，將只重試 LRCLib ${currentTrackAttemptCount}/${MAX_SAME_TRACK_RETRIES}（不重新呼叫 Spotify API）`;
+
+    // Log every failed attempt so users can see whether retries are still happening.
+    // Avoid the old UI flicker by keeping obsstatus=searching until the final attempt fails.
+    logLine(`❌ LRC not found: ${err.message}${retryNote}`);
+    lastLoggedLrcNotFound = true;
   }
+}
+
+async function performLyricSyncCore() {
+  // Important: same-track lyric retries happen before checking Spotify.
+  // This keeps retries LRCLib-only and avoids extra Spotify Web API calls.
+  if (shouldRetryCurrentTrackWithoutSpotify()) {
+    await fetchLyricsForCurrentTrack('retry');
+    return;
+  }
+
+  const playback = await getCurrentPlayback({ ttlMs: PLAYBACK_POLL_TTL_MS });
+  if (!playback.authorized || playback.rate_limited) return;
+
+  if (!playback.track) {
+    if (lastTrackId !== null) {
+      lastTrackId = null;
+      currentTrackContext = null;
+      lastSyncedObj = null;
+      lyricRetryPending = false;
+      currentTrackAttemptCount = 0;
+      writeCurrentLrc('');
+    }
+    return;
+  }
+
+  const nextContext = makeTrackContext(playback.track);
+  const switchedTrack = !isSameTrackContext(currentTrackContext, nextContext);
+
+  if (!switchedTrack) return;
+
+  lastTrackId = nextContext.trackId;
+  currentTrackContext = nextContext;
+  lastSyncedObj = null;
+  lastSyncedAt = Date.now();
+  lastLoggedLrcSynced = false;
+  lastLoggedLrcNotFound = false;
+  lastLoggedFuzzySearchTrackId = null;
+  currentTrackAttemptCount = 0;
+  lastLyricAttemptAt = 0;
+  lyricRetryPending = false;
+
+  if (nextContext.trackId !== lastLoggedTrackId) {
+    logLine(`🎵 Now playing: ${nextContext.artists} - ${nextContext.name}`);
+    lastLoggedTrackId = nextContext.trackId;
+  }
+
+  await fetchLyricsForCurrentTrack('track-change');
 }
 
 async function performLyricSync() {
@@ -443,7 +475,7 @@ async function syncLoopWrapper() {
   await performLyricSync();
 }
 
-function startLyricSync(intervalMs = 2000) {
+function startLyricSync(intervalMs = LYRICS_LOOP_INTERVAL_MS) {
   if (syncInterval) return;
   performLyricSync();
   syncInterval = setInterval(syncLoopWrapper, intervalMs);

@@ -15,6 +15,8 @@ const fs = require('fs');
 const path = require('path');
 const { STORAGE_DIR, storagePath } = require('../services/runtimePaths');
 const { getAccessToken } = require('../services/spotifyAuth');
+const { clearPlaybackCache, clearQueueCache, clearAllSpotifyCache } = require('../services/spotifyPlayback');
+const { performLyricSync } = require('../services/lyricsFetcher');
 const {
   getSecurity,
   getRequestPin,
@@ -242,17 +244,39 @@ function spotifyErrorResponse(res, err, fallback = 'Spotify 操作失敗') {
   return res.status(status || 500).json({ ok: false, error: 'spotify_error', message: data?.error?.message || fallback });
 }
 
+function schedulePlaybackRefresh(reason = 'spotify-change') {
+  clearPlaybackCache();
+  setTimeout(() => {
+    performLyricSync({ forcePlayback: true, forceLyricsForCurrentTrack: true })
+      .catch(err => console.warn(`Delayed lyric refresh failed after ${reason}:`, err.message));
+  }, 1200);
+}
+
+function scheduleQueueRefresh() {
+  clearQueueCache();
+}
+
+function scheduleAllSpotifyRefresh(reason = 'spotify-change') {
+  clearAllSpotifyCache();
+  setTimeout(() => {
+    performLyricSync({ forcePlayback: true, forceLyricsForCurrentTrack: true })
+      .catch(err => console.warn(`Delayed lyric refresh failed after ${reason}:`, err.message));
+  }, 1200);
+}
+
 async function addToQueue(uri, access_token) {
   await axios.post('https://api.spotify.com/v1/me/player/queue', null, {
     headers: { Authorization: `Bearer ${access_token}` },
     params: { uri }
   });
+  scheduleQueueRefresh();
 }
 
 async function playNow(uri, access_token) {
   await axios.put('https://api.spotify.com/v1/me/player/play', { uris: [uri] }, {
     headers: { Authorization: `Bearer ${access_token}` }
   });
+  scheduleAllSpotifyRefresh('play-now');
 }
 
 function cooldownCheck(map, key, seconds) {
@@ -347,7 +371,6 @@ router.get('/admin-info', async (req, res) => {
     qrDataUrl
   });
 });
-
 
 /* Local-only OBS QR overlay endpoint. Does not expose adminToken. */
 router.get('/qr-info', async (req, res) => {
@@ -494,7 +517,6 @@ router.post('/submit', requirePin, async (req, res) => {
       if (shouldPlayNow) await playNow(track.uri, access_token);
       else await addToQueue(track.uri, access_token);
 
-      // 自動允許的請求不需要留在待審清單，避免 Dashboard 出現已處理項目。
       cleanupFinishedRequests();
       return res.json({ ok: true, status: shouldPlayNow ? 'played' : 'approved', message: shouldPlayNow ? '已立即插播。' : '已自動加入佇列。' });
     } catch (err) {
@@ -574,18 +596,22 @@ router.post('/control', requirePin, async (req, res) => {
   try {
     if (action === 'pause') {
       await axios.put('https://api.spotify.com/v1/me/player/pause', null, { headers });
+      schedulePlaybackRefresh('pause');
       return res.json({ ok: true, message: '已暫停。' });
     }
     if (action === 'play') {
       await axios.put('https://api.spotify.com/v1/me/player/play', null, { headers });
+      schedulePlaybackRefresh('play');
       return res.json({ ok: true, message: '已開始播放。' });
     }
     if (action === 'next') {
       await axios.post('https://api.spotify.com/v1/me/player/next', null, { headers });
+      scheduleAllSpotifyRefresh('next');
       return res.json({ ok: true, message: '已跳到下一首。' });
     }
     if (action === 'previous') {
       await axios.post('https://api.spotify.com/v1/me/player/previous', null, { headers });
+      scheduleAllSpotifyRefresh('previous');
       return res.json({ ok: true, message: '已回到上一首。' });
     }
   } catch (err) {
