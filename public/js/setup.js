@@ -30,12 +30,12 @@ function renderStatus(data) {
   const spotify = data.spotifyConfigured ? `✅ Spotify Client ID：${data.clientIdMasked}` : '❌ 尚未設定 Spotify Client ID';
   const streamKit = data.streamKitConfigured ? '✅ Discord StreamKit URL 已設定' : '❌ 尚未設定 Discord StreamKit URL';
   statusBox.innerHTML = `${spotify}<br>${streamKit}`;
-  statusBox.classList.toggle('isOk', Boolean(data.configured));
-  statusBox.classList.toggle('isError', !data.configured);
+  statusBox.classList.toggle('isOk', Boolean(data.featuresFullyConfigured));
+  statusBox.classList.toggle('isError', !data.featuresFullyConfigured);
 
   if (goDashboardBtn) {
-    goDashboardBtn.classList.toggle('disabledLink', !data.configured);
-    goDashboardBtn.setAttribute('aria-disabled', data.configured ? 'false' : 'true');
+    goDashboardBtn.classList.remove('disabledLink');
+    goDashboardBtn.setAttribute('aria-disabled', 'false');
   }
 }
 
@@ -118,10 +118,9 @@ saveStreamKitBtn.addEventListener('click', async () => {
   }
 });
 
-goDashboardBtn?.addEventListener('click', e => {
-  if (!latestStatus?.configured) {
-    e.preventDefault();
-    showToast('請先完成 Spotify Client ID 與 Discord StreamKit URL 設定');
+goDashboardBtn?.addEventListener('click', () => {
+  if (!latestStatus?.featuresFullyConfigured) {
+    showToast('可以先進入控制台，但仍建議先完成 Spotify Client ID 與 Discord StreamKit URL 設定');
   }
 });
 

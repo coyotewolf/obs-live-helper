@@ -121,7 +121,10 @@ function buildLocalStreamKitProxyUrl(streamKitUrl) {
 }
 
 function hasFirstLaunchConfig() {
-  return Boolean(getConfiguredClientId() && getConfiguredStreamKitUrl());
+  // App 本體不應被 Spotify / Discord 設定阻擋。
+  // Spotify Client ID 與 Discord StreamKit URL 改成「功能設定狀態」，
+  // 而不是「是否允許進入控制台」的條件。
+  return true;
 }
 
 app.get('/api/config/status', (req, res) => {
@@ -130,9 +133,10 @@ app.get('/api/config/status', (req, res) => {
   const streamKitUrl = getConfiguredStreamKitUrl();
   res.json({
     ok: true,
-    configured: Boolean(clientId && streamKitUrl),
+    configured: true,
     spotifyConfigured: Boolean(clientId),
     streamKitConfigured: Boolean(streamKitUrl),
+    featuresFullyConfigured: Boolean(clientId && streamKitUrl),
     clientIdMasked: clientId ? `${clientId.slice(0, 6)}...${clientId.slice(-4)}` : '',
     redirectUri: REQUIRED_REDIRECT_URI,
     streamKitUrl,
