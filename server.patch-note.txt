@@ -1,0 +1,28 @@
+server.js needs these changes:
+
+1) After app.use('/overlay', require('./routes/discordProfile'));
+replace it with:
+
+const discordProfileProxy = require('./routes/discordProfile');
+app.use('/overlay', discordProfileProxy);
+app.use('/static', discordProfileProxy.assetProxy);
+app.use('/cdn-cgi', discordProfileProxy.assetProxy);
+app.use('/asset-manifest.json', discordProfileProxy.assetProxy);
+app.use('/manifest.json', discordProfileProxy.assetProxy);
+app.use('/favicon.ico', discordProfileProxy.assetProxy);
+
+2) After const server = app.listen(...); add:
+
+const discordWsProxy = discordProfileProxy.createWebSocketProxy?.();
+if (discordWsProxy) {
+  server.on('upgrade', (req, socket, head) => {
+    try {
+      discordWsProxy.ws(req, socket, head);
+    } catch (err) {
+      console.error('Discord StreamKit WS upgrade failed:', err.message);
+      try { socket.destroy(); } catch {}
+    }
+  });
+}
+
+The zip also includes a complete server.js generated from the current repo state.

@@ -42,8 +42,9 @@ function dashboardGuard(req, res, next) {
 }
 app.use(dashboardGuard);
 
-// ---------- Spotify Client ID setup ----------
+// ---------- First launch setup ----------
 const REQUIRED_REDIRECT_URI = `http://127.0.0.1:${PORT}/api/spotify/callback`;
+const DEFAULT_STREAMKIT_URL = '';
 
 function parseEnvFile(filePath) {
   const env = {};
@@ -61,7 +62,14 @@ function parseEnvFile(filePath) {
 function writeEnvFile(filePath, patch) {
   const current = parseEnvFile(filePath);
   const next = { ...current, ...patch };
-  const order = ['PORT', 'CLIENT_ID', 'REDIRECT_URI', 'ENABLE_PUBLIC_TUNNEL', 'CLOUDFLARED_PATH'];
+  const order = [
+    'PORT',
+    'CLIENT_ID',
+    'REDIRECT_URI',
+    'DISCORD_STREAMKIT_URL',
+    'ENABLE_PUBLIC_TUNNEL',
+    'CLOUDFLARED_PATH'
+  ];
   const keys = [...order, ...Object.keys(next).filter(k => !order.includes(k))];
   const lines = ['# OBS Live Helper local settings', '# This file stays on this computer. Do not share it.'];
   for (const key of keys) {
@@ -80,18 +88,55 @@ function getConfiguredClientId() {
   return '';
 }
 
-function hasSpotifyClientId() {
-  return Boolean(getConfiguredClientId());
+function normalizeStreamKitUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw || /^請|your_|paste_|replace_|TODO/i.test(raw)) return '';
+
+  try {
+    const url = new URL(raw);
+    const isStreamKit = url.hostname === 'streamkit.discord.com' && url.pathname.startsWith('/overlay/voice/');
+    if (!isStreamKit) return '';
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
+function getConfiguredStreamKitUrl() {
+  const fromProcess = normalizeStreamKitUrl(process.env.DISCORD_STREAMKIT_URL);
+  if (fromProcess) return fromProcess;
+  const fromFile = normalizeStreamKitUrl(parseEnvFile(runtimePaths.ENV_PATH).DISCORD_STREAMKIT_URL);
+  if (fromFile) return fromFile;
+  return '';
+}
+
+function buildLocalStreamKitProxyUrl(streamKitUrl) {
+  const normalized = normalizeStreamKitUrl(streamKitUrl);
+  if (!normalized) return '';
+  const url = new URL(normalized);
+  const match = url.pathname.match(/^\/overlay\/voice\/(\d{10,30})\/(\d{10,30})/);
+  if (!match) return '';
+  return `/overlay/voice/${match[1]}/${match[2]}?${url.searchParams.toString()}`;
+}
+
+function hasFirstLaunchConfig() {
+  return Boolean(getConfiguredClientId() && getConfiguredStreamKitUrl());
 }
 
 app.get('/api/config/status', (req, res) => {
   if (!isLocalRequest(req)) return res.status(403).json({ ok: false, error: 'local_only' });
   const clientId = getConfiguredClientId();
+  const streamKitUrl = getConfiguredStreamKitUrl();
   res.json({
     ok: true,
-    configured: Boolean(clientId),
+    configured: Boolean(clientId && streamKitUrl),
+    spotifyConfigured: Boolean(clientId),
+    streamKitConfigured: Boolean(streamKitUrl),
     clientIdMasked: clientId ? `${clientId.slice(0, 6)}...${clientId.slice(-4)}` : '',
     redirectUri: REQUIRED_REDIRECT_URI,
+    streamKitUrl,
+    streamKitDefaultUrl: DEFAULT_STREAMKIT_URL,
+    streamKitProxyUrl: buildLocalStreamKitProxyUrl(streamKitUrl || DEFAULT_STREAMKIT_URL),
     envPath: runtimePaths.ENV_PATH,
     dataDir: runtimePaths.DATA_DIR
   });
@@ -118,21 +163,58 @@ app.post('/api/config/client-id', (req, res) => {
     try { fs.unlinkSync(runtimePaths.storagePath('spotify.json')); } catch {}
   }
 
-  res.json({ ok: true, configured: true, redirectUri: REQUIRED_REDIRECT_URI });
+  res.json({ ok: true, configured: hasFirstLaunchConfig(), redirectUri: REQUIRED_REDIRECT_URI });
 });
 
-function spotifyClientSetupGuard(req, res, next) {
+app.post('/api/config/streamkit-url', (req, res) => {
+  if (!isLocalRequest(req)) return res.status(403).json({ ok: false, error: 'local_only', message: 'Discord StreamKit 設定只能從本機修改。' });
+  const streamKitUrl = normalizeStreamKitUrl(req.body?.streamKitUrl);
+  if (!streamKitUrl) {
+    return res.status(400).json({
+      ok: false,
+      error: 'invalid_streamkit_url',
+      message: 'Discord StreamKit URL 格式不正確，請貼上 https://streamkit.discord.com/overlay/voice/... 的完整網址。'
+    });
+  }
+
+  writeEnvFile(runtimePaths.ENV_PATH, {
+    PORT: String(PORT),
+    REDIRECT_URI: REQUIRED_REDIRECT_URI,
+    DISCORD_STREAMKIT_URL: streamKitUrl,
+    ENABLE_PUBLIC_TUNNEL: process.env.ENABLE_PUBLIC_TUNNEL || 'false'
+  });
+  process.env.DISCORD_STREAMKIT_URL = streamKitUrl;
+
+  res.json({
+    ok: true,
+    configured: hasFirstLaunchConfig(),
+    streamKitUrl,
+    streamKitProxyUrl: buildLocalStreamKitProxyUrl(streamKitUrl)
+  });
+});
+
+app.get('/api/config/discord-streamkit', (req, res) => {
+  if (!isLocalRequest(req)) return res.status(403).json({ ok: false, error: 'local_only' });
+  const streamKitUrl = getConfiguredStreamKitUrl() || DEFAULT_STREAMKIT_URL;
+  res.json({
+    ok: true,
+    streamKitUrl,
+    streamKitProxyUrl: buildLocalStreamKitProxyUrl(streamKitUrl),
+    configured: Boolean(getConfiguredStreamKitUrl())
+  });
+});
+
+function firstLaunchSetupGuard(req, res, next) {
   const pathname = req.path.replace(/\\/g, '/');
-  if ((pathname.endsWith('/html/dashboard.html') || pathname === '/dashboard.html') && !hasSpotifyClientId()) {
+  if ((pathname.endsWith('/html/dashboard.html') || pathname === '/dashboard.html') && !hasFirstLaunchConfig()) {
     return res.redirect('/html/setup.html');
   }
   next();
 }
-app.use(spotifyClientSetupGuard);
+app.use(firstLaunchSetupGuard);
 
 // ---------- Dashboard extension injection ----------
-// Keep the original dashboard.html untouched, but add a small script that inserts
-// the Discord voice avatar overlay card into the Overlay URL grid.
+// Keep the original dashboard.html usable, but add scripts that insert / update small cards and onboarding text.
 app.get('/html/dashboard.html', (req, res, next) => {
   const dashboardPath = path.join(runtimePaths.PUBLIC_DIR, 'html', 'dashboard.html');
   fs.readFile(dashboardPath, 'utf8', (err, html) => {
@@ -140,13 +222,14 @@ app.get('/html/dashboard.html', (req, res, next) => {
     if (!html.includes('dashboard-discord-extra.js')) {
       html = html.replace('</body>', '<script src="../js/dashboard-discord-extra.js"></script>\n</body>');
     }
+    if (!html.includes('dashboard-onboarding-extra.js')) {
+      html = html.replace('</body>', '<script src="../js/dashboard-onboarding-extra.js"></script>\n</body>');
+    }
     res.type('html').send(html);
   });
 });
 
 // ---------- Discord StreamKit local proxy ----------
-// StreamKit refuses normal iframe embedding. To keep an OBS-friendly local URL,
-// we serve the StreamKit overlay path under localhost /overlay/voice/... and inject CSS.
 app.use('/overlay', require('./routes/discordProfile'));
 
 app.use(express.static(runtimePaths.PUBLIC_DIR));

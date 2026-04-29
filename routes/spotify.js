@@ -4,9 +4,8 @@
 const router = require('express').Router();
 const { generateCodePair, exchangeCodeForToken } = require('../services/spotifyAuth');
 const { isLyricsSynced } = require('../services/lyricsFetcher');
-const { getCurrentPlayback, getQueue } = require('../services/spotifyPlayback');
+const { getCurrentPlayback, getQueue, clearSpotifyRateLimitLocks } = require('../services/spotifyPlayback');
 const fs = require('fs');
-const path = require('path');
 const { storagePath } = require('../services/runtimePaths');
 
 function getClientId() {
@@ -72,6 +71,15 @@ router.get('/callback', async (req, res) => {
 });
 
 /**
+ * Manual retry after Spotify rate limit.
+ * This clears the local lock; the next status/queue read will try Spotify again.
+ */
+router.post('/retry', async (req, res) => {
+  clearSpotifyRateLimitLocks();
+  res.json({ ok: true, message: 'Spotify rate-limit lock cleared. The next request will retry Spotify.' });
+});
+
+/**
  * Current playback / lyric sync status
  * Uses shared cache; does NOT call Spotify directly every time.
  */
@@ -85,7 +93,10 @@ router.get('/status', async (req, res) => {
         authorized: true,
         playing: false,
         rate_limited: Boolean(playback.rate_limited),
-        retry_after_ms: playback.retry_after_ms || 0
+        manual_retry_required: Boolean(playback.manual_retry_required),
+        retry_after_ms: playback.retry_after_ms || 0,
+        retry_after_raw: playback.retry_after_raw || '',
+        rate_limited_at: playback.rate_limited_at || 0
       });
     }
 
@@ -96,7 +107,10 @@ router.get('/status', async (req, res) => {
       track: playback.track,
       lyricsSynced,
       rate_limited: Boolean(playback.rate_limited),
-      retry_after_ms: playback.retry_after_ms || 0
+      manual_retry_required: Boolean(playback.manual_retry_required),
+      retry_after_ms: playback.retry_after_ms || 0,
+      retry_after_raw: playback.retry_after_raw || '',
+      rate_limited_at: playback.rate_limited_at || 0
     });
   } catch (err) {
     console.error('status error:', err.response?.data || err.message);
@@ -105,7 +119,8 @@ router.get('/status', async (req, res) => {
       return res.status(429).json({
         authorized: true,
         error: 'rate_limited',
-        message: 'Spotify API 暫時限制請求，請稍後再試。'
+        manual_retry_required: true,
+        message: 'Spotify API 暫時限制請求，請稍後手動重試。'
       });
     }
 
@@ -127,7 +142,10 @@ router.get('/queue', async (req, res) => {
       queue: data.queue || [],
       fetched_at: data.fetched_at || Date.now(),
       rate_limited: Boolean(data.rate_limited),
-      retry_after_ms: data.retry_after_ms || 0
+      manual_retry_required: Boolean(data.manual_retry_required),
+      retry_after_ms: data.retry_after_ms || 0,
+      retry_after_raw: data.retry_after_raw || '',
+      rate_limited_at: data.rate_limited_at || 0
     });
   } catch (err) {
     const spotifyError = err.response?.data;
@@ -153,7 +171,8 @@ router.get('/queue', async (req, res) => {
       return res.status(429).json({
         authorized: true,
         queue: [],
-        error: 'rate_limited'
+        error: 'rate_limited',
+        manual_retry_required: true
       });
     }
 

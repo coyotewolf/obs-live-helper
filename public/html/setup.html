@@ -10,41 +10,62 @@
   <main class="setupShell">
     <section class="setupCard">
       <span class="eyebrow">First Launch Setup</span>
-      <h1>先設定 Spotify Client ID</h1>
-      <p class="lead">OBS Live Helper 需要連到使用者自己的 Spotify App。這個設定只會存放在本機，不會上傳到雲端。</p>
+      <h1>第一次使用設定</h1>
+      <p class="lead">請先完成 Spotify Client ID 與 Discord StreamKit Overlay URL。這些設定只會存放在本機，不會上傳到雲端。</p>
 
       <div id="statusBox" class="statusBox">正在檢查設定...</div>
 
       <div class="steps">
         <article>
-          <strong>01 開啟 Spotify Developer Dashboard</strong>
-          <p>登入 Spotify 後建立一個 App，名稱可以填 <b>OBS Live Helper</b>。</p>
+          <strong>01 設定 Spotify Client ID</strong>
+          <p>OBS Live Helper 需要連到使用者自己的 Spotify Developer App。先建立 App，再把 Client ID 貼到下方。</p>
           <a class="btnGhost" href="https://developer.spotify.com/dashboard" target="_blank">開啟 Spotify Developer Dashboard</a>
         </article>
+
         <article>
-          <strong>02 加入 Redirect URI</strong>
+          <strong>02 加入 Spotify Redirect URI</strong>
           <p>在 Spotify App 的 Settings 裡，把下面這個網址加到 Redirect URIs。</p>
           <div class="copyRow"><code id="redirectUri">http://127.0.0.1:5172/api/spotify/callback</code><button id="copyRedirectBtn" class="btnMini">複製</button></div>
         </article>
+
         <article>
-          <strong>03 貼上 Client ID</strong>
-          <p>在 Spotify App Settings 找到 Client ID，貼到下方欄位後儲存。</p>
+          <strong>03 貼上 Spotify Client ID</strong>
+          <p>在 Spotify App Settings 找到 Client ID，貼到下方欄位。</p>
           <label class="inputLabel">
             <span>Spotify Client ID</span>
             <input id="clientIdInput" type="text" spellcheck="false" autocomplete="off" placeholder="例如：81548dd5a7ab4f1cb06ed86f76842c95">
           </label>
-          <button id="saveBtn" class="btnPrimary">儲存並前往控制台</button>
+          <button id="saveClientIdBtn" class="btnPrimary">儲存 Spotify Client ID</button>
+        </article>
+
+        <article>
+          <strong>04 設定 Discord StreamKit Overlay URL</strong>
+          <p>到 Discord StreamKit 產生自己的 Voice Widget 網址，或先貼入目前 OBS 可用的 StreamKit URL。此功能用於 <code>dcprofilepic.html</code>。</p>
+          <a class="btnGhost" href="https://streamkit.discord.com/overlay" target="_blank">開啟 Discord StreamKit</a>
+          <label class="inputLabel">
+            <span>Discord StreamKit Voice Overlay URL</span>
+            <textarea id="streamKitInput" spellcheck="false" autocomplete="off" placeholder="https://streamkit.discord.com/overlay/voice/伺服器ID/語音頻道ID?... "></textarea>
+          </label>
+          <div class="btnRow compactSetupBtns">
+            <button id="useDefaultStreamKitBtn" class="btnGhost">填入範例網址</button>
+            <button id="saveStreamKitBtn" class="btnPrimary">儲存 StreamKit URL</button>
+          </div>
+        </article>
+
+        <article>
+          <strong>05 進入控制台並登入 Spotify</strong>
+          <p>兩個設定都完成後，前往控制台，按「登入 / 重新授權 Spotify」。之後把需要的 Overlay URL 加到 OBS Browser Source。</p>
+          <a id="goDashboardBtn" class="btnPrimary disabledLink" href="/html/dashboard.html">前往控制台</a>
         </article>
       </div>
 
       <details class="helpBox">
-        <summary>找不到 Client ID 或 Redirect URI 設定？</summary>
+        <summary>設定流程補充</summary>
         <ol>
-          <li>進入 Spotify Developer Dashboard。</li>
-          <li>點 Create app。</li>
-          <li>App name 可填 OBS Live Helper。</li>
-          <li>Redirect URI 必須填：<code>http://127.0.0.1:5172/api/spotify/callback</code></li>
-          <li>建立後進入 App Settings，複製 Client ID。</li>
+          <li>Spotify Redirect URI 必須填：<code>http://127.0.0.1:5172/api/spotify/callback</code></li>
+          <li>Discord StreamKit URL 必須是 <code>https://streamkit.discord.com/overlay/voice/...</code> 開頭。</li>
+          <li>如果 Discord 頭貼 Overlay 沒有顯示，請確認 Discord 桌面版已開啟、已登入，並且 StreamKit 原始網址在瀏覽器中可用。</li>
+          <li>若要換帳號或換 Discord 頻道，可以回到這個設定頁重新儲存。</li>
         </ol>
       </details>
     </section>

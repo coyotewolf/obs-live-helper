@@ -4,7 +4,7 @@
  * Why this exists:
  * - OBS overlays, Dashboard, lyrics sync, and queue pages all ask for Spotify state.
  * - If every endpoint calls Spotify directly, Spotify can return 429 Too many requests.
- * - This module makes one shared cached request and applies backoff when Spotify asks us to slow down.
+ * - This module makes one shared cached request and switches to manual retry when Spotify rate limits.
  */
 const axios = require('axios');
 const fs = require('fs');
@@ -27,11 +27,15 @@ let playbackCache = null;
 let playbackFetchedAt = 0;
 let playbackPromise = null;
 let playbackBackoffUntil = 0;
+let playbackManualRetryRequired = false;
+let playbackRateLimitInfo = null;
 
 let queueCache = null;
 let queueFetchedAt = 0;
 let queuePromise = null;
 let queueBackoffUntil = 0;
+let queueManualRetryRequired = false;
+let queueRateLimitInfo = null;
 
 let lastPlaybackRateLimitLogAt = 0;
 let lastQueueRateLimitLogAt = 0;
@@ -49,7 +53,7 @@ function appendSpotifyLog(message) {
 }
 
 function warnAndLogRateLimit(kind, rawRetryAfter, waitMs) {
-  const message = `⚠️ Spotify ${kind} rate limited. Retry-After=${rawRetryAfter || 'not provided'}, backing off for ${Math.ceil(waitMs / 1000)}s.`;
+  const message = `⚠️ Spotify ${kind} rate limited. Retry-After=${rawRetryAfter || 'not provided'}, manual retry required. Suggested wait: ${Math.ceil(waitMs / 1000)}s.`;
   console.warn(message);
 
   const now = Date.now();
@@ -70,16 +74,12 @@ function getRetryAfterMs(err) {
   if (typeof raw === 'string' && raw.trim()) {
     const text = raw.trim();
 
-    // Spotify normally returns Retry-After as seconds.
-    // Some proxies / environments may surface unexpected large numbers.
-    // Cap it so one malformed header does not disable playback for hours.
     const seconds = Number.parseFloat(text);
     if (Number.isFinite(seconds) && seconds > 0) {
       const ms = seconds * 1000;
       return Math.min(ms, MAX_BACKOFF_MS);
     }
 
-    // HTTP also allows Retry-After to be an absolute date.
     const dateMs = Date.parse(text);
     if (Number.isFinite(dateMs)) {
       return Math.min(Math.max(dateMs - Date.now(), DEFAULT_BACKOFF_MS), MAX_BACKOFF_MS);
@@ -87,6 +87,17 @@ function getRetryAfterMs(err) {
   }
 
   return Math.min(DEFAULT_BACKOFF_MS, MAX_BACKOFF_MS);
+}
+
+function buildManualRateLimitPayload(kind, now = Date.now()) {
+  const info = kind === 'playback' ? playbackRateLimitInfo : queueRateLimitInfo;
+  return {
+    rate_limited: true,
+    manual_retry_required: true,
+    retry_after_ms: info?.waitMs || 0,
+    retry_after_raw: info?.rawRetryAfter || '',
+    rate_limited_at: info?.at || now
+  };
 }
 
 function normalizeTrack(item) {
@@ -186,6 +197,12 @@ async function getCurrentPlayback(options = {}) {
   const now = Date.now();
   const ttlMs = Number(options.ttlMs ?? PLAYBACK_TTL_MS);
 
+  if (!options.force && playbackManualRetryRequired) {
+    const manual = buildManualRateLimitPayload('playback', now);
+    if (playbackCache) return { ...withLiveProgress(playbackCache), ...manual };
+    return { authorized: true, playing: false, track: null, ...manual, fetched_at: now };
+  }
+
   if (!options.force && playbackCache && now - playbackFetchedAt < ttlMs) {
     return withLiveProgress(playbackCache);
   }
@@ -203,16 +220,21 @@ async function getCurrentPlayback(options = {}) {
       playbackCache = payload;
       playbackFetchedAt = Date.now();
       playbackBackoffUntil = 0;
+      playbackManualRetryRequired = false;
+      playbackRateLimitInfo = null;
       return payload;
     })
     .catch(err => {
       if (err.response?.status === 429) {
         const waitMs = getRetryAfterMs(err);
-        playbackBackoffUntil = Date.now() + waitMs;
         const rawRetryAfter = err.response?.headers?.['retry-after'];
+        playbackBackoffUntil = 0;
+        playbackManualRetryRequired = true;
+        playbackRateLimitInfo = { rawRetryAfter, waitMs, at: Date.now() };
         warnAndLogRateLimit('playback', rawRetryAfter, waitMs);
-        if (playbackCache) return { ...withLiveProgress(playbackCache), rate_limited: true, retry_after_ms: waitMs };
-        return { authorized: true, playing: false, track: null, rate_limited: true, retry_after_ms: waitMs, fetched_at: Date.now() };
+        const manual = buildManualRateLimitPayload('playback');
+        if (playbackCache) return { ...withLiveProgress(playbackCache), ...manual };
+        return { authorized: true, playing: false, track: null, ...manual, fetched_at: Date.now() };
       }
       throw err;
     })
@@ -244,6 +266,12 @@ async function getQueue(options = {}) {
   const now = Date.now();
   const ttlMs = Number(options.ttlMs ?? QUEUE_TTL_MS);
 
+  if (!options.force && queueManualRetryRequired) {
+    const manual = buildManualRateLimitPayload('queue', now);
+    if (queueCache) return { ...queueCache, ...manual };
+    return { authorized: true, queue: [], ...manual };
+  }
+
   if (!options.force && queueCache && now - queueFetchedAt < ttlMs) return queueCache;
 
   if (!options.force && queueBackoffUntil > now) {
@@ -259,16 +287,21 @@ async function getQueue(options = {}) {
       queueCache = payload;
       queueFetchedAt = Date.now();
       queueBackoffUntil = 0;
+      queueManualRetryRequired = false;
+      queueRateLimitInfo = null;
       return payload;
     })
     .catch(err => {
       if (err.response?.status === 429) {
         const waitMs = getRetryAfterMs(err);
-        queueBackoffUntil = Date.now() + waitMs;
         const rawRetryAfter = err.response?.headers?.['retry-after'];
+        queueBackoffUntil = 0;
+        queueManualRetryRequired = true;
+        queueRateLimitInfo = { rawRetryAfter, waitMs, at: Date.now() };
         warnAndLogRateLimit('queue', rawRetryAfter, waitMs);
-        if (queueCache) return { ...queueCache, rate_limited: true, retry_after_ms: waitMs };
-        return { authorized: true, queue: [], rate_limited: true, retry_after_ms: waitMs };
+        const manual = buildManualRateLimitPayload('queue');
+        if (queueCache) return { ...queueCache, ...manual };
+        return { authorized: true, queue: [], ...manual };
       }
       throw err;
     })
@@ -279,6 +312,16 @@ async function getQueue(options = {}) {
   return queuePromise;
 }
 
+function clearSpotifyRateLimitLocks() {
+  playbackBackoffUntil = 0;
+  queueBackoffUntil = 0;
+  playbackManualRetryRequired = false;
+  queueManualRetryRequired = false;
+  playbackRateLimitInfo = null;
+  queueRateLimitInfo = null;
+  appendSpotifyLog('ℹ️ Spotify rate limit lock cleared by manual retry.');
+}
+
 function clearPlaybackCache() {
   playbackCache = null;
   playbackFetchedAt = 0;
@@ -286,11 +329,16 @@ function clearPlaybackCache() {
   queueFetchedAt = 0;
   playbackBackoffUntil = 0;
   queueBackoffUntil = 0;
+  playbackManualRetryRequired = false;
+  queueManualRetryRequired = false;
+  playbackRateLimitInfo = null;
+  queueRateLimitInfo = null;
 }
 
 module.exports = {
   getCurrentPlayback,
   getQueue,
   normalizeTrack,
-  clearPlaybackCache
+  clearPlaybackCache,
+  clearSpotifyRateLimitLocks
 };
