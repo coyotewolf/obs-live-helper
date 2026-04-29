@@ -14,10 +14,12 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const WebSocket = require('ws');
 const { getAdminToken, isLocalRequest } = require('./services/securityStore');
 
 const app = express();
 const PORT = process.env.PORT || 5172;
+const DISCORD_STREAMKIT_ORIGIN = 'https://streamkit.discord.com';
 
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
@@ -230,7 +232,20 @@ app.get('/html/dashboard.html', (req, res, next) => {
 });
 
 // ---------- Discord StreamKit local proxy ----------
-app.use('/overlay', require('./routes/discordProfile'));
+const discordProfileRouter = require('./routes/discordProfile');
+
+// StreamKit main overlay HTML and /overlay/token.
+app.use('/overlay', discordProfileRouter);
+
+// StreamKit React assets are referenced as absolute /static/... paths inside
+// the proxied StreamKit HTML. These MUST be registered before express.static,
+// otherwise the local public/static fallback returns HTML/404 and Chrome rejects
+// CSS/JS because the MIME type is wrong.
+app.use('/static', discordProfileRouter.staticRouter);
+app.use('/asset-manifest.json', discordProfileRouter.proxyAsset('/asset-manifest.json'));
+app.use('/manifest.json', discordProfileRouter.proxyAsset('/manifest.json'));
+app.use('/favicon.ico', discordProfileRouter.proxyAsset('/favicon.ico'));
+app.use('/cdn-cgi', discordProfileRouter.noOpScriptRouter);
 
 app.use(express.static(runtimePaths.PUBLIC_DIR));
 app.use('/lyrics', express.static(runtimePaths.LYRICS_DIR, {
@@ -281,9 +296,84 @@ const server = app.listen(PORT, () => {
   tunnelManager.startIfEnabled(PORT);
 });
 
+// ---------- Discord local RPC WebSocket bridge ----------
+// StreamKit normally connects to Discord's local RPC websocket at ws://127.0.0.1:6463.
+// When hosted from localhost:5172, Discord rejects the original origin. The injected
+// StreamKit patch rewrites the browser connection to /discord-rpc, and this bridge
+// forwards it to Discord RPC with Origin: https://streamkit.discord.com.
+const discordRpcWss = new WebSocket.Server({ noServer: true });
+
+function safeCloseWs(ws) {
+  try {
+    if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) ws.close();
+  } catch {}
+}
+
+function bridgeDiscordRpc(clientWs, req) {
+  const incomingUrl = new URL(req.url, `http://127.0.0.1:${PORT}`);
+  const targetUrl = `ws://127.0.0.1:6463/${incomingUrl.search || ''}`;
+  const targetWs = new WebSocket(targetUrl, {
+    headers: {
+      Origin: DISCORD_STREAMKIT_ORIGIN
+    }
+  });
+
+  const queued = [];
+
+  clientWs.on('message', data => {
+    if (targetWs.readyState === WebSocket.OPEN) {
+      targetWs.send(data);
+    } else if (targetWs.readyState === WebSocket.CONNECTING) {
+      queued.push(data);
+    }
+  });
+
+  targetWs.on('open', () => {
+    while (queued.length) targetWs.send(queued.shift());
+  });
+
+  targetWs.on('message', data => {
+    if (clientWs.readyState !== WebSocket.OPEN) return;
+
+    // StreamKit expects JSON strings. Avoid forwarding empty/null payloads.
+    let payload = data;
+    if (Buffer.isBuffer(data)) payload = data.toString('utf8');
+    if (payload === null || payload === undefined || String(payload).trim() === '') return;
+
+    clientWs.send(payload);
+  });
+
+  targetWs.on('close', (code, reason) => {
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.close(code || 1000, reason?.toString?.() || '');
+    }
+  });
+
+  targetWs.on('error', err => {
+    console.warn('Discord RPC target error:', err.message);
+    safeCloseWs(clientWs);
+  });
+
+  clientWs.on('close', () => safeCloseWs(targetWs));
+  clientWs.on('error', () => safeCloseWs(targetWs));
+}
+
+server.on('upgrade', (req, socket, head) => {
+  const pathname = new URL(req.url, `http://127.0.0.1:${PORT}`).pathname;
+  if (pathname !== '/discord-rpc') {
+    socket.destroy();
+    return;
+  }
+
+  discordRpcWss.handleUpgrade(req, socket, head, ws => {
+    bridgeDiscordRpc(ws, req);
+  });
+});
+
 async function shutdown() {
   try { stopLyricSync?.(); } catch {}
   try { tunnelManager.stopTunnel?.(); } catch {}
+  try { discordRpcWss.close(); } catch {}
   await new Promise(resolve => server.close(() => resolve()));
 }
 
