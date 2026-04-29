@@ -87,7 +87,13 @@ saveClientIdBtn.addEventListener('click', async () => {
 });
 
 useDefaultStreamKitBtn.addEventListener('click', () => {
-  streamKitInput.value = latestStatus?.streamKitDefaultUrl || '';
+  const defaultUrl = latestStatus?.streamKitDefaultUrl || '';
+  if (!defaultUrl) {
+    showToast('目前沒有內建範例 StreamKit URL，請貼上自己的 Discord StreamKit URL');
+    return;
+  }
+
+  streamKitInput.value = defaultUrl;
   showToast('已填入範例 StreamKit URL，請確認是否要改成自己的頻道');
 });
 

@@ -68,6 +68,7 @@ function writeEnvFile(filePath, patch) {
     'CLIENT_ID',
     'REDIRECT_URI',
     'DISCORD_STREAMKIT_URL',
+    'DEFAULT_STREAMKIT_URL',
     'ENABLE_PUBLIC_TUNNEL',
     'CLOUDFLARED_PATH'
   ];
@@ -200,12 +201,13 @@ app.post('/api/config/streamkit-url', (req, res) => {
 
 app.get('/api/config/discord-streamkit', (req, res) => {
   if (!isLocalRequest(req)) return res.status(403).json({ ok: false, error: 'local_only' });
-  const streamKitUrl = getConfiguredStreamKitUrl() || DEFAULT_STREAMKIT_URL;
+  const streamKitUrl = getConfiguredStreamKitUrl() || getDefaultStreamKitUrl();
   res.json({
     ok: true,
     streamKitUrl,
     streamKitProxyUrl: buildLocalStreamKitProxyUrl(streamKitUrl),
-    configured: Boolean(getConfiguredStreamKitUrl())
+    configured: Boolean(getConfiguredStreamKitUrl()),
+    hasDefault: Boolean(getDefaultStreamKitUrl())
   });
 });
 
