@@ -83,30 +83,54 @@
     </div>
     <p class="introText">切換 Dashboard 與支援的 OBS Overlay 風格。已開啟的 OBS Browser Source 會透過 BroadcastChannel 即時同步。</p>
     <div class="themeSwitchGrid">
-      <button class="themeChoice" type="button" data-theme-choice="blue-night"><strong>藍色夜晚風格</strong><span>深色、科技感，延續原本 OBS Helper 風格。</span></button>
-      <button class="themeChoice" type="button" data-theme-choice="pink-cute"><strong>粉色可愛風格</strong><span>粉藍、粉紅、柔光外框，適合小目標與直播時鐘。</span></button>
+      <button class="themeChoice" type="button" data-theme-choice="blue-night">
+        <strong>藍色夜晚風格</strong>
+        <span>深色、科技感，延續原本 OBS Helper 風格。</span>
+      </button>
+      <button class="themeChoice" type="button" data-theme-choice="pink-cute">
+        <strong>粉色可愛風格</strong>
+        <span>高對比粉白面板、粉藍柔光、可讀性加強，適合可愛直播佈景。</span>
+      </button>
     </div>
   </section>
 
-  <section class="goalClockPanel panel">
+  <section class="goalSettingsPanel panel">
     <div class="titleRow">
-      <div><span class="eyebrow">Goal / Clock</span><h2>小目標與直播時鐘設定</h2></div>
-      <div class="btnRow compact"><a class="btnGhost small" href="/html/goal-card.html" target="_blank">預覽小目標</a><a class="btnGhost small" href="/html/live-clock.html" target="_blank">預覽時鐘</a></div>
+      <div><span class="eyebrow">Goal Cards</span><h2>小目標設定</h2></div>
+      <div class="btnRow compact"><a class="btnGhost small" href="/html/goal-card.html" target="_blank">預覽小目標</a></div>
     </div>
+    <p class="introText">設定 OBS 小目標卡片的名稱、目前進度、排列方式、卡片間距與透明度。</p>
     <div class="settingsGrid goalSettingsGrid">
       <label><span>小目標卡片數量</span><input type="number" id="goalCount" min="1" max="20" value="1"></label>
       <label><span>排列方向</span><select id="goalDirection"><option value="column">垂直</option><option value="row">水平</option></select></label>
       <label><span>卡片間距</span><input type="number" id="goalGap" min="0" max="200" value="30"></label>
       <label><span>背景透明度</span><input type="number" id="goalAlpha" min="0" max="1" step="0.05" value="0.65"></label>
       <label><span>完成動畫秒數</span><input type="number" id="goalFlashSec" min="0" max="30" step="0.5" value="3"></label>
+    </div>
+    <div id="goalCardsEditor" class="goalCardsEditor"></div>
+    <div class="btnRow">
+      <button id="saveGoalBtn" class="btnPrimary" type="button">儲存小目標設定</button>
+      <button id="resetGoalBtn" class="btnGhost" type="button">恢復小目標預設</button>
+    </div>
+  </section>
+
+  <section class="clockSettingsPanel panel">
+    <div class="titleRow">
+      <div><span class="eyebrow">Live Clock</span><h2>時鐘設定</h2></div>
+      <div class="btnRow compact"><a class="btnGhost small" href="/html/live-clock.html" target="_blank">預覽時鐘</a></div>
+    </div>
+    <p class="introText">設定直播時鐘 Overlay 的 LIVE 標籤、時區、12/24 小時制、縮放與字級。</p>
+    <div class="settingsGrid clockSettingsGrid">
       <label><span>時鐘標籤</span><input type="text" id="clockLabel" value="LIVE"></label>
       <label><span>時區</span><input type="text" id="clockTimezone" value="Asia/Taipei"></label>
       <label><span>12 小時制</span><select id="clockHour12"><option value="false">否，24 小時制</option><option value="true">是，12 小時制</option></select></label>
       <label><span>時鐘縮放</span><input type="number" id="clockScale" min="0.3" max="3" step="0.1" value="1"></label>
       <label><span>時間字級</span><input type="text" id="clockTimeSize" value="56px"></label>
     </div>
-    <div id="goalCardsEditor" class="goalCardsEditor"></div>
-    <div class="btnRow"><button id="saveGoalClockBtn" class="btnPrimary" type="button">儲存小目標與時鐘設定</button><button id="resetGoalClockBtn" class="btnGhost" type="button">恢復預設</button></div>
+    <div class="btnRow">
+      <button id="saveClockBtn" class="btnPrimary" type="button">儲存時鐘設定</button>
+      <button id="resetClockBtn" class="btnGhost" type="button">恢復時鐘預設</button>
+    </div>
   </section>
 
   <section class="requestPanel panel">

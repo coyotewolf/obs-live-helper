@@ -1,0 +1,159 @@
+/* OBS Live Helper shared overlay theme overrides.
+   Loaded after each overlay's original CSS. Controlled by theme-sync.js via body[data-theme]. */
+
+body[data-theme="blue-night"]{
+  --text-main:#ffffff;
+  --text-sub:rgba(255,255,255,.72);
+  --text-muted:rgba(255,255,255,.48);
+  --text-fade:rgba(255,255,255,.28);
+  --accent:#7dd3fc;
+  --accent-2:#c084fc;
+  --glow:rgba(125,211,252,.48);
+  --card-bg:rgba(8,13,28,.72);
+  --card-border:rgba(255,255,255,.16);
+  --progress-bg:rgba(255,255,255,.22);
+}
+
+body[data-theme="pink-cute"]{
+  --text-main:#ffffff;
+  --text-sub:rgba(255,255,255,.82);
+  --text-muted:rgba(255,235,246,.68);
+  --text-fade:rgba(255,235,246,.36);
+  --accent:#ff7fa9;
+  --accent-2:#a8d8ff;
+  --glow:rgba(255,160,200,.58);
+  --card-bg:rgba(255,166,204,.64);
+  --card-border:rgba(255,225,240,.48);
+  --progress-bg:rgba(255,255,255,.32);
+}
+
+/* Lyrics */
+body[data-theme="pink-cute"] #lyrics .message,
+body[data-theme="pink-cute"] .lyric-line.current{
+  text-shadow:
+    0 5px 22px rgba(80,28,55,.36),
+    0 0 18px rgba(255,160,200,.75),
+    0 0 34px rgba(168,216,255,.32);
+}
+
+body[data-theme="pink-cute"] .lyric-line{
+  text-shadow:
+    0 4px 18px rgba(80,28,55,.32),
+    0 0 16px rgba(255,160,200,.18);
+}
+
+body[data-theme="pink-cute"] .lyric-line.current::after{
+  background:linear-gradient(90deg,transparent,#a8d8ff,#ff7fa9,transparent);
+  box-shadow:0 0 18px rgba(255,160,200,.72);
+}
+
+/* Now Playing */
+body[data-theme="pink-cute"] .now-playing-card{
+  background:
+    radial-gradient(circle at 15% 20%,rgba(255,255,255,.28),transparent 38%),
+    radial-gradient(circle at 85% 15%,rgba(168,216,255,.28),transparent 36%),
+    var(--card-bg);
+  border-color:var(--card-border);
+  box-shadow:
+    0 20px 60px rgba(210,72,122,.22),
+    0 0 0 1px rgba(255,255,255,.32) inset,
+    0 0 28px rgba(255,160,200,.18);
+}
+
+body[data-theme="pink-cute"] .cover-wrap{
+  background:linear-gradient(135deg,rgba(255,127,169,.95),rgba(168,216,255,.95));
+  box-shadow:0 12px 30px rgba(210,72,122,.24);
+}
+
+body[data-theme="pink-cute"] .play-state,
+body[data-theme="pink-cute"] .play-state::before{
+  color:#fff;
+}
+
+body[data-theme="pink-cute"] .play-state::before{
+  background:#fff;
+  box-shadow:0 0 14px rgba(255,255,255,.8),0 0 24px rgba(255,127,169,.7);
+}
+
+body[data-theme="pink-cute"] .song-name{
+  text-shadow:0 4px 18px rgba(80,28,55,.38),0 0 18px rgba(255,160,200,.28);
+}
+
+body[data-theme="pink-cute"] .progress-fill{
+  background:linear-gradient(90deg,#a8d8ff,#ff7fa9);
+  box-shadow:0 0 16px rgba(255,160,200,.62);
+}
+
+/* Queue */
+body[data-theme="pink-cute"] .queue-card{
+  background:
+    radial-gradient(circle at 18% 0%,rgba(255,255,255,.30),transparent 38%),
+    radial-gradient(circle at 92% 12%,rgba(168,216,255,.30),transparent 38%),
+    var(--card-bg);
+  border-color:var(--card-border);
+  box-shadow:
+    0 20px 60px rgba(210,72,122,.22),
+    0 0 0 1px rgba(255,255,255,.32) inset,
+    0 0 28px rgba(255,160,200,.18);
+}
+
+body[data-theme="pink-cute"] .queue-item{
+  background:rgba(255,255,255,.18);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28);
+}
+
+body[data-theme="pink-cute"] .queue-kicker{
+  color:#fff;
+  text-shadow:0 0 16px rgba(255,160,200,.65);
+}
+
+body[data-theme="pink-cute"] .queue-kicker::before{
+  background:#fff;
+  box-shadow:0 0 14px rgba(255,255,255,.8),0 0 24px rgba(255,127,169,.7);
+}
+
+body[data-theme="pink-cute"] .queue-cover-wrap{
+  background:linear-gradient(135deg,rgba(255,127,169,.95),rgba(168,216,255,.95));
+}
+
+/* Song QR Code */
+body[data-theme="pink-cute"] .qr-title{
+  color:#fff;
+  text-shadow:
+    0 3px 16px rgba(80,28,55,.54),
+    0 0 20px rgba(255,160,200,.72);
+}
+
+body[data-theme="pink-cute"] .qr-box{
+  background:rgba(255,250,253,.92);
+  box-shadow:
+    0 22px 60px rgba(210,72,122,.24),
+    0 0 34px rgba(255,160,200,.26),
+    0 0 0 2px rgba(255,180,210,.46);
+}
+
+body[data-theme="pink-cute"] .qr-hint,
+body[data-theme="pink-cute"] .qr-pin{
+  color:#fff;
+  background:rgba(255,127,169,.50);
+  border-color:rgba(255,255,255,.32);
+  text-shadow:0 2px 10px rgba(80,28,55,.42);
+}
+
+body[data-theme="pink-cute"] .qr-pin{
+  color:#fff4b8;
+}
+
+/* Discord profile picture shell.
+   StreamKit iframe content is controlled mainly by URL params in dcprofilepic.js. */
+body[data-theme="pink-cute"] .loading-text{
+  background:rgba(255,166,204,.58);
+  border-color:rgba(255,225,240,.48);
+  color:#fff;
+  text-shadow:0 0 12px rgba(255,160,200,.7);
+  box-shadow:0 0 24px rgba(255,160,200,.2);
+}
+
+body[data-theme="pink-cute"] .discord-overlay-shell{
+  filter:drop-shadow(0 0 18px rgba(255,160,200,.22));
+}
