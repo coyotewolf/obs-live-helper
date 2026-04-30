@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>OBS Live Clock - Soft Blue Pink HUD v5</title>
+<style>
+  :root{
+    /* ====== 主題設定 ====== */
+    --card-bg: rgba(80,110,150,0.7);       /* 更偏粉藍、更明亮 */
+    --card-radius: 14px;
+    --card-padding: 14px 18px;
+    --card-shadow: 0 6px 22px rgba(136,204,255,0.12);
+
+    --text-color: #ffffff;
+    --subtext-color: #f0f0f0;
+    --accent-pink: #ff7fa9;
+    --accent-glow: rgba(255,160,200,0.65);
+    --outline-blue: #a8d8ff;               /* 更亮藍外框 */
+    --outline-glow: rgba(160,220,255,0.45);/* 外框柔光 */
+
+    --label-bg: transparent;
+    --label-border: var(--accent-pink);
+    --label-text: var(--accent-pink);
+    --label-radius: 6px;
+    --label-pad: 2px 10px;
+    --label-weight: 800;
+    --label-size: 13px;
+
+    --time-size: 56px;
+    --time-weight: 600;
+    --date-size: 18px;
+    --date-weight: 600;
+
+    --divider-color: var(--accent-pink);
+    --divider-thickness: 2px;
+
+    --font-family: 'Plus Jakarta Sans', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    --scale: 1;
+  }
+
+  html,body{
+    margin:0; padding:0; background:transparent;
+    width:100%; height:100%;
+  }
+  .wrap{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .card{
+    font-family: var(--font-family);
+    color: var(--text-color);
+    background: var(--card-bg);
+    border-radius: var(--card-radius);
+    padding: var(--card-padding);
+    box-shadow:
+      0 0 10px var(--outline-glow),
+      0 0 0 1.5px var(--outline-blue),
+      0 0 25px rgba(255,182,193,0.05);
+    transform: scale(var(--scale));
+    transform-origin: center;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: .3px;
+  }
+  .row{
+    display:flex; align-items:center; gap:10px;
+    justify-content:flex-start;
+  }
+  .live-tag{
+    border: 2px solid var(--label-border);
+    color: var(--label-text);
+    border-radius: var(--label-radius);
+    padding: var(--label-pad);
+    font-weight: var(--label-weight);
+    font-size: var(--label-size);
+    line-height: 1;
+    transition: all .3s ease;
+  }
+  .time{
+    font-size: var(--time-size);
+    font-weight: var(--time-weight);
+    line-height: 1;
+    letter-spacing: 1px;
+    text-shadow:
+      0 0 6px rgba(255,192,203,0.5),
+      0 0 12px rgba(255,192,203,0.25),
+      0 0 24px rgba(255,192,203,0.15);
+  }
+  .divider{
+    height: var(--divider-thickness);
+    background: linear-gradient(90deg, transparent 0%, var(--divider-color) 50%, transparent 100%);
+    margin: 8px 0 6px;
+    opacity: .6;
+  }
+  .date{
+    font-size: var(--date-size);
+    font-weight: var(--date-weight);
+    color: var(--subtext-color);
+    letter-spacing: .8px;
+    text-shadow: 0 0 4px rgba(255,160,200,0.15);
+    text-align: center;
+    width: 100%;
+    display: block;
+  }
+
+  @media (min-resolution: 2dppx){
+    .time{ text-rendering: optimizeLegibility; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="card">
+      <div class="row">
+        <div class="live-tag" id="liveTag">LIVE</div>
+        <div class="time" id="time">00:00:00</div>
+      </div>
+      <div class="divider"></div>
+      <div class="date" id="date">01/01 Mon</div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const qs = new URLSearchParams(location.search);
+  const setVar = (k, cssVar) => {
+    if (qs.has(k)) document.documentElement.style.setProperty(cssVar, qs.get(k));
+  };
+  setVar('scale', '--scale');
+  setVar('cardBg', '--card-bg');
+  setVar('timeSize', '--time-size');
+  setVar('dateSize', '--date-size');
+  setVar('labelTextColor', '--label-text');
+  setVar('labelBorder', '--label-border');
+
+  const tz = qs.get('tz') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const hour12 = (qs.get('hour12') || 'false').toLowerCase() === 'true';
+  const labelText = qs.get('label') || 'LIVE';
+  document.getElementById('liveTag').textContent = labelText;
+
+  const timeEl = document.getElementById('time');
+  const dateEl = document.getElementById('date');
+  const liveTag = document.getElementById('liveTag');
+
+  const weekdayMap = {
+    'Sunday':'Sun','Monday':'Mon','Tuesday':'Tue','Wednesday':'Wed',
+    'Thursday':'Thu','Friday':'Fri','Saturday':'Sat'
+  };
+
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+
+  function render(){
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: hour12
+    });
+    const parts = fmt.formatToParts(now).reduce((acc,p) => (acc[p.type]=p.value, acc), {});
+    const hhmmss = `${parts.hour}:${parts.minute}:${parts.second}${hour12 ? (parts.dayPeriod ? ' ' + parts.dayPeriod.toUpperCase() : '') : ''}`;
+    timeEl.textContent = hhmmss;
+
+    const d = new Date(now.toLocaleString('en-US',{ timeZone: tz }));
+    const mm = pad(d.getMonth()+1);
+    const dd = pad(d.getDate());
+    const weekday = weekdayMap[new Intl.DateTimeFormat('en-US',{ timeZone: tz, weekday:'long'}).format(d)];
+    dateEl.textContent = `${mm}/${dd} ${weekday}`;
+  }
+
+  render();
+  setInterval(render, 1000);
+
+  // LIVE 閃爍（柔粉光暈）
+  let glow = false;
+  setInterval(() => {
+    glow = !glow;
+    if (glow) {
+      liveTag.style.boxShadow = `0 0 12px var(--accent-glow), 0 0 24px var(--accent-glow)`;
+      liveTag.style.color = '#ffffff';
+      liveTag.style.borderColor = 'var(--accent-pink)';
+    } else {
+      liveTag.style.boxShadow = 'none';
+      liveTag.style.color = 'var(--accent-pink)';
+      liveTag.style.borderColor = 'var(--accent-pink)';
+    }
+  }, 1000);
+})();
+</script>
+</body>
+</html>

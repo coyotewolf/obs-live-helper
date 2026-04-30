@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OBS Live Helper Dashboard</title>
   <link rel="stylesheet" href="../css/pages/dashboard.css">
+  <link rel="stylesheet" href="../css/pages/dashboard-goal-clock.css">
   <script>addEventListener('load',()=>document.body.classList.add('is-ready'));</script>
 </head>
 <body>
@@ -14,7 +15,7 @@
     <div>
       <span class="eyebrow">OBS Live Helper</span>
       <h1>直播 Overlay 控制台</h1>
-      <p>集中管理 Spotify 歌詞、目前播放、佇列清單、自訂文字公告與觀眾 QR Code 點歌。先登入 Spotify，再把需要的 Overlay URL 加到 OBS Browser Source。</p>
+      <p>集中管理 Spotify 歌詞、目前播放、佇列清單、自訂文字公告、觀眾 QR Code 點歌、小目標卡片與直播時鐘。先登入 Spotify，再把需要的 Overlay URL 加到 OBS Browser Source。</p>
     </div>
     <div class="heroActions">
       <button id="loginBtn" class="btnPrimary">登入 / 重新授權 Spotify</button>
@@ -54,114 +55,84 @@
       <div class="overlayBody"><h3>自訂文字公告 Overlay</h3><p>用下方編輯器寫臨時公告、標語、QR Code 說明文字，儲存後會同步到 message.html。</p><code id="messageUrl"></code></div>
       <div class="overlayActions"><a href="/html/message.html" target="_blank">預覽</a><button class="btnMini" data-copy="#messageUrl">複製</button></div>
     </article>
-
     <article class="overlayCard panel">
       <div class="overlayIcon">QR</div>
       <div class="overlayBody"><h3>點歌 QR Code Overlay</h3><p>固定網址，方便加入 OBS。QR Code 會自動使用目前的外網 Tunnel / 區網點歌網址。</p><code id="songQrUrl"></code></div>
       <div class="overlayActions"><a href="/html/songqrcode.html" target="_blank">預覽</a><button class="btnMini" data-copy="#songQrUrl">複製</button></div>
     </article>
-
     <article class="overlayCard panel">
       <div class="overlayIcon">DC</div>
       <div class="overlayBody"><h3>Discord 語音頭貼 Overlay</h3><p>顯示目前 Discord 語音頻道使用者頭貼，說話者會發光與放大。</p><code id="dcProfilePicUrl"></code></div>
       <div class="overlayActions"><a href="/html/dcprofilepic.html" target="_blank">預覽</a><button class="btnMini" data-copy="#dcProfilePicUrl">複製</button></div>
     </article>
+    <article class="overlayCard panel">
+      <div class="overlayIcon">🎯</div>
+      <div class="overlayBody"><h3>小目標卡片 Overlay</h3><p>顯示多張直播小目標卡片，可在下方設定名稱、進度、排列方向、透明度與完成動畫。</p><code id="goalCardUrl"></code></div>
+      <div class="overlayActions"><a href="/html/goal-card.html" target="_blank">預覽</a><button class="btnMini" data-copy="#goalCardUrl">複製</button></div>
+    </article>
+    <article class="overlayCard panel">
+      <div class="overlayIcon">⏰</div>
+      <div class="overlayBody"><h3>直播時鐘 Overlay</h3><p>顯示 LIVE 標籤、時間與日期，可調整時區、12/24 小時制、縮放與標籤文字。</p><code id="liveClockUrl"></code></div>
+      <div class="overlayActions"><a href="/html/live-clock.html" target="_blank">預覽</a><button class="btnMini" data-copy="#liveClockUrl">複製</button></div>
+    </article>
+  </section>
+
+  <section class="themePanel panel">
+    <div class="titleRow">
+      <div><span class="eyebrow">Theme</span><h2>介面主題風格</h2></div>
+    </div>
+    <p class="introText">切換 Dashboard 與支援的 OBS Overlay 風格。已開啟的 OBS Browser Source 會透過 BroadcastChannel 即時同步。</p>
+    <div class="themeSwitchGrid">
+      <button class="themeChoice" type="button" data-theme-choice="blue-night"><strong>藍色夜晚風格</strong><span>深色、科技感，延續原本 OBS Helper 風格。</span></button>
+      <button class="themeChoice" type="button" data-theme-choice="pink-cute"><strong>粉色可愛風格</strong><span>粉藍、粉紅、柔光外框，適合小目標與直播時鐘。</span></button>
+    </div>
+  </section>
+
+  <section class="goalClockPanel panel">
+    <div class="titleRow">
+      <div><span class="eyebrow">Goal / Clock</span><h2>小目標與直播時鐘設定</h2></div>
+      <div class="btnRow compact"><a class="btnGhost small" href="/html/goal-card.html" target="_blank">預覽小目標</a><a class="btnGhost small" href="/html/live-clock.html" target="_blank">預覽時鐘</a></div>
+    </div>
+    <div class="settingsGrid goalSettingsGrid">
+      <label><span>小目標卡片數量</span><input type="number" id="goalCount" min="1" max="20" value="1"></label>
+      <label><span>排列方向</span><select id="goalDirection"><option value="column">垂直</option><option value="row">水平</option></select></label>
+      <label><span>卡片間距</span><input type="number" id="goalGap" min="0" max="200" value="30"></label>
+      <label><span>背景透明度</span><input type="number" id="goalAlpha" min="0" max="1" step="0.05" value="0.65"></label>
+      <label><span>完成動畫秒數</span><input type="number" id="goalFlashSec" min="0" max="30" step="0.5" value="3"></label>
+      <label><span>時鐘標籤</span><input type="text" id="clockLabel" value="LIVE"></label>
+      <label><span>時區</span><input type="text" id="clockTimezone" value="Asia/Taipei"></label>
+      <label><span>12 小時制</span><select id="clockHour12"><option value="false">否，24 小時制</option><option value="true">是，12 小時制</option></select></label>
+      <label><span>時鐘縮放</span><input type="number" id="clockScale" min="0.3" max="3" step="0.1" value="1"></label>
+      <label><span>時間字級</span><input type="text" id="clockTimeSize" value="56px"></label>
+    </div>
+    <div id="goalCardsEditor" class="goalCardsEditor"></div>
+    <div class="btnRow"><button id="saveGoalClockBtn" class="btnPrimary" type="button">儲存小目標與時鐘設定</button><button id="resetGoalClockBtn" class="btnGhost" type="button">恢復預設</button></div>
   </section>
 
   <section class="requestPanel panel">
     <div class="requestInfo">
-      <span class="eyebrow">Audience Request</span>
-      <h2>掃 QR Code 點歌</h2>
-      <p>觀眾掃描後可以搜尋 Spotify 歌曲並送出請求。你可以決定是否自動允許加入佇列、是否允許立即插播、是否開放播放 / 暫停與切歌。</p>
-
-      <div class="requestUrlBox publicUrlBox">
-        <span>外網網址</span>
-        <code id="audienceRequestUrl">產生中...</code>
-        <button class="btnMini" data-copy="#audienceRequestUrl">複製</button>
-      </div>
-      <div class="requestUrlBox mutedBox">
-        <span>區網網址</span>
-        <code id="audienceLanUrl">產生中...</code>
-        <button class="btnMini" data-copy="#audienceLanUrl">複製</button>
-      </div>
-      <div class="requestUrlBox mutedBox">
-        <span>本機預覽</span>
-        <code id="audienceLocalUrl">產生中...</code>
-        <button class="btnMini" data-copy="#audienceLocalUrl">複製</button>
-      </div>
-
-      <div class="tunnelBox">
-        <div>
-          <strong id="tunnelState">Tunnel 檢查中</strong>
-          <p id="tunnelHint">外網觀眾需要 Cloudflare Tunnel 或其他公開網址；192.168 只適合同一個 Wi‑Fi。</p>
-        </div>
-        <div class="tunnelActions">
-          <button id="startTunnelBtn" class="btnGhost" type="button">啟動 Tunnel</button>
-          <button id="restartTunnelBtn" class="btnGhost" type="button">重啟 Tunnel</button>
-          <button id="stopTunnelBtn" class="btnDanger" type="button">停止</button>
-        </div>
-      </div>
-
+      <span class="eyebrow">Audience Request</span><h2>掃 QR Code 點歌</h2><p>觀眾掃描後可以搜尋 Spotify 歌曲並送出請求。你可以決定是否自動允許加入佇列、是否允許立即插播、是否開放播放 / 暫停與切歌。</p>
+      <div class="requestUrlBox publicUrlBox"><span>外網網址</span><code id="audienceRequestUrl">產生中...</code><button class="btnMini" data-copy="#audienceRequestUrl">複製</button></div>
+      <div class="requestUrlBox mutedBox"><span>區網網址</span><code id="audienceLanUrl">產生中...</code><button class="btnMini" data-copy="#audienceLanUrl">複製</button></div>
+      <div class="requestUrlBox mutedBox"><span>本機預覽</span><code id="audienceLocalUrl">產生中...</code><button class="btnMini" data-copy="#audienceLocalUrl">複製</button></div>
+      <div class="tunnelBox"><div><strong id="tunnelState">Tunnel 檢查中</strong><p id="tunnelHint">外網觀眾需要 Cloudflare Tunnel 或其他公開網址；192.168 只適合同一個 Wi‑Fi。</p></div><div class="tunnelActions"><button id="startTunnelBtn" class="btnGhost" type="button">啟動 Tunnel</button><button id="restartTunnelBtn" class="btnGhost" type="button">重啟 Tunnel</button><button id="stopTunnelBtn" class="btnDanger" type="button">停止</button></div></div>
       <div class="settingsGrid">
-        <label><input type="checkbox" id="requestsEnabled"> <span>開放觀眾點歌</span></label>
-        <label><input type="checkbox" id="autoApproveQueue"> <span>自動允許加入佇列</span></label>
-        <label><input type="checkbox" id="allowPlayNow"> <span>允許立即插播</span></label>
-        <label><input type="checkbox" id="allowPlaybackControl"> <span>允許播放 / 暫停</span></label>
-        <label><input type="checkbox" id="allowSkipControl"> <span>允許上一首 / 下一首</span></label>
-        <label><input type="checkbox" id="blockExplicit"> <span>禁止 Explicit 歌曲</span></label>
-        <label><span>點歌冷卻秒數</span><input type="number" id="cooldownSeconds" min="0" max="3600"></label>
-        <label><span>控制冷卻秒數</span><input type="number" id="controlCooldownSeconds" min="0" max="3600"></label>
+        <label><input type="checkbox" id="requestsEnabled"> <span>開放觀眾點歌</span></label><label><input type="checkbox" id="autoApproveQueue"> <span>自動允許加入佇列</span></label><label><input type="checkbox" id="allowPlayNow"> <span>允許立即插播</span></label><label><input type="checkbox" id="allowPlaybackControl"> <span>允許播放 / 暫停</span></label><label><input type="checkbox" id="allowSkipControl"> <span>允許上一首 / 下一首</span></label><label><input type="checkbox" id="blockExplicit"> <span>禁止 Explicit 歌曲</span></label><label><span>點歌冷卻秒數</span><input type="number" id="cooldownSeconds" min="0" max="3600"></label><label><span>控制冷卻秒數</span><input type="number" id="controlCooldownSeconds" min="0" max="3600"></label>
       </div>
       <div class="btnRow"><button id="saveRequestSettingsBtn" class="btnPrimary" type="button">儲存觀眾權限設定</button><button id="rotateRequestPinBtn" class="btnGhost" type="button">重新產生 QR Code 權限碼</button></div>
-
-      <div class="infoBox warningBox">
-        <strong>安全提醒</strong>
-        <ul>
-          <li>Dashboard 請盡量只從 <code>127.0.0.1</code> 本機開啟；觀眾只需要掃 request.html 的 QR Code。</li>
-          <li>外網 Tunnel 會把本機服務公開出去，請保留冷卻時間，並謹慎開放插播與切歌。</li>
-          <li>給別人使用時，請讓對方用自己的 Spotify Developer App 與 Spotify 帳號登入。</li>
-        </ul>
-      </div>
+      <div class="infoBox warningBox"><strong>安全提醒</strong><ul><li>Dashboard 請盡量只從 <code>127.0.0.1</code> 本機開啟；觀眾只需要掃 request.html 的 QR Code。</li><li>外網 Tunnel 會把本機服務公開出去，請保留冷卻時間，並謹慎開放插播與切歌。</li><li>給別人使用時，請讓對方用自己的 Spotify Developer App 與 Spotify 帳號登入。</li></ul></div>
     </div>
-
-    <div class="qrCard">
-      <div class="qrFrame"><img id="requestQrImg" alt="Audience request QR Code"></div>
-      <div class="qrMeta"><span>QR Code 權限碼</span><strong id="requestPin">------</strong></div>
-      <a id="requestPreviewLink" class="btnPrimary fullWidth" href="/html/request.html" target="_blank">開啟點歌頁預覽</a>
-    </div>
+    <div class="qrCard"><div class="qrFrame"><img id="requestQrImg" alt="Audience request QR Code"></div><div class="qrMeta"><span>QR Code 權限碼</span><strong id="requestPin">------</strong></div><a id="requestPreviewLink" class="btnPrimary fullWidth" href="/html/request.html" target="_blank">開啟點歌頁預覽</a></div>
   </section>
 
-  <section class="pendingPanel panel">
-    <div class="titleRow">
-      <div><span class="eyebrow">Review Queue</span><h2>待審點歌清單</h2></div>
-      <div class="btnRow compact"><button id="reloadRequestsBtn" class="btnGhost" type="button">重新整理</button><button id="clearFinishedRequestsBtn" class="btnGhost" type="button">清除已處理</button></div>
-    </div>
-    <div id="requestList" class="requestList"><p class="emptyText">讀取中...</p></div>
-  </section>
+  <section class="pendingPanel panel"><div class="titleRow"><div><span class="eyebrow">Review Queue</span><h2>待審點歌清單</h2></div><div class="btnRow compact"><button id="reloadRequestsBtn" class="btnGhost" type="button">重新整理</button><button id="clearFinishedRequestsBtn" class="btnGhost" type="button">清除已處理</button></div></div><div id="requestList" class="requestList"><p class="emptyText">讀取中...</p></div></section>
 
   <section class="mainGrid">
-    <aside id="leftColumn">
-      <section id="spotifyBlock" class="panel">
-        <div class="titleRow"><div><span class="eyebrow">Spotify</span><h2>播放狀態</h2></div><span id="spotifyStatusPill" class="statusPill">檢查中</span></div>
-        <div class="trackBox"><div id="trackCover" class="trackCover">♪</div><div><div id="trackInfo">尚未播放</div><p id="trackSubInfo">等待 Spotify 狀態更新...</p></div></div>
-        <div class="infoBox"><strong>使用提醒</strong><ul><li>OBS 沒更新時，在 Browser Source 按 Refresh cache。</li><li>如果 queue 空白或播放控制失敗，確認 Spotify 正在播放並重新授權。</li><li>如果歌詞顯示「無歌詞」，通常是 LRCLib 找不到同步歌詞。</li></ul></div>
-        <div class="logTitle"><span>Spotify / Lyrics Log</span><button id="clearLogViewBtn" class="btnMini" type="button">清除畫面</button></div>
-        <pre id="logView"></pre>
-      </section>
-    </aside>
-
+    <aside id="leftColumn"><section id="spotifyBlock" class="panel"><div class="titleRow"><div><span class="eyebrow">Spotify</span><h2>播放狀態</h2></div><span id="spotifyStatusPill" class="statusPill">檢查中</span></div><div class="trackBox"><div id="trackCover" class="trackCover">♪</div><div><div id="trackInfo">尚未播放</div><p id="trackSubInfo">等待 Spotify 狀態更新...</p></div></div><div class="infoBox"><strong>使用提醒</strong><ul><li>OBS 沒更新時，在 Browser Source 按 Refresh cache。</li><li>如果 queue 空白或播放控制失敗，確認 Spotify 正在播放並重新授權。</li><li>如果歌詞顯示「無歌詞」，通常是 LRCLib 找不到同步歌詞。</li></ul></div><div class="logTitle"><span>Spotify / Lyrics Log</span><button id="clearLogViewBtn" class="btnMini" type="button">清除畫面</button></div><pre id="logView"></pre></section></aside>
     <section id="editorBlock" class="panel">
       <div class="titleRow editorTitleRow"><div><span class="eyebrow">Text Overlay</span><h2>自訂文字公告編輯器</h2></div><a class="btnGhost small" href="/html/message.html" target="_blank">預覽 message.html</a></div>
       <p class="introText">這就是原本的 Message Overlay 功能：編輯一段文字，儲存後讓 OBS 的 <code>message.html</code> 顯示。適合直播公告、點歌 QR Code 說明、暫停畫面標語等。</p>
-      <div id="toolbar">
-        <button data-cmd="bold" title="粗體"><b>B</b></button><button data-cmd="italic" title="斜體"><i>I</i></button><button data-cmd="strikeThrough" title="刪除線"><s>S</s></button><button data-cmd="transparent" title="選取文字背景透明">⛶</button>
-        <label class="toolControl" title="文字顏色"><span>字</span><input type="color" id="foreColor"></label><label class="toolControl" title="背景顏色"><span>底</span><input type="color" id="backColor"></label>
-        <button data-cmd="justifyLeft" title="靠左">⬅</button><button data-cmd="justifyCenter" title="置中">≡</button><button data-cmd="justifyRight" title="靠右">➡</button>
-        <input id="fontSizeCtrl" type="text" list="sizeList" placeholder="選取字號(px)" title="選取文字後輸入數字或選擇建議，Enter 套用">
-        <datalist id="sizeList"><option value="12"><option value="14"><option value="16"><option value="18"><option value="20"><option value="24"><option value="28"><option value="32"><option value="36"><option value="48"><option value="56"><option value="64"><option value="72"><option value="96"></datalist>
-        <select id="fontSel" title="字體"></select>
-        <label class="pageBgControl"><span>頁面底色</span><input type="color" id="pageBgColor" value="#ffffff" title="message.html 背景色"><span class="inlineCheck"><input type="checkbox" id="pageBgTransparent">透明</span></label>
-      </div>
+      <div id="toolbar"><button data-cmd="bold" title="粗體"><b>B</b></button><button data-cmd="italic" title="斜體"><i>I</i></button><button data-cmd="strikeThrough" title="刪除線"><s>S</s></button><button data-cmd="transparent" title="選取文字背景透明">⛶</button><label class="toolControl" title="文字顏色"><span>字</span><input type="color" id="foreColor"></label><label class="toolControl" title="背景顏色"><span>底</span><input type="color" id="backColor"></label><button data-cmd="justifyLeft" title="靠左">⬅</button><button data-cmd="justifyCenter" title="置中">≡</button><button data-cmd="justifyRight" title="靠右">➡</button><input id="fontSizeCtrl" type="text" list="sizeList" placeholder="選取字號(px)" title="選取文字後輸入數字或選擇建議，Enter 套用"><datalist id="sizeList"><option value="12"><option value="14"><option value="16"><option value="18"><option value="20"><option value="24"><option value="28"><option value="32"><option value="36"><option value="48"><option value="56"><option value="64"><option value="72"><option value="96"></datalist><select id="fontSel" title="字體"></select><label class="pageBgControl"><span>頁面底色</span><input type="color" id="pageBgColor" value="#ffffff" title="message.html 背景色"><span class="inlineCheck"><input type="checkbox" id="pageBgTransparent">透明</span></label></div>
       <div class="editWrap"><div class="editorPane"><div class="paneTitle">編輯區</div><div id="editorArea" contenteditable="true"></div></div><div class="editorPane"><div class="paneTitle">預覽區</div><div id="previewArea"></div></div></div>
       <div class="fontUploadBox"><div><strong>自訂字型</strong><p>支援 .ttf / .otf / .woff / .woff2。上傳後會加入字體選單，也會同步給 message.html 使用。</p></div><div class="fontUploadActions"><input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden><label class="btnGhost" for="fontFile">選擇字型檔</label><button id="uploadFontBtn" class="btnPrimary" style="display:none">上傳</button></div></div>
       <div class="btnRow"><button id="saveTextBtn" class="btnPrimary">儲存文字</button><button id="clearTextBtn" class="btnDanger">清空文字</button></div>
@@ -170,6 +141,7 @@
 </main>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="../js/dashboard.js"></script>
+<script src="../js/dashboard-goal-clock.js"></script>
 <script src="../js/dashboard-discord-extra.js"></script>
 </body>
 </html>

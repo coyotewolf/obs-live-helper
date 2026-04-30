@@ -1,0 +1,1739 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Multi Goal Card – OBS v6 (Apply-to-HUD name + external alpha bar + small heartbeat)</title>
+<style>
+:root{
+  --alpha-gap: 70px;  /* 調整這個數值即可控制距離，建議 60~100px */
+  --scale-row: 0.9;
+  --base-rgb: 100,140,190;      /* 未完成底色（藍） */
+  --base-alpha: .65;            /* 未完成底色透明度 ← 由外部透明度條控制 */
+  --completed-alpha: .65;       /* 完成卡片粉底透明度 ← 同步由外部透明度條控制 */
+  --progress-color: linear-gradient(90deg,#8ec8ff,#ffa9c9,#ff7fa9);
+  --outline: #a8d8ff;
+  --outline-glow: rgba(160,220,255,.4);
+  --pink-glow: rgba(255,160,200,.65);
+  --text: #fff;
+  --hud-font: 26px;
+  --panel-font: 26px;
+  --font: "Plus Jakarta Sans","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --radius: 22px;
+  --cards-gap: 30px;
+
+  --card-min-col: 520px; /* 垂直預設 */
+  --card-min-row: 220px; /* 水平預設 */
+
+  --pad-x: 12px;
+  --gap-below-hud: 50px;
+}
+
+html,body{
+  margin:0;padding:0;width:100%;height:100%;
+  background: transparent !important;
+  background-color: rgba(0,0,0,0) !important;
+}
+body{font-family:var(--font);color:var(--text);}
+
+/* ===== 設定面板 ===== */
+.panel{
+  position:fixed; top:10px; left:50%; transform:translateX(-50%);
+  z-index:999999; min-width:980px; max-width:96vw;
+  background: transparent !important;
+  border:1px solid rgba(168,216,255,.7); border-radius:16px; color:#fff;
+  padding:28px 30px; font-size:var(--panel-font); line-height:1.35;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.panel h4{margin:0 0 18px;font-size:calc(var(--panel-font) + 2px);font-weight:900;letter-spacing:.3px;}
+.grid{display:grid;grid-template-columns: 280px  1fr; gap:16px 16px; align-items:center;}
+.label{color:#e0f3ff;font-weight:800;}
+.field{padding:12px 12px;}
+.input, .drop-toggle{
+  width:100%; padding:0; border-radius:14px;
+  border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.12); color:#fff; outline:none;
+  font-size:var(--panel-font); height:56px;
+  display:flex; align-items:center; padding-inline:0; text-indent:12px;
+}
+.input-compact{ max-width:120px; height:48px; font-size:calc(var(--panel-font) - 2px); text-align:center; }
+.actions{display:flex;gap:14px;justify-content:flex-end;margin-top:16px;}
+.btn{ padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.25);
+      background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:var(--panel-font);transition:transform .12s ease, background .2s;}
+.btn:hover{background:rgba(255,255,255,.18); transform:translateY(-1px);}
+.btn:active{transform:scale(.98);}
+.btn.primary{ background:linear-gradient(180deg,rgba(255,170,195,.95),rgba(255,120,165,.95)); border:none;box-shadow:0 0 12px var(--pink-glow);}
+.stepper{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.btn-step{ width:56px;height:52px;border-radius:12px;border:1px solid rgba(255,255,255,.3);
+  background:rgba(255,255,255,.16);color:#fff;font-size:28px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;
+  transition:transform .15s ease, background .2s;}
+.btn-step:hover{background:rgba(255,255,255,.24);transform:translateY(-1px);}
+.btn-step:active{transform:scale(.96);}
+.btn-step--sm{ width:48px;height:48px;font-size:24px;border-radius:12px; }
+.btn:disabled, .btn-step:disabled, .input:disabled{ opacity:.55; cursor:not-allowed; filter:grayscale(.25); }
+.is-disabled{ opacity:.5; filter: grayscale(.3); pointer-events: none; }
+.btn.is-disabled{ opacity:.5; filter:grayscale(.3); pointer-events:none; }
+.stepper-progress{gap:8px;}
+.slash{ user-select:none; font-weight:900; opacity:.9; margin:0 6px; }
+
+/* Segmented */
+.segmented{ display:inline-flex; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.25); border-radius:12px; padding:4px; gap:4px; }
+.segmented input{ display:none; }
+.segmented label{ padding:10px 14px; border-radius:10px; cursor:pointer; user-select:none; font-weight:800; letter-spacing:.3px; opacity:.85; }
+.segmented input:checked + label{
+  background:linear-gradient(180deg,rgba(168,216,255,.35),rgba(168,216,255,.15));
+  box-shadow:0 0 0 1px rgba(168,216,255,.6) inset, 0 4px 10px rgba(0,0,0,.18);
+  opacity:1;
+}
+
+/* 下拉 */
+.dropdown{ position:relative; }
+.drop-toggle{ cursor:pointer; text-align:left; }
+.drop-menu{
+  position:absolute; left:12px; right:12px; top:calc(100% + 8px);
+  background:rgba(20,30,50,.92);
+  border:1px solid rgba(168,216,255,.85);
+  border-radius:12px; overflow:auto; max-height:50vh;
+  box-shadow:0 12px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.15) inset;
+  display:none; z-index:1000001;
+}
+.drop-item{ display:grid; grid-template-columns: 36px 1fr 44px; align-items:center; gap:12px; padding:12px 14px; cursor:default; font-size:var(--panel-font); }
+.drop-item:hover{ background:rgba(255,255,255,.08); }
+/* 下拉清單拖拉排序視覺 */
+.drop-item { cursor: grab; }
+.drop-item:active { cursor: grabbing; }
+.drop-item.dragging { opacity:.6; }
+.drop-item.placeholder {
+  height: 48px; margin:6px 12px; border-radius:8px;
+  border:2px dashed rgba(168,216,255,.7);
+  background: rgba(168,216,255,.08);
+}
+
+/* 下拉清單拖拉排序：手把 + 拖曳樣式 */
+.drop-item{ grid-template-columns: 28px 36px 1fr 44px; }
+.drag-handle{
+  width:24px; height:24px; border-radius:6px;
+  display:grid; place-items:center;
+  cursor:grab; user-select:none; color:#a8d8ff;
+  border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06);
+}
+.drag-handle:active{ cursor:grabbing; filter:brightness(1.1); }
+
+.drop-item.dragging{
+  opacity:.75; box-shadow:0 6px 18px rgba(0,0,0,.35);
+}
+.drop-item.placeholder {
+  height: 48px; margin:6px 12px; border-radius:8px;
+  border:2px dashed rgba(168,216,255,.7);
+  background: rgba(168,216,255,.08);
+}
+
+.chk{ width:26px; height:26px; border-radius:6px; border:2px solid #a8d8ff; display:inline-block; position:relative; cursor:pointer; }
+.chk.checked::after{ content:""; position:absolute; inset:5px; border-radius:4px; background:#a8d8ff; }
+.name{ user-select:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;
+  padding:0; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); height:48px; display:flex; align-items:center; text-indent:10px;}
+.trash{ width:36px; height:36px; display:grid; place-items:center; border-radius:8px; cursor:pointer; color:#ffccd8; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15);}
+.trash:hover{ background:rgba(255,80,120,.18); }
+
+/* ===== 外部透明度控制條（在面板下方、HUD 上方） ===== */
+.alpha-bar{
+  position: fixed;
+  z-index: 999998;
+  box-sizing: border-box;
+
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: 1px solid rgba(168,216,255,.7);
+  border-radius: 16px;
+
+  padding: 12px 18px;
+  font-size: var(--panel-font);
+  color:#e8f6ff;
+  display:flex; align-items:center; gap:14px;
+}
+
+.alpha-bar .title{ font-weight:900; letter-spacing:.3px; margin-right:6px; }
+.alpha-bar input[type="range"]{ width:280px; }
+.alpha-bar .num{ width:90px; height:40px; font-size: var(--panel-font); }
+.alpha-bar, .alpha-bar *{ font-size: var(--panel-font); }
+
+/* ===== HUD ===== */
+.hud-area{ position:absolute; left:50%; transform:translateX(-50%); z-index:1; width:100vw; }
+.cards{ display:flex; gap: var(--cards-gap); align-items:flex-start; justify-content:flex-start; width:100%; box-sizing:border-box; padding:0 10px; }
+
+/* === HUD 卡片拖拉排序（無手把，壓住卡片本體拖） === */
+.card{
+  cursor: grab;
+  user-select: none;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  will-change: transform;
+}
+.card.dragging{
+  cursor: grabbing;
+  position: fixed !important;
+  z-index: 1000003 !important;
+  box-shadow: 0 22px 48px rgba(0,0,0,.55), 0 0 0 2px rgba(168,216,255,.95);
+  transform: rotate(-3deg) scale(1.04) translate3d(0,0,0);
+  visibility: visible !important;
+}
+.card.placeholder{
+  visibility: hidden;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.hud-dragging *{
+  pointer-events: none;
+}
+.hud-dragging .card,
+.hud-dragging .card *{
+  pointer-events: auto;
+}
+/* 拖曳時暫時隱藏快速控制列 */
+.hud-dragging .quick-rail{ opacity:0; pointer-events:none; transition:opacity .12s ease; }
+
+/* Card */
+.card{
+  color:var(--text);
+  display:flex;align-items:center;gap:14px;
+  background: rgba(var(--base-rgb), var(--base-alpha));
+  border-radius:var(--radius);
+  padding:10px 16px;
+  box-shadow:0 0 10px var(--outline-glow), 0 0 0 2px var(--outline), 0 10px 26px rgba(20,30,50,.18);
+  position:relative;overflow:hidden;
+  max-width:100%;
+  transform-origin: top left;
+  min-width: var(--card-min-col);
+}
+
+/* 垂直/水平 */
+.cards[data-mode="column"]{ flex-direction: column; flex-wrap: nowrap; }
+.cards[data-mode="column"] .card{ transform: none; }
+.cards[data-mode="row"]{ flex-direction: row; flex-wrap: wrap; }
+.cards[data-mode="row"] .card{
+  transform: scale(var(--scale-row));
+  min-width: var(--card-min-row);
+  flex: 0 1 auto;
+}
+
+/* 進度條 */
+.fill-bg{
+  position:absolute;inset:0;background:var(--progress-color);
+  width:0%;z-index:0;transition:width 0.6s ease-in-out;
+  border-radius: inherit;
+}
+.shine{ position:absolute;inset:0; opacity:0; pointer-events:none; }
+
+/* 徽章 */
+.badge{
+  z-index:2;width:38px;height:38px;border-radius:999px; display:grid;place-items:center;
+  background:linear-gradient(180deg,rgba(255,170,195,.96),rgba(255,120,165,.96));
+  box-shadow:0 0 18px var(--pink-glow);
+  font-size:20px;color:#fff;line-height:1;user-select:none; animation:pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse{ 0%,100%{transform:scale(1);box-shadow:0 0 14px var(--pink-glow);} 50%{transform:scale(1.15);box-shadow:0 0 26px rgba(255,160,200,.9);} }
+
+.badge.is-heart{
+  background: transparent !important;
+  box-shadow: none !important;
+  width:38px;height:38px;border-radius:0;
+  color:#ffd27d;
+  text-shadow:0 0 8px rgba(255,220,140,.95), 0 0 16px rgba(255,220,140,.4);
+  font-size:26px; line-height:1;
+  animation:heartbeat 1.8s ease-in-out infinite;
+}
+@keyframes heartbeat{
+  0%{ transform: scale(1); }
+  15%{ transform: scale(1.25); }
+  30%{ transform: scale(0.92); }
+  45%{ transform: scale(1.12); }
+  100%{ transform: scale(1); }
+}
+.badge.is-heart-small{ animation:heartbeatSmall 2.4s ease-in-out infinite; }
+@keyframes heartbeatSmall{
+  0%{ transform: scale(1); }
+  18%{ transform: scale(1.08); }
+  32%{ transform: scale(0.96); }
+  48%{ transform: scale(1.03); }
+  100%{ transform: scale(1); }
+}
+
+.stack{z-index:2;display:flex;flex-direction:column;gap:4px;}
+.text{font-size:var(--hud-font);font-weight:800;letter-spacing:.3px;text-shadow:0 0 10px rgba(255,192,203,.25);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ★ 新增：就地編輯輸入框 */
+.inline-editor{
+  font-size:var(--hud-font);
+  font-weight:800;
+  letter-spacing:.3px;
+  width:100%;
+  max-width:calc(100% - 6px);
+  color:#fff;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.28);
+  border-radius:10px;
+  padding:6px 10px;
+  outline:none;
+  box-shadow:0 2px 10px rgba(0,0,0,.18) inset;
+}
+.text.editing{ display:none; }
+
+/* 內嵌快速控制 */
+.quick-rail{ position:absolute; pointer-events:none; z-index:2; font-size:var(--hud-font); background: transparent !important; }
+.quick-rail .quick-item{ position:absolute; pointer-events:auto; display:flex; align-items:center; gap:8px; background: transparent !important; border:none !important; box-shadow:none !important; padding:8px 10px; }
+.quick-rail .mini{ display:flex; align-items:center; gap:6px; }
+.quick-rail .mini input{
+  width:56px; height:36px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.24);
+  background:rgba(255,255,255,.08); color:#fff; font-size:16px; text-align:center;
+}
+.quick-rail .mini .btn-s{
+  width:32px; height:32px; border-radius:999px; display:grid; place-items:center; cursor:pointer; border:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.10));
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  user-select:none; font-weight:900; transition: transform .12s ease, filter .12s ease, background .2s ease;
+}
+.quick-rail .mini .btn-s:hover{ transform: translateY(-1px); filter: brightness(1.1); }
+.quick-rail .mini .btn-s:active{ transform: scale(.96); }
+.quick-rail .mini .slash{ margin:0 4px; opacity:.9; font-weight:900; }
+
+.quick-rail.right{ top:0; bottom:0; right: var(--pad-x); }
+.quick-rail.bottom-outside{ position:absolute; left:0; right:0; height:auto; }
+.quick-rail.bottom-outside .quick-item{ position:absolute; }
+
+/* 就地確認框 */
+.trash-inline{ width:36px; height:36px; border-radius:10px; display:grid; place-items:center; cursor:pointer; border:none; background:transparent; color:#ffd8e6; transition: background .2s ease, transform .12s ease; }
+.trash-inline:hover{ background:rgba(255,120,165,.22); transform: translateY(-1px); }
+.trash-inline:active{ transform: scale(.95); }
+.confirm{
+  position:absolute; bottom:calc(100% + 8px); right:0;
+  background:rgba(20,30,50,.95);
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:10px; padding:10px 12px; display:flex; gap:10px;
+  white-space:nowrap; font-size:24px; z-index:3;
+}
+.confirm .btn-mini{ padding:6px 12px; border-radius:8px; cursor:pointer; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); font-size:24px; }
+.confirm .btn-mini.danger{ border-color:rgba(255,120,165,.6); background:rgba(255,120,165,.2); }
+
+/* 完成樣式（更粉 & 透明度可調） */
+.card.completed{
+  background: rgba(255,180,210, var(--completed-alpha)) !important;
+  border:1.5px solid rgba(255,190,215,.65);
+  box-shadow:
+    0 6px 20px rgba(10,16,28,.22),
+    0 0 0 1px rgba(255,190,215,.35) inset,
+    0 0 16px rgba(255,190,215,.25);
+  filter: saturate(.92);
+  opacity:.98;
+}
+.card.completed .fill-bg{ opacity:.22; filter: saturate(.7); }
+.text.is-done{
+  text-decoration: line-through;
+  text-decoration-thickness: 3px;
+  text-decoration-color: rgba(245,245,245,.95);
+  opacity:.96;
+}
+
+/* 金色粒子 */
+.particle-layer{ position:absolute; inset:0; z-index:3; pointer-events:none; border-radius: inherit; overflow:hidden; mix-blend-mode: screen; }
+.particle{
+  position:absolute; border-radius:999px;
+  background: radial-gradient(circle, #fffad1 0%, #ffe085 40%, rgba(255,224,133,0) 70%);
+  box-shadow: 0 0 10px rgba(255,224,133,.75), 0 0 18px rgba(255,224,133,.45);
+  opacity:0;
+}
+@keyframes particleDrift {
+  0%   { transform: translate(0,0) scale(.6); opacity:0; }
+  12%  { opacity:.95; }
+  100% { transform: translate(var(--dx,0), var(--dy,-60px)) scale(1); opacity:0; }
+}
+.burst{
+  position:absolute; left:50%; top:50%; width:300px; height:300px; margin:-150px 0 0 -150px; border-radius:999px; pointer-events:none; opacity:0;
+  background: radial-gradient(circle, rgba(255,235,150,.95) 0%, rgba(255,220,120,.35) 45%, rgba(255,220,120,0) 65%);
+}
+@keyframes burstFlash{
+  0%{ opacity:.0; transform: scale(.65); }
+  10%{ opacity:.95; transform: scale(1.0); }
+  100%{ opacity:0; transform: scale(1.25); }
+}
+
+/* 窄畫面 */
+@media (max-width: 1100px){
+  .panel{min-width:unset;}
+  .alpha-bar{min-width:unset;}
+  .grid{ grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- 設定面板 -->
+<div class="panel" id="panel">
+  <h4 id="panelTitle">🎯 小目標設定（多卡片）</h4>
+  <div class="grid">
+    <div class="label" id="selectLabel" title="雙擊可直接改目前選取卡片的名稱">選擇 / 顯示卡片</div>
+    <div class="field">
+      <div class="dropdown" id="cardDropdown">
+        <div class="drop-toggle" id="dropToggle">（尚未選擇）</div>
+        <div class="drop-menu" id="dropMenu"></div>
+      </div>
+    </div>
+
+    <div class="label">卡片數量</div>
+    <div class="field">
+      <div class="stepper">
+        <input id="inpCount" class="input" type="number" min="1" step="1" style="max-width:220px;">
+        <div class="btn-step" id="countMinus">–</div>
+        <div class="btn-step" id="countPlus">+</div>
+      </div>
+    </div>
+
+    <div class="label">任務名稱</div>
+    <div class="field">
+      <input id="inpText" class="input" type="text" placeholder="今日小目標：完成任務X場">
+    </div>
+
+    <div class="label">目前進度 / 總場次</div>
+    <div class="field">
+      <div class="stepper stepper-progress">
+        <input id="inpCurrent" class="input input-compact" type="number" min="0" step="1" value="0">
+        <div class="btn-step btn-step--sm" id="minus">–</div>
+        <div class="btn-step btn-step--sm" id="plus">+</div>
+        <span class="slash">/</span>
+        <input id="inpTotal" class="input input-compact" type="number" min="1" step="1" value="3">
+        <div class="btn-step btn-step--sm" id="totalMinus">–</div>
+        <div class="btn-step btn-step--sm" id="totalPlus">+</div>
+      </div>
+    </div>
+
+    <div class="label">排列方向 / 間距</div>
+    <div class="field">
+      <div class="stepper">
+        <div class="btn-step" title="水平" id="dirRow">→</div>
+        <div class="btn-step" title="垂直" id="dirCol">↓</div>
+        <input id="inpGap" class="input" type="number" min="0" step="1" style="max-width:220px;">
+        <div class="btn-step" id="gapMinus">–</div>
+        <div class="btn-step" id="gapPlus">+</div>
+      </div>
+    </div>
+
+    <!-- 卡片長度（min-width）控制 -->
+    <div class="label">卡片長度</div>
+    <div class="field">
+      <div class="segmented" role="tablist" aria-label="Width Mode">
+        <input type="radio" name="widthMode" id="widthAuto" value="auto" checked>
+        <label for="widthAuto">自動</label>
+        <input type="radio" name="widthMode" id="widthManual" value="manual">
+        <label for="widthManual">手動</label>
+      </div>
+
+      <div class="stepper" style="margin-top:10px;">
+        <input id="inpWidth" class="input" type="number" min="100" step="10" value="520" style="max-width:200px;">
+        <div class="btn-step btn-step--sm" id="widthMinus">–</div>
+        <div class="btn-step btn-step--sm" id="widthPlus">+</div>
+        <div class="btn" id="recalcBtn" title="依最長任務名稱計算">重新計算</div>
+        <div class="btn" id="defaultBtn" title="恢復預設（520/220）">預設</div>
+      </div>
+    </div>
+
+    <!-- 完成動畫秒數 -->
+    <div class="label">完成動畫（秒）</div>
+    <div class="field">
+      <div class="stepper">
+        <input id="inpFlashSec" class="input input-compact" type="number" step="0.5" min="0" value="3" title="完成時金色粒子動畫秒數">
+        <div class="btn-step btn-step--sm" id="flashMinus">–</div>
+        <div class="btn-step btn-step--sm" id="flashPlus">+</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="btn" id="cancelBtn">取消</div>
+    <div class="btn primary" id="applyBtn">套用</div>
+  </div>
+</div>
+
+<!-- 外部透明度控制條（面板下方 / HUD 上方） -->
+<div class="alpha-bar" id="alphaBar" aria-label="卡片背景透明度">
+  <span class="title">卡片背景透明度</span>
+  <input id="alphaRange" type="range" min="0" max="100" step="1" value="65" aria-label="透明度滑桿">
+  <input id="alphaNum" class="num" type="number" min="0" max="1" step="0.01" value="0.65" aria-label="透明度數值（0–1）">
+  <span style="opacity:.8;">（0% = 透明，100% = 不透明）</span>
+</div>
+
+<!-- HUD 區域 -->
+<div class="hud-area" id="hudArea">
+  <div class="cards" id="cardsContainer" data-mode="column"></div>
+</div>
+
+<!-- 水平排列用：底部外置控制列容器 -->
+<div class="quick-rail bottom-outside" id="bottomRailPortal" style="display:none;"></div>
+
+<script>
+(function(){
+  const uid = () => Math.random().toString(36).slice(2)+Date.now().toString(36);
+  const defaultCard = { uid: uid(), text:"今日小目標：完成任務3場", current:0, total:3, visible:true, completed:false };
+  const defaultLayout = {
+    direction:"column",
+    gap:30,
+    widthMode:"auto",
+    minWidthCol:520,
+    minWidthRow:220,
+    completeFlashMs: 3000,
+    baseAlpha: 0.65,
+    completedAlpha: 0.65,
+  };
+
+  const MIN_SAFE = 120;
+  const clone = x => JSON.parse(JSON.stringify(x));
+
+  let draft = JSON.parse(localStorage.getItem("multiGoalCardsV6_draft")
+             || JSON.stringify({ cards:[defaultCard], layout: defaultLayout }));
+  let hud   = JSON.parse(localStorage.getItem("multiGoalCardsV6_hud")
+             || JSON.stringify({ cards:[defaultCard], layout: defaultLayout }));
+
+  function ensureUIDs(arr){
+    arr.forEach(c=>{ if(!c.uid) c.uid = uid(); if(c.completed===undefined) c.completed=false; if(c.visible===undefined) c.visible=true; });
+  }
+  ensureUIDs(draft.cards); ensureUIDs(hud.cards);
+  draft.layout = { ...defaultLayout, ...(draft.layout||{}) };
+  hud.layout   = { ...defaultLayout, ...(hud.layout||{}) };
+
+  let selected = 0;
+
+  /* 元素 */
+  const panel = document.getElementById('panel');
+  const alphaBar = document.getElementById('alphaBar');
+  const hudArea = document.getElementById('hudArea');
+  const cardsContainer = document.getElementById('cardsContainer');
+  const bottomRailPortal = document.getElementById('bottomRailPortal');
+
+  const inpCount   = document.getElementById('inpCount');
+  const inpText    = document.getElementById('inpText');
+  const inpCurrent = document.getElementById('inpCurrent');
+  const inpTotal   = document.getElementById('inpTotal');
+
+  const plus       = document.getElementById('plus');
+  const minus      = document.getElementById('minus');
+  const totalPlus  = document.getElementById('totalPlus');
+  const totalMinus = document.getElementById('totalMinus');
+  const countPlus  = document.getElementById('countPlus');
+  const countMinus = document.getElementById('countMinus');
+
+  const cancelBtn  = document.getElementById('cancelBtn');
+  const applyBtn   = document.getElementById('applyBtn');
+
+  const dropToggle = document.getElementById('dropToggle');
+  const dropMenu   = document.getElementById('dropMenu');
+  const dropdown   = document.getElementById('cardDropdown');
+
+  const dirRow   = document.getElementById('dirRow');
+  const dirCol   = document.getElementById('dirCol');
+  const gapPlus  = document.getElementById('gapPlus');
+  const gapMinus = document.getElementById('gapMinus');
+  const inpGap   = document.getElementById('inpGap');
+
+  const widthAuto   = document.getElementById('widthAuto');
+  const widthManual = document.getElementById('widthManual');
+  const inpWidth    = document.getElementById('inpWidth');
+  const widthPlus   = document.getElementById('widthPlus');
+  const widthMinus  = document.getElementById('widthMinus');
+  const recalcBtn   = document.getElementById('recalcBtn');
+  const defaultBtn  = document.getElementById('defaultBtn');
+
+  const inpFlashSec = document.getElementById('inpFlashSec');
+  const flashPlus   = document.getElementById('flashPlus');
+  const flashMinus  = document.getElementById('flashMinus');
+
+  const alphaRange = document.getElementById('alphaRange');
+  const alphaNum   = document.getElementById('alphaNum');
+
+  const clampInt = (v, min, max, def=0)=>{ const n = parseInt(v,10); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : def; };
+  const clampNum = (v, min, max, def=0)=>{ const n = parseFloat(v); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : def; };
+
+  /* 版位：面板 → 透明度條 → HUD */
+  function repositionHUDArea(){
+    const rect = panel.getBoundingClientRect();
+
+    const panelRect = panel.getBoundingClientRect();
+    const alphaGap = parseInt(getComputedStyle(document.documentElement)
+                     .getPropertyValue('--alpha-gap')) || 70;
+
+    const top = Math.round(panelRect.bottom + 30 + alphaGap);
+    hudArea.style.top = `${top}px`;
+
+    if (alphaBar){
+      const panelBottom = Math.round(rect.bottom);
+      const panelLeft   = Math.round(rect.left);
+      const panelWidth  = Math.round(rect.width);
+
+      alphaBar.style.position = 'fixed';
+      alphaBar.style.top      = (panelBottom + 12) + 'px';
+      alphaBar.style.left     = panelLeft + 'px';
+      alphaBar.style.width    = panelWidth + 'px';
+
+      alphaBar.style.right     = 'auto';
+      alphaBar.style.transform = 'none';
+      alphaBar.style.margin    = '0';
+    }
+  }
+
+  window.addEventListener('resize', ()=>{ repositionHUDArea(); refreshQuickRails(); });
+  new ResizeObserver(()=>{ repositionHUDArea(); refreshQuickRails(); }).observe(panel);
+  new ResizeObserver(()=>{ repositionHUDArea(); }).observe(alphaBar);
+
+  function applyCSSAlphas(){
+    const root = document.documentElement;
+    root.style.setProperty('--card-min-col', (hud.layout.minWidthCol||520) + 'px');
+    root.style.setProperty('--card-min-row', (hud.layout.minWidthRow||220) + 'px');
+    root.style.setProperty('--base-alpha', (hud.layout.baseAlpha ?? .65));
+    root.style.setProperty('--completed-alpha', (hud.layout.completedAlpha ?? .65));
+  }
+
+  function sortCardsStable(arr){
+    const notDone = arr.filter(c=>!c.completed);
+    const done    = arr.filter(c=> c.completed);
+    return [...notDone, ...done];
+  }
+  function sortBoth(){
+    hud.cards   = sortCardsStable(hud.cards);
+    draft.cards = sortCardsStable(draft.cards);
+  }
+
+  function renderHUD(){
+    sortBoth();
+
+    cardsContainer.dataset.mode = hud.layout.direction;
+    cardsContainer.style.gap = (hud.layout.gap ?? 30) + 'px';
+    applyCSSAlphas();
+
+    cardsContainer.innerHTML = '';
+    hud.cards.forEach((c,i)=>{
+      if(!c.visible) return;
+      const div=document.createElement('div');
+      div.className='card' + (c.completed ? ' completed' : '');
+      div.dataset.index = i;
+      div.dataset.uid   = c.uid;
+      div.innerHTML=`
+        <div class="fill-bg" id="fill${c.uid}"></div>
+        <div class="shine" id="shine${c.uid}"></div>
+        <div class="badge ${c.completed ? 'is-heart is-heart-small':''}" id="badge${c.uid}">${c.completed ? '❤':'💖'}</div>
+        <div class="stack"><div class="text ${c.completed ? 'is-done':''}" id="text${c.uid}">${c.text}</div></div>
+      `;
+      cardsContainer.appendChild(div);
+      const pct=(c.current/c.total)*100;
+      div.querySelector(`#fill${c.uid}`).style.width = pct + "%";
+
+      /* ★ 新增：就地編輯啟用 */
+      const textEl = div.querySelector(`#text${c.uid}`);
+      enableInlineEditing(textEl, c.uid);
+    });
+
+    requestAnimationFrame(()=>{ refreshQuickRails(); });
+    repositionHUDArea();
+    syncWidthInputFromDraft();
+    reflectWidthControlsState();
+    enableHUDDragSort();
+  }
+
+  function getCardPositions(){
+    const map = {};
+    cardsContainer.querySelectorAll('.card').forEach(el=>{
+      map[el.dataset.uid] = el.getBoundingClientRect();
+    });
+    return map;
+  }
+  function animateBetween(oldPos, duration=180){
+    const timing='cubic-bezier(.2,.7,.2,1)';
+    const nodes = Array.from(cardsContainer.querySelectorAll('.card'));
+    nodes.forEach(el=>{
+      if (dnd && el===dnd.draggingEl) return;
+      const uid=el.dataset.uid;
+      const prev=oldPos[uid];
+      if(!prev) return;
+      const now=el.getBoundingClientRect();
+      const dx=prev.left - now.left;
+      const dy=prev.top  - now.top;
+      if (dx||dy){
+        el.animate(
+          [{ transform:`translate(${dx}px, ${dy}px)` }, { transform:'translate(0,0)' }],
+          { duration, easing:timing }
+        );
+      }
+    });
+  }
+
+  function enableHUDDragSort(){
+    cardsContainer.removeEventListener('mousedown', onPressStart);
+    cardsContainer.removeEventListener('touchstart', onPressStart, {passive:false});
+
+    cardsContainer.addEventListener('mousedown', onPressStart);
+    cardsContainer.addEventListener('touchstart', onPressStart, {passive:false});
+  }
+
+  let dnd = null;
+
+  function onPressStart(ev){
+    const isTouch = ev.type === 'touchstart';
+    const point = isTouch ? ev.touches[0] : ev;
+
+    /* ★ 新增守門：若點擊在就地編輯輸入框或正在編輯的文字上，跳過拖曳 */
+    if ((point.target && (point.target.closest && (point.target.closest('.inline-editor') || point.target.closest('.text.editing'))))) {
+      return;
+    }
+
+    const target = (point.target.closest && point.target.closest('.card')) || null;
+    if (!target) return;
+    if (!cardsContainer.contains(target)) return;
+
+    ev.preventDefault();
+
+    const pressThresholdMs = 80;
+    const startX = point.clientX;
+    const startY = point.clientY;
+
+    dnd = {
+      isTouch,
+      draggingEl: null,
+      placeholder: null,
+      startX, startY,
+      offsetX: 0, offsetY: 0,
+      mode: (hud.layout.direction || 'column'),
+      scrollYAtStart: window.scrollY,
+      originUid: target.dataset.uid,
+      originIndex: parseInt(target.dataset.index, 10),
+      rect: target.getBoundingClientRect(),
+      containerRect: cardsContainer.getBoundingClientRect()
+    };
+
+    dnd.timer = setTimeout(()=> beginDrag(target), pressThresholdMs);
+
+    document.addEventListener(isTouch ? 'touchmove' : 'mousemove', onMove, {passive:false});
+    document.addEventListener(isTouch ? 'touchend'  : 'mouseup',   onRelease, {passive:false});
+  }
+
+  function beginDrag(target){
+    if (!dnd) return;
+
+    document.body.classList.add('hud-dragging');
+
+    const ph = document.createElement('div');
+    ph.className = 'card placeholder';
+    ph.style.width = dnd.rect.width + 'px';
+    ph.style.height = dnd.rect.height + 'px';
+
+    const dragging = target;
+    dragging.classList.add('dragging');
+    dragging.style.width  = dnd.rect.width + 'px';
+    dragging.style.height = dnd.rect.height + 'px';
+
+    const hudBox = document.getElementById('hudArea').getBoundingClientRect();
+    dragging.style.left   = (dnd.rect.left - hudBox.left) + 'px';
+    dragging.style.top    = (dnd.rect.top  - hudBox.top)  + 'px';
+
+    cardsContainer.insertBefore(ph, dragging.nextSibling);
+
+    dnd.draggingEl = dragging;
+    dnd.placeholder = ph;
+  }
+
+  function onMove(ev){
+    if (!dnd) return;
+    const isTouch = dnd.isTouch;
+    const point = isTouch ? (ev.touches ? ev.touches[0] : ev) : ev;
+
+    if (!dnd.draggingEl){
+      const dx = point.clientX - dnd.startX;
+      const dy = point.clientY - dnd.startY;
+      if (Math.hypot(dx,dy) > 6){
+        clearTimeout(dnd.timer);
+        dnd = null;
+        document.removeEventListener(isTouch ? 'touchmove' : 'mousemove', onMove);
+        document.removeEventListener(isTouch ? 'touchend'  : 'mouseup',   onRelease);
+      }
+      return;
+    }
+
+    ev.preventDefault();
+
+    const el = dnd.draggingEl;
+    const dx = point.clientX - dnd.startX;
+    const dy = point.clientY - dnd.startY;
+
+    const hudBox = document.getElementById('hudArea').getBoundingClientRect();
+    const left = (dnd.rect.left + dx) - hudBox.left;
+    const top  = (dnd.rect.top  + dy) - hudBox.top;
+
+    el.style.left = left + 'px';
+    el.style.top  = top  + 'px';
+
+    const before = getCardPositions();
+    updatePlaceholderPosition(point.clientX, point.clientY);
+    animateBetween(before, 180);
+  }
+
+  function updatePlaceholderPosition(px, py){
+    const items = Array.from(cardsContainer.querySelectorAll('.card'))
+      .filter(n => n !== dnd.draggingEl);
+
+    if (items.length === 0 || !dnd.placeholder) return;
+
+    const mode = dnd.mode;
+
+    if (mode === 'column'){
+      let target = null;
+      for (const it of items){
+        const r = it.getBoundingClientRect();
+        const midY = r.top + r.height/2;
+        if (py < midY){ target = it; break; }
+      }
+      if (target){
+        cardsContainer.insertBefore(dnd.placeholder, target);
+      }else{
+        cardsContainer.appendChild(dnd.placeholder);
+      }
+    } else {
+      const rows = [];
+      const tol = 18;
+      items.forEach(it=>{
+        const r = it.getBoundingClientRect();
+        const row = rows.find(rr => Math.abs(rr.top - r.top) <= tol);
+        if (row){ row.items.push({el:it, rect:r}); row.top = Math.min(row.top, r.top); }
+        else{ rows.push({top:r.top, items:[{el:it, rect:r}]}); }
+      });
+      rows.sort((a,b)=> a.top - b.top);
+
+      let rowIdx = rows.findIndex(row => py <= row.top + row.items[0].rect.height);
+      if (rowIdx === -1) rowIdx = rows.length - 1;
+      if (rowIdx < 0) rowIdx = 0;
+
+      const row = rows[rowIdx];
+      const rowItems = row.items.sort((a,b)=> a.rect.left - b.rect.left);
+
+      let beforeEl = null;
+      for (const it of rowItems){
+        const midX = it.rect.left + it.rect.width/2;
+        if (px < midX){ beforeEl = it.el; break; }
+      }
+      if (beforeEl){
+        cardsContainer.insertBefore(dnd.placeholder, beforeEl);
+      }else{
+        const lastEl = rowItems[rowItems.length-1].el;
+        if (lastEl.nextSibling){
+          cardsContainer.insertBefore(dnd.placeholder, lastEl.nextSibling);
+        }else{
+          cardsContainer.appendChild(dnd.placeholder);
+        }
+      }
+    }
+  }
+
+  function onRelease(ev){
+    if (!dnd) return;
+    clearTimeout(dnd.timer);
+
+    const isTouch = dnd.isTouch;
+
+    document.removeEventListener(isTouch ? 'touchmove' : 'mousemove', onMove);
+    document.removeEventListener(isTouch ? 'touchend'  : 'mouseup',   onRelease);
+
+    if (!dnd.draggingEl){
+      dnd = null;
+      return;
+    }
+
+    const before = getCardPositions();
+
+    const el = dnd.draggingEl;
+    const movingUid = dnd.originUid;
+    el.classList.remove('dragging');
+    el.style.left = ''; el.style.top = '';
+    el.style.width = ''; el.style.height = '';
+
+    if (dnd.placeholder){
+      cardsContainer.insertBefore(el, dnd.placeholder);
+      dnd.placeholder.remove();
+    }
+
+    const uidOrder = Array.from(cardsContainer.querySelectorAll('.card')).map(x=>x.dataset.uid);
+
+    hud.cards.sort((a,b)=> uidOrder.indexOf(a.uid) - uidOrder.indexOf(b.uid));
+    draft.cards.sort((a,b)=> uidOrder.indexOf(a.uid) - uidOrder.indexOf(b.uid));
+
+    selected = Math.max(0, draft.cards.findIndex(c=>c.uid===movingUid));
+
+    persistBoth();
+
+    renderHUD();
+    animateReorder(before, movingUid);
+    renderDropdown();
+    renderInputsFromDraft();
+
+    document.body.classList.remove('hud-dragging');
+    dnd = null;
+  }
+
+  /* 下拉選單 */
+  function openMenu(){ dropMenu.style.display='block'; }
+  function closeMenu(){ dropMenu.style.display='none'; }
+
+  dropToggle.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const visible = dropMenu.style.display==='block';
+    if (visible) closeMenu(); else openMenu();
+  });
+  document.addEventListener('click', (e)=>{ if (!dropdown.contains(e.target)) closeMenu(); });
+
+  function renderDropdown(){
+    sortBoth();
+    dropMenu.innerHTML = '';
+    draft.cards.forEach((c,i)=>{
+      const item = document.createElement('div');
+      item.className = 'drop-item';
+      item.innerHTML = `
+        <div class="drag-handle" data-idx="${i}" title="拖曳排序">
+          &#9776;
+        </div>
+        <span class="chk ${c.visible ? 'checked':''}" data-idx="${i}" title="顯示/隱藏"></span>
+        <div class="name" data-choose="${i}" title="選取此卡片編輯">${c.text}${c.completed?'（已完成）':''}</div>
+        <div class="trash" data-del="${i}" title="刪除此卡片">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M9 3h6m-9 4h12m-1 0-.8 12.2a2 2 0 0 1-2 1.8H8.8a2 2 0 0 1-2-1.8L6 7"
+                  stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+      `;
+      item.dataset.uid = c.uid;
+      item.dataset.index = i;
+      dropMenu.appendChild(item);
+    });
+    dropToggle.textContent = draft.cards[selected] ? draft.cards[selected].text : '（尚未選擇）';
+
+    (function enableDropdownDragSort(){
+      const menu = dropMenu;
+      let draggingEl = null;
+      let placeholder = null;
+      let startY = 0;
+      let isDragging = false;
+
+      menu.querySelectorAll('.drag-handle').forEach(h=>{
+        const row = h.closest('.drop-item');
+        h.addEventListener('mousedown', (e)=>{
+          e.preventDefault();
+          if (!row) return;
+
+          placeholder = document.createElement('div');
+          placeholder.className = 'drop-item placeholder';
+
+          draggingEl = row;
+          draggingEl.classList.add('dragging');
+          const rect = draggingEl.getBoundingClientRect();
+          const menuRect = menu.getBoundingClientRect();
+
+          draggingEl.style.width = rect.width + 'px';
+          draggingEl.style.position = 'absolute';
+          draggingEl.style.left = (rect.left - menuRect.left) + 'px';
+          draggingEl.style.top  = (rect.top  - menuRect.top ) + 'px';
+          draggingEl.style.zIndex = 1000002;
+
+          menu.insertBefore(placeholder, draggingEl.nextSibling);
+
+          startY = e.clientY;
+          isDragging = true;
+
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        }, {passive:false});
+      });
+
+      function onMove(e){
+        if (!isDragging || !draggingEl) return;
+        const menuRect = menu.getBoundingClientRect();
+        const topNow = parseFloat(draggingEl.style.top || '0');
+        const newTop = topNow + (e.movementY || 0);
+
+        draggingEl.style.top = Math.max(0, Math.min(newTop, menu.scrollHeight - draggingEl.offsetHeight)) + 'px';
+
+        const draggingMidY = menuRect.top + parseFloat(draggingEl.style.top) + draggingEl.offsetHeight / 2;
+
+        let target = null;
+        const rows = Array.from(menu.querySelectorAll('.drop-item'))
+          .filter(el => el !== draggingEl && el !== placeholder);
+
+        for (const r of rows){
+          const rRect = r.getBoundingClientRect();
+          const rMid = rRect.top + rRect.height/2;
+          if (draggingMidY < rMid){
+            target = r;
+            break;
+          }
+        }
+
+        if (target){
+          menu.insertBefore(placeholder, target);
+        }else{
+          menu.appendChild(placeholder);
+        }
+      }
+
+      function onUp(){
+        if (!isDragging || !draggingEl) return;
+
+        menu.insertBefore(draggingEl, placeholder);
+        draggingEl.classList.remove('dragging');
+        draggingEl.style.position = '';
+        draggingEl.style.left = '';
+        draggingEl.style.top = '';
+        draggingEl.style.width = '';
+        draggingEl.style.zIndex = '';
+
+        const newUIDOrder = Array.from(menu.querySelectorAll('.drop-item'))
+          .filter(el => !el.classList.contains('placeholder'))
+          .map(el => el.dataset.uid);
+
+        draft.cards.sort((a,b)=> newUIDOrder.indexOf(a.uid) - newUIDOrder.indexOf(b.uid));
+        persistDraftOnly();
+
+        placeholder && placeholder.remove();
+        placeholder = null;
+        draggingEl = null;
+        isDragging = false;
+
+        renderDropdown();
+      }
+    })();
+
+  }
+
+  dropMenu.addEventListener('click', (e)=>{
+    const chk = e.target.closest('.chk');
+    const name = e.target.closest('.name');
+    const bin = e.target.closest('.trash');
+    if (chk){
+      const idx = parseInt(chk.dataset.idx,10);
+      draft.cards[idx].visible = !draft.cards[idx].visible;
+      if (draft.cards.every(c=>!c.visible)) draft.cards[idx].visible = true;
+      chk.classList.toggle('checked', draft.cards[idx].visible);
+      return;
+    }
+    if (name){
+      const idx = parseInt(name.dataset.choose,10);
+      selected = idx;
+      renderDropdown();
+      renderInputsFromDraft();
+      closeMenu();
+      return;
+    }
+    if (bin){ tryDeleteCard(parseInt(bin.dataset.del,10)); }
+  });
+
+  inpText.addEventListener('input', ()=>{
+    if (!draft.cards[selected]) return;
+    const newText = inpText.value;
+    draft.cards[selected].text = newText;
+    renderDropdown();
+    dropToggle.textContent = newText;
+
+    if (draft.layout.widthMode==='auto'){
+      const dir = draft.layout.direction;
+      const suggested = computeSuggestedMinWidth(dir);
+      if (dir==='row') draft.layout.minWidthRow = suggested; else draft.layout.minWidthCol = suggested;
+      document.getElementById('inpWidth').value = suggested;
+    }
+
+    persistDraftOnly();
+  });
+
+  const clamp = (v,min,max)=> Math.max(min, Math.min(max, v));
+  function clampProgress(){
+    draft.cards[selected].current = clamp(draft.cards[selected].current, 0, draft.cards[selected].total);
+    inpCurrent.value = draft.cards[selected].current;
+  }
+  inpCurrent.addEventListener('input', ()=>{
+    if(!draft.cards[selected]) return;
+    const tot = clampInt(inpTotal.value,1,9999,1);
+    draft.cards[selected].current = clampInt(inpCurrent.value,0,tot,0);
+    persistDraftOnly();
+  });
+  inpTotal.addEventListener('input', ()=>{
+    if(!draft.cards[selected]) return;
+    draft.cards[selected].total = clampInt(inpTotal.value,1,9999,1);
+    clampProgress();
+    persistDraftOnly();
+  });
+  plus.addEventListener('click', ()=>{ if(!draft.cards[selected]) return; const tot=clamp(draft.cards[selected].total,1,9999); draft.cards[selected].current = clamp(draft.cards[selected].current+1, 0, tot); inpCurrent.value=draft.cards[selected].current; persistDraftOnly(); });
+  minus.addEventListener('click', ()=>{ if(!draft.cards[selected]) return; draft.cards[selected].current = clamp(draft.cards[selected].current-1, 0, draft.cards[selected].total); inpCurrent.value=draft.cards[selected].current; persistDraftOnly(); });
+  totalPlus.addEventListener('click', ()=>{ if(!draft.cards[selected]) return; draft.cards[selected].total = clamp(draft.cards[selected].total+1,1,9999); inpTotal.value=draft.cards[selected].total; clampProgress(); persistDraftOnly(); });
+  totalMinus.addEventListener('click', ()=>{ if(!draft.cards[selected]) return; draft.cards[selected].total = clamp(draft.cards[selected].total-1,1,9999); inpTotal.value=draft.cards[selected].total; clampProgress(); persistDraftOnly(); });
+
+  countPlus.addEventListener('click', ()=>{
+    const nc = clone(defaultCard); nc.uid = uid();
+    draft.cards.push(nc);
+    sortDraftOnly();
+    selected = draft.cards.findIndex(c=>c.uid===nc.uid);
+    renderDropdown(); renderInputsFromDraft();
+    if (draft.layout.widthMode==='auto') autoCalcMinWidthForCurrentDirection();
+    persistDraftOnly();
+  });
+  countMinus.addEventListener('click', ()=>{
+    if (draft.cards.length>1){
+      draft.cards.pop();
+      selected = Math.min(selected, draft.cards.length-1);
+      renderDropdown(); renderInputsFromDraft();
+      if (draft.layout.widthMode==='auto') autoCalcMinWidthForCurrentDirection();
+      persistDraftOnly();
+    }
+  });
+  inpCount.addEventListener('input', ()=>{
+    let n = clampInt(inpCount.value,1,50,1);
+    if (n > draft.cards.length){
+      while(draft.cards.length < n){ const nc = clone(defaultCard); nc.uid = uid(); draft.cards.push(nc); }
+    }else if(n < draft.cards.length){
+      draft.cards = draft.cards.slice(0,n);
+      selected = Math.min(selected, draft.cards.length-1);
+    }
+    sortDraftOnly();
+    renderDropdown(); renderInputsFromDraft();
+    if (draft.layout.widthMode==='auto') autoCalcMinWidthForCurrentDirection();
+    persistDraftOnly();
+  });
+
+  function sortDraftOnly(){ draft.cards = sortCardsStable(draft.cards); }
+  function persistDraftOnly(){ localStorage.setItem("multiGoalCardsV6_draft", JSON.stringify(draft)); }
+  function persistBoth(){
+    localStorage.setItem("multiGoalCardsV6_hud",   JSON.stringify(hud));
+    localStorage.setItem("multiGoalCardsV6_draft", JSON.stringify(draft));
+  }
+
+  /* 寬度控制（draft） */
+  const widthAutoChange = ()=>{
+    draft.layout.widthMode = 'auto';
+    const dir = draft.layout.direction;
+    const suggested = computeSuggestedMinWidth(dir);
+    if (dir === 'row') draft.layout.minWidthRow = suggested; else draft.layout.minWidthCol = suggested;
+    document.getElementById('inpWidth').value = suggested;
+    reflectWidthControlsState();
+    persistDraftOnly();
+  };
+  widthAuto.addEventListener('change', ()=>{ if(widthAuto.checked) widthAutoChange(); });
+  widthManual.addEventListener('change', ()=>{
+    if (!widthManual.checked) return;
+    draft.layout.widthMode = 'manual';
+    reflectWidthControlsState();
+    syncWidthInputFromDraft();
+    persistDraftOnly();
+  });
+
+  function isRow(){ return draft.layout.direction === 'row'; }
+  function setMinWidthForCurrentDirection(px){
+    const v = Math.max(MIN_SAFE, px|0);
+    if (isRow()){ draft.layout.minWidthRow = v; } else { draft.layout.minWidthCol = v; }
+  }
+  inpWidth.addEventListener('input', ()=>{
+    if (draft.layout.widthMode==='auto') return;
+    const v = clampInt(inpWidth.value, MIN_SAFE, 5000, isRow()?220:520);
+    setMinWidthForCurrentDirection(v);
+    persistDraftOnly();
+  });
+  widthPlus.addEventListener('click', ()=>{
+    if (draft.layout.widthMode==='auto') return;
+    const v = clampInt(inpWidth.value, MIN_SAFE, 5000, isRow()?220:520) + 10;
+    inpWidth.value = v; setMinWidthForCurrentDirection(v); persistDraftOnly();
+  });
+  widthMinus.addEventListener('click', ()=>{
+    if (draft.layout.widthMode==='auto') return;
+    const v = clampInt(inpWidth.value, MIN_SAFE, 5000, isRow()?220:520) - 10;
+    inpWidth.value = v; setMinWidthForCurrentDirection(v); persistDraftOnly();
+  });
+
+  recalcBtn.addEventListener('click', ()=>{ if (draft.layout.widthMode!=='auto') { autoCalcMinWidthForCurrentDirection(); persistDraftOnly(); }});
+  defaultBtn.addEventListener('click', ()=>{
+    if (draft.layout.widthMode==='auto') return;
+    const v = isRow() ? 220 : 520; inpWidth.value = v; setMinWidthForCurrentDirection(v); persistDraftOnly();
+  });
+
+  function computeSuggestedMinWidth(dir){
+    const texts = draft.cards.filter(c=>c.visible!==false).map(c=>c.text || '');
+    const longest = texts.reduce((a,b)=> (b.length > a.length ? b : a), '') || '今日小目標：完成任務3場';
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const hudFont = getComputedStyle(document.body).getPropertyValue('--hud-font').trim() || '26px';
+    const fontFamily = getComputedStyle(document.body).getPropertyValue('font-family');
+    ctx.font = `800 ${hudFont} ${fontFamily}`;
+    const textW = Math.ceil(ctx.measureText(longest).width);
+    const extra = 38 + 32 + 14 + 40;
+    return Math.max(MIN_SAFE, textW + extra);
+  }
+  function autoCalcMinWidthForCurrentDirection(){
+    const texts = draft.cards.filter(c=>c.visible!==false).map(c=>c.text||'');
+    const longest = texts.reduce((a,b)=> (b.length>a.length? b : a), '') || '今日小目標：完成任務3場';
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const hudFont = getComputedStyle(document.body).getPropertyValue('--hud-font').trim() || '26px';
+    const fontFamily = getComputedStyle(document.body).getPropertyValue('font-family');
+    ctx.font = `800 ${hudFont} ${fontFamily}`;
+    const textW = Math.ceil(ctx.measureText(longest).width);
+    const extra = 38 + 32 + 14 + 40;
+    let suggested = Math.max(MIN_SAFE, textW + extra);
+    setMinWidthForCurrentDirection(suggested);
+    document.getElementById('inpWidth').value = suggested;
+  }
+
+  /* 完成動畫 */
+  function syncFlashSecToDraft(){
+    const sec = clampNum(inpFlashSec.value, 0, 30, 3);
+    draft.layout.completeFlashMs = Math.round(sec * 1000);
+    inpFlashSec.value = (draft.layout.completeFlashMs/1000).toString();
+    persistDraftOnly();
+  }
+  inpFlashSec.addEventListener('input', syncFlashSecToDraft);
+  flashPlus.addEventListener('click', ()=>{ inpFlashSec.value = (clampNum(inpFlashSec.value,0,30,3)+0.5).toFixed(1); syncFlashSecToDraft(); });
+  flashMinus.addEventListener('click', ()=>{ inpFlashSec.value = Math.max(0,clampNum(inpFlashSec.value,0,30,3)-0.5).toFixed(1); syncFlashSecToDraft(); });
+
+  /* 透明度條（即時） */
+  function setAlphaLive(a){
+    a = Math.min(1, Math.max(0, a||0));
+    document.documentElement.style.setProperty('--base-alpha', a);
+    document.documentElement.style.setProperty('--completed-alpha', a);
+    hud.layout.baseAlpha = a;
+    hud.layout.completedAlpha = a;
+    draft.layout.baseAlpha = a;
+    draft.layout.completedAlpha = a;
+    persistBoth();
+  }
+  function syncAlphaFromRange(){
+    const a = (clampInt(alphaRange.value,0,100,65))/100;
+    alphaNum.value = a.toFixed(2);
+    setAlphaLive(a);
+  }
+  function syncAlphaFromNum(){
+    const a = clampNum(alphaNum.value,0,1,0.65);
+    alphaRange.value = Math.round(a*100);
+    setAlphaLive(a);
+  }
+  alphaRange.addEventListener('input', syncAlphaFromRange);
+  alphaNum.addEventListener('input', syncAlphaFromNum);
+
+  /* 粒子特效 */
+  function spawnGoldFX(cardEl, durationMs){
+    const layer = document.createElement('div');
+    layer.className = 'particle-layer';
+    cardEl.appendChild(layer);
+
+    const burst = document.createElement('div');
+    burst.className = 'burst';
+    layer.appendChild(burst);
+    burst.style.animation = `burstFlash 600ms ease-out forwards`;
+
+    const totalSprays = Math.max(2, Math.floor(durationMs/300));
+    let spray = 0;
+    const sprayTimer = setInterval(()=>{
+      createSpray(layer);
+      spray++;
+      if (spray >= totalSprays) clearInterval(sprayTimer);
+    }, 300);
+
+    setTimeout(()=>{ layer.remove(); }, Math.max(800, durationMs + 500));
+  }
+  function createSpray(layer){
+    const bounds = layer.getBoundingClientRect();
+    const W = bounds.width, H = bounds.height;
+    const count = 44;
+    for(let i=0;i<count;i++){
+      const p = document.createElement('span');
+      p.className = 'particle';
+      const x0 = Math.random()*W;
+      const y0 = Math.random()*H;
+      const dx = (Math.random()*2-1) * (W*0.25);
+      const dy = (Math.random()*2-1) * (H*0.20) - 30;
+      const size = 2.5 + Math.random()*8.5;
+      p.style.width = size+'px';
+      p.style.height = size+'px';
+      p.style.left = x0+'px';
+      p.style.top  = y0+'px';
+      p.style.setProperty('--dx', dx+'px');
+      p.style.setProperty('--dy', dy+'px');
+      const dur = 700 + Math.random()*900;
+      p.style.animation = `particleDrift ${dur}ms cubic-bezier(.2,.7,.2,1) forwards`;
+      layer.appendChild(p);
+      p.animate(
+        [{filter:'brightness(1.2) blur(0px)', opacity:.0},
+         {filter:'brightness(1.0) blur(0.3px)', opacity:.95, offset:.25},
+         {filter:'brightness(0.9) blur(1px)', opacity:0}],
+        {duration: dur, easing:'linear'}
+      );
+    }
+  }
+
+  /* ★ 重新排序動畫：允許指定 skipUid（被拖的卡片不做進場位移） */
+  function animateReorder(oldPos, skipUid){
+    const duration = 600;
+    const timing = 'cubic-bezier(.2,.7,.2,1)';
+    const anims = [];
+    cardsContainer.querySelectorAll('.card').forEach(el=>{
+      const uid = el.dataset.uid;
+      if (uid === skipUid) return;
+      const prev = oldPos[uid];
+      if (!prev) return;
+      const now = el.getBoundingClientRect();
+      const dx = prev.left - now.left;
+      const dy = prev.top  - now.top;
+      if (dx || dy){
+        const a = el.animate(
+          [{ transform:`translate(${dx}px, ${dy}px)` }, { transform:'translate(0,0)' }],
+          { duration, easing: timing }
+        );
+        anims.push(a);
+      }
+    });
+    Promise.allSettled(anims.map(a=>a.finished)).then(()=> refreshQuickRails());
+    setTimeout(()=> refreshQuickRails(), duration+50);
+  }
+
+  function applyProgressToCard(cardUid){
+    const card = cardsContainer.querySelector(`.card[data-uid="${cardUid}"]`);
+    const hudIndex = hud.cards.findIndex(c=>c.uid===cardUid);
+    if (hudIndex<0 || !card) return;
+
+    const fill = card.querySelector(`#fill${cardUid}`);
+    const c = hud.cards[hudIndex];
+    const pct = (c.current / c.total) * 100;
+    fill.style.width = pct + '%';
+
+    if (c.completed){
+      card.classList.add('completed');
+      const textEl = card.querySelector(`#text${cardUid}`);
+      textEl && textEl.classList.add('is-done');
+      const b = card.querySelector(`#badge${cardUid}`);
+      if (b){ b.textContent='❤'; b.classList.add('is-heart','is-heart-small'); }
+      return;
+    }
+
+    if (pct >= 100){
+      runCompleteSequence(hudIndex, card);
+    } else {
+      card.classList.remove('completed');
+      const textEl = card.querySelector(`#text${cardUid}`);
+      textEl && textEl.classList.remove('is-done');
+    }
+  }
+
+  function runCompleteSequence(hudIdx, cardEl){
+    if (!cardEl) return;
+    if (hud.cards[hudIdx].completed === true) return;
+
+    const ms = (hud.layout.completeFlashMs ?? 3000);
+    const thisUid = hud.cards[hudIdx].uid;
+
+    const badge = cardEl.querySelector(`#badge${thisUid}`);
+    if (badge){
+      badge.animate(
+        [{transform:'scale(1)', opacity:1},{transform:'scale(.6)', opacity:.0}],
+        {duration:220, easing:'cubic-bezier(.2,.7,.2,1)'}
+      ).finished.then(()=>{
+        badge.textContent = '❤';
+        badge.classList.add('is-heart');
+        badge.animate(
+          [{transform:'scale(.6)', opacity:0},{transform:'scale(1.1)', opacity:1},{transform:'scale(1)', opacity:1}],
+          {duration:320, easing:'cubic-bezier(.2,.7,.2,1)'}
+        );
+      });
+    }
+
+    spawnGoldFX(cardEl, ms);
+
+    setTimeout(()=>{
+      const hItem = hud.cards[hudIdx];
+      const dIdx = draft.cards.findIndex(c=>c.uid===hItem.uid);
+      hItem.completed = true;
+      if (dIdx>=0) draft.cards[dIdx].completed = true;
+
+      const txt = cardEl.querySelector(`#text${thisUid}`);
+      if (txt) txt.classList.add('is-done');
+      cardEl.classList.add('completed');
+
+      const before = getCardPositions();
+      const [movedHud] = hud.cards.splice(hudIdx,1);
+      hud.cards.push(movedHud);
+      if (dIdx>=0){
+        const [movedDraft] = draft.cards.splice(dIdx,1);
+        draft.cards.push(movedDraft);
+      }
+
+      persistBoth();
+      renderHUD();
+      animateReorder(before);
+    }, Math.max(0, ms|0));
+  }
+
+  function tryDeleteCard(idx){
+    if (draft.cards.length<=1) {
+      document.querySelectorAll('.confirm').forEach(el=>el.remove());
+      return;
+    }
+    const uidX = draft.cards[idx].uid;
+    draft.cards.splice(idx,1);
+
+    sortDraftOnly();
+    if (selected >= draft.cards.length) selected = draft.cards.length - 1;
+    if (selected < 0) selected = 0;
+
+    document.getElementById('inpCount').value = draft.cards.length;
+    renderDropdown();
+    renderInputsFromDraft();
+    persistDraftOnly();
+  }
+
+  /* 方向 / 間距 / 寬度 */
+  function syncWidthInputFromDraft(){
+    const isRow = draft.layout.direction === 'row';
+    const val = isRow ? (draft.layout.minWidthRow||220) : (draft.layout.minWidthCol||520);
+    document.getElementById('inpWidth').value = val;
+  }
+  function reflectWidthControlsState(){
+    const auto = (draft.layout.widthMode==='auto');
+    const inpWidth = document.getElementById('inpWidth');
+    const widthPlus = document.getElementById('widthPlus');
+    const widthMinus = document.getElementById('widthMinus');
+    const recalcBtn = document.getElementById('recalcBtn');
+    const defaultBtn = document.getElementById('defaultBtn');
+
+    inpWidth.disabled   = auto;
+    widthPlus.classList.toggle('is-disabled',  auto);
+    widthMinus.classList.toggle('is-disabled', auto);
+    recalcBtn.classList.toggle('is-disabled', auto);
+    defaultBtn.classList.toggle('is-disabled', auto);
+  }
+
+  document.getElementById('dirRow').addEventListener('click', ()=>{ draft.layout.direction = 'row'; syncWidthInputFromDraft(); reflectWidthControlsState(); persistDraftOnly(); });
+  document.getElementById('dirCol').addEventListener('click', ()=>{ draft.layout.direction = 'column'; syncWidthInputFromDraft(); reflectWidthControlsState(); persistDraftOnly(); });
+  gapPlus.addEventListener('click', ()=>{ draft.layout.gap = clampInt((draft.layout.gap??30)+2, 0, 200, 30); inpGap.value = draft.layout.gap; persistDraftOnly(); });
+  gapMinus.addEventListener('click', ()=>{ draft.layout.gap = clampInt((draft.layout.gap??30)-2, 0, 200, 30); inpGap.value = draft.layout.gap; persistDraftOnly(); });
+  inpGap.addEventListener('input', ()=>{ draft.layout.gap = clampInt(inpGap.value, 0, 200, 30); persistDraftOnly(); });
+
+  /* 取消 */
+  cancelBtn.addEventListener('click', ()=>{
+    draft = clone(hud);
+    renderDropdown();
+    renderInputsFromDraft();
+    const a = hud.layout.baseAlpha ?? .65;
+    alphaNum.value   = a.toFixed(2);
+    alphaRange.value = Math.round(a*100);
+    document.documentElement.style.setProperty('--base-alpha', a);
+    document.documentElement.style.setProperty('--completed-alpha', a);
+    document.querySelectorAll('.confirm').forEach(el=>el.remove());
+    persistBoth();
+  });
+
+  /* 套用 */
+  applyBtn.addEventListener('click', ()=>{
+    if (draft.layout.widthMode==='auto') autoCalcMinWidthForCurrentDirection();
+    hud = clone(draft);
+    persistBoth();
+
+    const before = getCardPositions();
+    renderHUD();
+    animateReorder(before);
+  });
+
+  function renderInputsFromDraft(){
+    const c = draft.cards[selected] || defaultCard;
+    inpText.value    = c.text;
+    inpCurrent.value = c.current;
+    inpTotal.value   = c.total;
+    inpCount.value   = draft.cards.length;
+    inpGap.value     = (draft.layout.gap ?? 30);
+    inpFlashSec.value = (draft.layout.completeFlashMs ?? 3000)/1000;
+  }
+  (function boot(){
+    const a = hud.layout.baseAlpha ?? .65;
+    alphaNum.value   = a.toFixed(2);
+    alphaRange.value = Math.round(a*100);
+    document.documentElement.style.setProperty('--base-alpha', a);
+    document.documentElement.style.setProperty('--completed-alpha', hud.layout.completedAlpha ?? a);
+
+    renderHUD();
+    renderDropdown();
+    selected = Math.min(selected, draft.cards.length-1);
+    renderInputsFromDraft();
+    repositionHUDArea();
+
+    new ResizeObserver(()=> refreshQuickRails()).observe(cardsContainer);
+    window.addEventListener('scroll', refreshQuickRails, {passive:true});
+  })();
+
+  /* 內嵌快速控制（跟著卡片移動） */
+  function refreshQuickRails(){
+    hudArea.querySelectorAll('.quick-rail.right').forEach(el=>el.remove());
+    bottomRailPortal.innerHTML = '';
+    bottomRailPortal.style.display = 'none';
+    bottomRailPortal.style.height = '0px';
+
+    const mode = hud.layout.direction;
+    const cards = Array.from(cardsContainer.querySelectorAll('.card'));
+    if (cards.length===0) return;
+
+    if (mode === 'column'){ buildRightRail(cards); }
+    else{ buildBottomOutsideRail(cards); }
+  }
+  function buildRightRail(cards){
+    const rail = document.createElement('div');
+    rail.className = 'quick-rail right';
+    hudArea.appendChild(rail);
+    const areaBox = hudArea.getBoundingClientRect();
+
+    cards.forEach(card=>{
+      const i = parseInt(card.dataset.index,10);
+      const r = card.getBoundingClientRect();
+      const top = (r.top - areaBox.top);
+      const y = Math.max(0, top + r.height/2 - 22);
+      const item = makeQuickItem(i);
+      item.style.top = `${y}px`; item.style.right = '0';
+      rail.appendChild(item);
+    });
+  }
+  function buildBottomOutsideRail(cards){
+    bottomRailPortal.style.display = 'block';
+    const gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap-below-hud')) || 16;
+
+    const areaBox = hudArea.getBoundingClientRect();
+    bottomRailPortal.style.top = (areaBox.bottom + gap) + 'px';
+    bottomRailPortal.style.left = areaBox.left + 'px';
+    bottomRailPortal.style.width = areaBox.width + 'px';
+
+    const cardRects = cards.map(card => {
+      const rect = card.getBoundingClientRect();
+      return { idx: parseInt(card.dataset.index,10), rect };
+    });
+    if (cardRects.length === 0) return;
+
+    const firstTop = Math.min(...cardRects.map(c => c.rect.top));
+    let maxRowOffset = 0;
+    let createdItems = [];
+
+    cardRects.forEach(({idx, rect})=>{
+      const cx = rect.left - areaBox.left + rect.width/2;
+      const rowOffset = Math.round(rect.top - firstTop);
+      const item = makeQuickItem(idx);
+      item.style.left = `${cx}px`;
+      item.style.top  = `${rowOffset}px`;
+      item.style.transform = 'translateX(-50%)';
+      bottomRailPortal.appendChild(item);
+      createdItems.push({el:item, rowOffset});
+      if (rowOffset > maxRowOffset) maxRowOffset = rowOffset;
+    });
+
+    let controlH = 0;
+    if (createdItems.length > 0){
+      const box = createdItems[0].el.getBoundingClientRect();
+      controlH = box.height || 44;
+    }
+    bottomRailPortal.style.height = (maxRowOffset + controlH) + 'px';
+  }
+
+  function makeQuickItem(idx){
+    const c = hud.cards[idx];
+    const wrap = document.createElement('div');
+    wrap.className = 'quick-item';
+
+    wrap.innerHTML = `
+      <div class="mini">
+        <div class="btn-s" data-act="cur-" title="目前進度 -">–</div>
+        <input type="number" class="cur" min="0" step="1" value="${c.current}">
+        <div class="btn-s" data-act="cur+" title="目前進度 +">+</div>
+        <span class="slash">/</span>
+        <div class="btn-s" data-act="tot-" title="總場次 -">–</div>
+        <input type="number" class="tot" min="1" step="1" value="${c.total}">
+        <div class="btn-s" data-act="tot+" title="總場次 +">+</div>
+      </div>
+      <button class="trash-inline" title="刪除此卡片" data-act="trash">🗑️</button>
+    `;
+
+    const curInput = wrap.querySelector('.cur');
+    const totInput = wrap.querySelector('.tot');
+    const uid = c.uid;
+
+    function syncToDraftAndPanel(){
+      const dIdx = draft.cards.findIndex(x=>x.uid===uid);
+      if (dIdx>=0){
+        draft.cards[dIdx].current = clampInt(curInput.value,0,999999,0);
+        draft.cards[dIdx].total   = clampInt(totInput.value,1,999999,1);
+        persistBoth();
+      }
+      if (draft.cards[selected] && draft.cards[selected].uid === uid){
+        renderInputsFromDraft();
+      }
+      renderDropdown();
+    }
+
+    curInput.addEventListener('input', ()=>{
+      const tot = clampInt(totInput.value,1,9999,1);
+      const v = clampInt(curInput.value,0,tot,0);
+      curInput.value = v;
+      hud.cards[idx].current = v;
+      applyProgressToCard(uid);
+      persistBoth();
+      syncToDraftAndPanel();
+    });
+
+    totInput.addEventListener('input', ()=>{
+      const v = clampInt(totInput.value,1,9999,1);
+      totInput.value = v;
+      hud.cards[idx].total = v;
+
+      const cur = clampInt(curInput.value,0,v,0);
+      curInput.value = cur;
+      hud.cards[idx].current = cur;
+      applyProgressToCard(uid);
+      persistBoth();
+      syncToDraftAndPanel();
+    });
+
+    wrap.querySelectorAll('.btn-s').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const act = btn.dataset.act;
+        let cur = clampInt(curInput.value,0,999999,0);
+        let tot = clampInt(totInput.value,1,999999,1);
+        if (act==='cur-') cur = Math.max(0, cur-1);
+        if (act==='cur+') cur = Math.min(tot, cur+1);
+        if (act==='tot-') { tot = Math.max(1, tot-1); if (cur>tot) cur=tot; }
+        if (act==='tot+') tot = Math.min(9999, tot+1);
+
+        curInput.value = cur; totInput.value = tot;
+        hud.cards[idx].current = cur; hud.cards[idx].total = tot;
+
+        applyProgressToCard(uid);
+        persistBoth();
+        syncToDraftAndPanel();
+      });
+    });
+
+    const trash = wrap.querySelector('[data-act="trash"]');
+    let confirmEl = null;
+    trash.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      document.querySelectorAll('.confirm').forEach(el=>el.remove());
+      confirmEl = document.createElement('div');
+      confirmEl.className = 'confirm';
+      confirmEl.innerHTML = `
+        <span>刪除此卡片？</span>
+        <div class="btn-mini">取消</div>
+        <div class="btn-mini danger">刪除</div>
+      `;
+      wrap.appendChild(confirmEl);
+
+      const [cancelBtn, delBtn] = confirmEl.querySelectorAll('.btn-mini');
+      cancelBtn.addEventListener('click', ()=> confirmEl.remove());
+      delBtn.addEventListener('click', ()=>{
+        const uidDel = hud.cards[idx].uid;
+        const dIdx = draft.cards.findIndex(x=>x.uid===uidDel);
+        if (dIdx>=0) draft.cards.splice(dIdx,1);
+        hud.cards.splice(idx,1);
+        persistBoth();
+        const before = getCardPositions();
+        renderHUD();
+        animateReorder(before);
+        renderDropdown();
+        if (selected >= draft.cards.length) selected = Math.max(0, draft.cards.length - 1);
+        renderInputsFromDraft();
+      });
+    });
+
+    document.addEventListener('click', function onDoc(e){
+      if (!wrap.contains(e.target)){
+        wrap.querySelectorAll('.confirm').forEach(el=>el.remove());
+        document.removeEventListener('click', onDoc);
+      }
+    });
+
+    return wrap;
+  }
+
+  /* ★ 新增：HUD 文字就地編輯功能 */
+  function enableInlineEditing(textEl, uid){
+    if (!textEl) return;
+
+    textEl.addEventListener('dblclick', (e)=>{
+      e.stopPropagation();
+
+      // 已在編輯就不重複開啟
+      if (textEl.classList.contains('editing')) return;
+
+      // 建立輸入框
+      const stack = textEl.parentElement; // .stack
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'inline-editor';
+      input.value = textEl.textContent || '';
+      input.setAttribute('data-uid', uid);
+
+      // 樣式切換
+      textEl.classList.add('editing');
+      stack.appendChild(input);
+      input.focus();
+      input.select();
+
+      const finish = (commit)=>{
+        const newVal = (input.value || '').trim();
+        // 移除輸入框還原顯示
+        input.remove();
+        textEl.classList.remove('editing');
+
+        if (!commit) return;
+
+        if (newVal.length === 0){
+          // 空字串則不更動
+          return;
+        }
+
+        // 更新 HUD 與 DRAFT 以及面板/下拉
+        const hIdx = hud.cards.findIndex(c=>c.uid===uid);
+        if (hIdx>=0) hud.cards[hIdx].text = newVal;
+        const dIdx = draft.cards.findIndex(c=>c.uid===uid);
+        if (dIdx>=0) draft.cards[dIdx].text = newVal;
+
+        // 若當前面板選到同一張卡 → 同步文字框
+        if (draft.cards[selected] && draft.cards[selected].uid === uid){
+          inpText.value = newVal;
+        }
+
+        // 重新計算自動寬度（如啟用）
+        if (draft.layout.widthMode==='auto'){
+          const dir = draft.layout.direction;
+          const suggested = computeSuggestedMinWidth(dir);
+          if (dir==='row') draft.layout.minWidthRow = suggested; else draft.layout.minWidthCol = suggested;
+          document.getElementById('inpWidth').value = suggested;
+        }
+
+        // 立即更新畫面上的文字
+        textEl.textContent = newVal;
+
+        // 下拉/頂部同步
+        renderDropdown();
+
+        // 儲存
+        persistBoth();
+      };
+
+      // 事件：Enter 提交、Esc 取消、Blur 提交
+      input.addEventListener('keydown', (ev)=>{
+        if (ev.key === 'Enter'){
+          ev.preventDefault();
+          finish(true);
+        } else if (ev.key === 'Escape'){
+          ev.preventDefault();
+          finish(false);
+        }
+      });
+      input.addEventListener('blur', ()=> finish(true));
+    }, {passive:false});
+  }
+
+})();
+</script>
+</body>
+</html>
