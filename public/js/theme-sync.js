@@ -10,13 +10,23 @@
     return theme === 'pink-cute' ? 'pink-cute' : 'blue-night';
   }
 
-  function applyTheme(theme, source = 'local'){
+  function applyOverlayVars(config){
+    const music = config?.music || {};
+    const goal = config?.goal || {};
+    const root = document.documentElement;
+
+    root.style.setProperty('--now-playing-alpha', Number(music.nowPlayingAlpha ?? 0.65));
+    root.style.setProperty('--queue-alpha', Number(music.queueAlpha ?? 0.65));
+    root.style.setProperty('--shared-card-alpha', Number(goal.layout?.baseAlpha ?? 0.65));
+  }
+
+  function applyTheme(theme, source = 'local', config = null){
     const next = normalizeTheme(theme);
-    if (currentTheme === next && document.body.dataset.theme === next) return;
     currentTheme = next;
     localStorage.setItem(THEME_KEY, next);
     document.body.dataset.theme = next;
-    window.dispatchEvent(new CustomEvent('obs-helper-theme-applied', { detail: { theme: next, source } }));
+    if (config) applyOverlayVars(config);
+    window.dispatchEvent(new CustomEvent('obs-helper-theme-applied', { detail: { theme: next, source, config } }));
   }
 
   async function fetchSharedConfig(){
@@ -25,11 +35,12 @@
       const data = await res.json();
       if(!data?.ok || !data.config) return;
       localStorage.setItem(CONFIG_KEY, JSON.stringify(data.config));
-      if(Number(data.config.updatedAt || 0) > lastUpdatedAt){
-        lastUpdatedAt = Number(data.config.updatedAt || 0);
-        applyTheme(data.config.theme || currentTheme, 'server');
-      }else if(data.config.theme){
-        applyTheme(data.config.theme, 'server');
+      applyOverlayVars(data.config);
+
+      const updatedAt = Number(data.config.updatedAt || 0);
+      if(updatedAt >= lastUpdatedAt){
+        lastUpdatedAt = updatedAt;
+        applyTheme(data.config.theme || currentTheme, 'server', data.config);
       }
     }catch(err){
       // OBS Browser Source may load before the helper server is fully ready.
@@ -44,7 +55,8 @@
       const payload = {
         theme: normalizeTheme(theme),
         goal: cached.goal,
-        clock: cached.clock
+        clock: cached.clock,
+        music: cached.music
       };
       const res = await fetch('/api/overlay-config', {
         method:'POST',
@@ -54,6 +66,7 @@
       const data = await res.json().catch(()=>null);
       if(data?.ok && data.config){
         localStorage.setItem(CONFIG_KEY, JSON.stringify(data.config));
+        applyOverlayVars(data.config);
         lastUpdatedAt = Number(data.config.updatedAt || Date.now());
       }
     }catch(err){

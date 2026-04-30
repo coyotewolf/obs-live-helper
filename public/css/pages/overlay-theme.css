@@ -16,14 +16,14 @@ body[data-theme="blue-night"]{
 
 body[data-theme="pink-cute"]{
   --text-main:#ffffff;
-  --text-sub:rgba(255,255,255,.82);
-  --text-muted:rgba(255,235,246,.68);
-  --text-fade:rgba(255,235,246,.36);
+  --text-sub:rgba(255,255,255,.86);
+  --text-muted:rgba(255,235,246,.70);
+  --text-fade:rgba(255,235,246,.38);
   --accent:#ff7fa9;
   --accent-2:#a8d8ff;
   --glow:rgba(255,160,200,.58);
-  --card-bg:rgba(255,166,204,.64);
-  --card-border:rgba(255,225,240,.48);
+  --card-bg:rgba(100,140,190,var(--shared-card-alpha,.65));
+  --card-border:rgba(168,216,255,.72);
   --progress-bg:rgba(255,255,255,.32);
 }
 
@@ -47,22 +47,23 @@ body[data-theme="pink-cute"] .lyric-line.current::after{
   box-shadow:0 0 18px rgba(255,160,200,.72);
 }
 
-/* Now Playing */
+/* Now Playing: pink background matches goal card / clock soft blue-pink HUD */
 body[data-theme="pink-cute"] .now-playing-card{
   background:
-    radial-gradient(circle at 15% 20%,rgba(255,255,255,.28),transparent 38%),
-    radial-gradient(circle at 85% 15%,rgba(168,216,255,.28),transparent 36%),
-    var(--card-bg);
-  border-color:var(--card-border);
+    radial-gradient(circle at 15% 20%,rgba(255,255,255,.18),transparent 38%),
+    radial-gradient(circle at 85% 15%,rgba(255,169,201,.20),transparent 36%),
+    rgba(100,140,190,var(--now-playing-alpha,.65));
+  border-color:rgba(168,216,255,.72);
   box-shadow:
-    0 20px 60px rgba(210,72,122,.22),
-    0 0 0 1px rgba(255,255,255,.32) inset,
-    0 0 28px rgba(255,160,200,.18);
+    0 0 10px rgba(160,220,255,.4),
+    0 0 0 2px rgba(168,216,255,.92),
+    0 10px 26px rgba(20,30,50,.18);
+  backdrop-filter:none;
 }
 
 body[data-theme="pink-cute"] .cover-wrap{
-  background:linear-gradient(135deg,rgba(255,127,169,.95),rgba(168,216,255,.95));
-  box-shadow:0 12px 30px rgba(210,72,122,.24);
+  background:linear-gradient(135deg,rgba(168,216,255,.95),rgba(255,127,169,.95));
+  box-shadow:0 12px 30px rgba(255,160,200,.22);
 }
 
 body[data-theme="pink-cute"] .play-state,
@@ -80,26 +81,27 @@ body[data-theme="pink-cute"] .song-name{
 }
 
 body[data-theme="pink-cute"] .progress-fill{
-  background:linear-gradient(90deg,#a8d8ff,#ff7fa9);
+  background:linear-gradient(90deg,#8ec8ff,#ffa9c9,#ff7fa9);
   box-shadow:0 0 16px rgba(255,160,200,.62);
 }
 
-/* Queue */
+/* Queue: pink background matches goal card / clock soft blue-pink HUD */
 body[data-theme="pink-cute"] .queue-card{
   background:
-    radial-gradient(circle at 18% 0%,rgba(255,255,255,.30),transparent 38%),
-    radial-gradient(circle at 92% 12%,rgba(168,216,255,.30),transparent 38%),
-    var(--card-bg);
-  border-color:var(--card-border);
+    radial-gradient(circle at 18% 0%,rgba(255,255,255,.18),transparent 38%),
+    radial-gradient(circle at 92% 12%,rgba(255,169,201,.20),transparent 38%),
+    rgba(100,140,190,var(--queue-alpha,.65));
+  border-color:rgba(168,216,255,.72);
   box-shadow:
-    0 20px 60px rgba(210,72,122,.22),
-    0 0 0 1px rgba(255,255,255,.32) inset,
-    0 0 28px rgba(255,160,200,.18);
+    0 0 10px rgba(160,220,255,.4),
+    0 0 0 2px rgba(168,216,255,.92),
+    0 10px 26px rgba(20,30,50,.18);
+  backdrop-filter:none;
 }
 
 body[data-theme="pink-cute"] .queue-item{
-  background:rgba(255,255,255,.18);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28);
+  background:rgba(255,255,255,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.24);
 }
 
 body[data-theme="pink-cute"] .queue-kicker{
@@ -113,7 +115,22 @@ body[data-theme="pink-cute"] .queue-kicker::before{
 }
 
 body[data-theme="pink-cute"] .queue-cover-wrap{
-  background:linear-gradient(135deg,rgba(255,127,169,.95),rgba(168,216,255,.95));
+  background:linear-gradient(135deg,rgba(168,216,255,.95),rgba(255,127,169,.95));
+}
+
+/* Blue-night alpha support for Now Playing / Queue */
+body[data-theme="blue-night"] .now-playing-card{
+  background:
+    radial-gradient(circle at 15% 20%, rgba(125, 211, 252, 0.24), transparent 38%),
+    radial-gradient(circle at 85% 15%, rgba(192, 132, 252, 0.24), transparent 36%),
+    rgba(8,13,28,var(--now-playing-alpha,.72));
+}
+
+body[data-theme="blue-night"] .queue-card{
+  background:
+    radial-gradient(circle at 18% 0%, rgba(125, 211, 252, 0.26), transparent 38%),
+    radial-gradient(circle at 92% 12%, rgba(192, 132, 252, 0.28), transparent 38%),
+    rgba(8,13,28,var(--queue-alpha,.72));
 }
 
 /* Song QR Code */

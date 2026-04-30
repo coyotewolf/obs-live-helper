@@ -29,6 +29,9 @@ function getThemeParams(theme) {
       bg_shadow_size: '8'
     };
   }
+
+  // Blue-night theme:
+  // Keep the old text style unchanged, but use a purple shadow for the speaking avatar/card glow.
   return {
     logo: 'white',
     text_color: '#ffffff',
@@ -38,8 +41,8 @@ function getThemeParams(theme) {
     text_shadow_size: '0',
     bg_color: '#1e2124',
     bg_opacity: '0',
-    bg_shadow_color: '#000000',
-    bg_shadow_size: '0'
+    bg_shadow_color: '#c084fc',
+    bg_shadow_size: '10'
   };
 }
 

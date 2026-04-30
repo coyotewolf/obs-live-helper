@@ -1,312 +1,67 @@
 /* Dashboard add-on: theme switch + split goal card / live clock settings */
 .themePanel,
 .goalSettingsPanel,
-.clockSettingsPanel{
-  padding:22px;
-}
-
+.clockSettingsPanel{padding:22px}
 .themePanel .introText,
 .goalSettingsPanel .introText,
-.clockSettingsPanel .introText{
-  margin-top:6px;
-}
-
-.themeSwitchGrid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:14px;
-  margin-top:16px;
-}
-
-.themeChoice{
-  min-height:110px;
-  padding:18px;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:20px;
-  color:var(--text);
-  text-align:left;
-  background:rgba(255,255,255,.055);
-  cursor:pointer;
-  transition:.18s ease;
-}
-
-.themeChoice strong,
-.themeChoice span{
-  display:block;
-}
-
-.themeChoice strong{
-  font-size:1.05rem;
-}
-
-.themeChoice span{
-  margin-top:8px;
-  color:var(--muted);
-  line-height:1.55;
-}
-
-.themeChoice:hover{
-  transform:translateY(-1px);
-  border-color:var(--line-strong);
-}
-
-.themeChoice.isActive{
-  border-color:var(--line-strong);
-  box-shadow:0 0 0 3px rgba(125,211,252,.12),var(--shadow);
-}
-
-.goalSettingsGrid,
-.clockSettingsGrid{
-  margin-top:16px;
-}
-
-.goalSettingsGrid select,
-.goalSettingsGrid input[type=text],
-.clockSettingsGrid select,
-.clockSettingsGrid input[type=text]{
-  width:100%;
-  min-height:34px;
-  padding:0 10px;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:12px;
-  color:var(--text);
-  background:rgba(2,8,23,.35);
-  outline:none;
-}
-
-.goalCardsEditor{
-  display:grid;
-  gap:12px;
-  margin-top:16px;
-}
-
-.goalEditItem{
-  display:grid;
-  grid-template-columns:minmax(240px,1fr) 120px 120px 100px;
-  gap:10px;
-  padding:12px;
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:18px;
-  background:rgba(255,255,255,.045);
-}
-
-.goalEditItem label{
-  display:grid;
-  gap:6px;
-  color:var(--muted);
-  font-weight:800;
-}
-
-.goalEditItem input,
-.goalEditItem select{
-  min-height:38px;
-  padding:0 12px;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:14px;
-  color:var(--text);
-  background:rgba(2,8,23,.35);
-  outline:none;
-}
-
-.goalEditItem .checkLabel{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-direction:row;
-  gap:8px;
-}
-
-.goalEditItem input[type=checkbox]{
-  width:18px;
-  height:18px;
-  accent-color:var(--accent);
-}
-
-/* ---------- Pink cute dashboard theme with higher readability ---------- */
-body[data-theme="pink-cute"]{
-  --bg:#fff4fa;
-  --panel:rgba(255,248,252,.94);
-  --panel-soft:rgba(255,255,255,.72);
-  --line:rgba(210,72,122,.26);
-  --line-strong:rgba(210,72,122,.58);
-  --text:#432136;
-  --muted:rgba(67,33,54,.78);
-  --accent:#d9467f;
-  --accent-2:#4f95c8;
-  --danger:#d92d62;
-  --good:#168a4a;
-  --warn:#9a6b00;
-  --shadow:0 22px 70px rgba(210,72,122,.18);
-  background:
-    radial-gradient(circle at 8% 5%,rgba(255,174,208,.38),transparent 30%),
-    radial-gradient(circle at 92% 0%,rgba(168,216,255,.38),transparent 32%),
-    linear-gradient(140deg,#fff8fc,#ffeefa 58%,#edf8ff);
-}
-
-body[data-theme="pink-cute"]::before{
-  background-image:
-    linear-gradient(rgba(210,72,122,.08) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(79,149,200,.08) 1px,transparent 1px);
-}
-
-body[data-theme="pink-cute"] .panel,
-body[data-theme="pink-cute"] .heroPanel{
-  border-color:rgba(210,72,122,.22);
-  background:
-    linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,247,252,.66)),
-    var(--panel);
-  box-shadow:
-    0 18px 54px rgba(210,72,122,.14),
-    0 0 0 1px rgba(255,255,255,.5) inset;
-}
-
-body[data-theme="pink-cute"] .heroPanel{
-  background:
-    radial-gradient(circle at 16% 18%,rgba(255,174,208,.40),transparent 32%),
-    radial-gradient(circle at 82% 20%,rgba(168,216,255,.38),transparent 34%),
-    linear-gradient(135deg,rgba(255,252,254,.96),rgba(255,240,249,.88));
-}
-
-body[data-theme="pink-cute"] h1,
-body[data-theme="pink-cute"] h2,
-body[data-theme="pink-cute"] h3,
-body[data-theme="pink-cute"] strong{
-  color:#38182b;
-}
-
-body[data-theme="pink-cute"] p,
-body[data-theme="pink-cute"] li,
-body[data-theme="pink-cute"] .introText{
-  color:rgba(67,33,54,.82);
-}
-
-body[data-theme="pink-cute"] .eyebrow{
-  color:#c53572;
-}
-
-body[data-theme="pink-cute"] .eyebrow::before{
-  background:#d9467f;
-  box-shadow:0 0 18px rgba(217,70,127,.55);
-}
-
-body[data-theme="pink-cute"] .btnPrimary{
-  color:#fff;
-  background:linear-gradient(135deg,#df4b86,#6ab4e5);
-  box-shadow:0 12px 28px rgba(217,70,127,.22);
-}
-
-body[data-theme="pink-cute"] .btnGhost,
-body[data-theme="pink-cute"] .btnMini{
-  color:#432136;
-  border-color:rgba(210,72,122,.28);
-  background:rgba(255,255,255,.76);
-}
-
-body[data-theme="pink-cute"] .btnDanger{
-  color:#fff;
-  background:linear-gradient(135deg,#e64f78,#a51d45);
-}
-
-body[data-theme="pink-cute"] .overlayIcon{
-  color:#fff;
-  background:linear-gradient(135deg,rgba(217,70,127,.95),rgba(106,180,229,.95));
-  box-shadow:0 10px 24px rgba(217,70,127,.16);
-}
-
-body[data-theme="pink-cute"] code,
-body[data-theme="pink-cute"] input[type=text],
-body[data-theme="pink-cute"] input[type=number],
-body[data-theme="pink-cute"] select,
-body[data-theme="pink-cute"] textarea,
-body[data-theme="pink-cute"] .goalEditItem input{
-  color:#432136;
-  background:rgba(255,255,255,.9);
-  border-color:rgba(210,72,122,.28);
-}
-
-body[data-theme="pink-cute"] code{
-  color:#7d174a;
-  background:rgba(255,255,255,.78);
-}
-
-body[data-theme="pink-cute"] pre{
-  color:#57213f;
-  background:rgba(255,255,255,.74);
-  border-color:rgba(210,72,122,.2);
-}
-
-body[data-theme="pink-cute"] .trackBox,
-body[data-theme="pink-cute"] .infoBox,
-body[data-theme="pink-cute"] .requestItem,
-body[data-theme="pink-cute"] .qrCard,
-body[data-theme="pink-cute"] .guideGrid article,
-body[data-theme="pink-cute"] .themeChoice,
-body[data-theme="pink-cute"] .goalEditItem,
-body[data-theme="pink-cute"] .requestUrlBox,
-body[data-theme="pink-cute"] .tunnelBox,
-body[data-theme="pink-cute"] #toolbar,
-body[data-theme="pink-cute"] .fontUploadBox{
-  background:rgba(255,255,255,.7);
-  border-color:rgba(210,72,122,.18);
-}
-
-body[data-theme="pink-cute"] .themeChoice.isActive{
-  background:linear-gradient(135deg,rgba(255,235,246,.95),rgba(235,248,255,.88));
-  box-shadow:
-    0 0 0 3px rgba(217,70,127,.12),
-    0 16px 38px rgba(217,70,127,.16);
-}
-
-body[data-theme="pink-cute"] .overlayActions a{
-  color:#b32a66;
-  background:rgba(255,235,246,.78);
-  border-color:rgba(210,72,122,.2);
-}
-
-body[data-theme="pink-cute"] .statusPill{
-  color:#5a2842;
-  background:rgba(255,255,255,.72);
-  border-color:rgba(210,72,122,.18);
-}
-
+.clockSettingsPanel .introText{margin-top:6px}
+.themeSwitchGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+.themeChoice{min-height:110px;padding:18px;border:1px solid rgba(255,255,255,.12);border-radius:20px;color:var(--text);text-align:left;background:rgba(255,255,255,.055);cursor:pointer;transition:.18s ease}
+.themeChoice strong,.themeChoice span{display:block}
+.themeChoice strong{font-size:1.05rem}
+.themeChoice span{margin-top:8px;color:var(--muted);line-height:1.55}
+.themeChoice:hover{transform:translateY(-1px);border-color:var(--line-strong)}
+.themeChoice.isActive{border-color:var(--line-strong);box-shadow:0 0 0 3px rgba(125,211,252,.12),var(--shadow)}
+.goalSettingsGrid,.clockSettingsGrid{margin-top:16px}
+.goalSettingsGrid select,.goalSettingsGrid input[type=text],.clockSettingsGrid select,.clockSettingsGrid input[type=text]{width:100%;min-height:34px;padding:0 10px;border:1px solid rgba(255,255,255,.12);border-radius:12px;color:var(--text);background:rgba(2,8,23,.35);outline:none}
+.goalCardsEditor{display:grid;gap:12px;margin-top:16px}
+.goalEditItem{display:grid;grid-template-columns:minmax(240px,1fr) 120px 120px 100px;gap:10px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:rgba(255,255,255,.045)}
+.goalEditItem label{display:grid;gap:6px;color:var(--muted);font-weight:800}
+.goalEditItem input,.goalEditItem select{min-height:38px;padding:0 12px;border:1px solid rgba(255,255,255,.12);border-radius:14px;color:var(--text);background:rgba(2,8,23,.35);outline:none}
+.goalEditItem .checkLabel{display:flex;align-items:center;justify-content:center;flex-direction:row;gap:8px}
+.goalEditItem input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.alphaControl{grid-column:span 2}
+.alphaInline{display:grid;grid-template-columns:minmax(160px,1fr) 96px;gap:10px;align-items:center;width:100%}
+.alphaInline input[type=range]{width:100%;accent-color:var(--accent)}
+.alphaInline input[type=number]{width:100%}
+.goalWidthControl{grid-column:span 2}
+.widthInline{display:grid;grid-template-columns:160px minmax(120px,220px);gap:10px;align-items:center;width:100%}
+.widthInline select,.widthInline input{width:100%}
+body[data-theme="pink-cute"]{--bg:#fff4fa;--panel:rgba(255,248,252,.94);--panel-soft:rgba(255,255,255,.72);--line:rgba(210,72,122,.26);--line-strong:rgba(210,72,122,.58);--text:#432136;--muted:rgba(67,33,54,.78);--accent:#d9467f;--accent-2:#4f95c8;--danger:#d92d62;--good:#168a4a;--warn:#9a6b00;--shadow:0 22px 70px rgba(210,72,122,.18);background:radial-gradient(circle at 8% 5%,rgba(255,174,208,.38),transparent 30%),radial-gradient(circle at 92% 0%,rgba(168,216,255,.38),transparent 32%),linear-gradient(140deg,#fff8fc,#ffeefa 58%,#edf8ff)}
+body[data-theme="pink-cute"]::before{background-image:linear-gradient(rgba(210,72,122,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(79,149,200,.08) 1px,transparent 1px)}
+body[data-theme="pink-cute"] .panel,body[data-theme="pink-cute"] .heroPanel{border-color:rgba(210,72,122,.22);background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,247,252,.66)),var(--panel);box-shadow:0 18px 54px rgba(210,72,122,.14),0 0 0 1px rgba(255,255,255,.5) inset}
+body[data-theme="pink-cute"] .heroPanel{background:radial-gradient(circle at 16% 18%,rgba(255,174,208,.40),transparent 32%),radial-gradient(circle at 82% 20%,rgba(168,216,255,.38),transparent 34%),linear-gradient(135deg,rgba(255,252,254,.96),rgba(255,240,249,.88))}
+body[data-theme="pink-cute"] h1,body[data-theme="pink-cute"] h2,body[data-theme="pink-cute"] h3,body[data-theme="pink-cute"] strong{color:#38182b}
+body[data-theme="pink-cute"] p,body[data-theme="pink-cute"] li,body[data-theme="pink-cute"] .introText{color:rgba(67,33,54,.82)}
+body[data-theme="pink-cute"] .eyebrow{color:#c53572}
+body[data-theme="pink-cute"] .eyebrow::before{background:#d9467f;box-shadow:0 0 18px rgba(217,70,127,.55)}
+body[data-theme="pink-cute"] .btnPrimary{color:#fff;background:linear-gradient(135deg,#df4b86,#6ab4e5);box-shadow:0 12px 28px rgba(217,70,127,.22)}
+body[data-theme="pink-cute"] .btnGhost,body[data-theme="pink-cute"] .btnMini{color:#432136;border-color:rgba(210,72,122,.28);background:rgba(255,255,255,.76)}
+body[data-theme="pink-cute"] .btnDanger{color:#fff;background:linear-gradient(135deg,#e64f78,#a51d45)}
+body[data-theme="pink-cute"] .overlayIcon{color:#fff;background:linear-gradient(135deg,rgba(217,70,127,.95),rgba(106,180,229,.95));box-shadow:0 10px 24px rgba(217,70,127,.16)}
+body[data-theme="pink-cute"] code,body[data-theme="pink-cute"] input[type=text],body[data-theme="pink-cute"] input[type=number],body[data-theme="pink-cute"] select,body[data-theme="pink-cute"] textarea,body[data-theme="pink-cute"] .goalEditItem input{color:#432136;background:rgba(255,255,255,.9);border-color:rgba(210,72,122,.28)}
+body[data-theme="pink-cute"] code{color:#7d174a;background:rgba(255,255,255,.78)}
+body[data-theme="pink-cute"] pre{color:#57213f;background:rgba(255,255,255,.74);border-color:rgba(210,72,122,.2)}
+body[data-theme="pink-cute"] .trackBox,body[data-theme="pink-cute"] .infoBox,body[data-theme="pink-cute"] .requestItem,body[data-theme="pink-cute"] .qrCard,body[data-theme="pink-cute"] .guideGrid article,body[data-theme="pink-cute"] .themeChoice,body[data-theme="pink-cute"] .goalEditItem,body[data-theme="pink-cute"] .requestUrlBox,body[data-theme="pink-cute"] .tunnelBox,body[data-theme="pink-cute"] #toolbar,body[data-theme="pink-cute"] .fontUploadBox{background:rgba(255,255,255,.7);border-color:rgba(210,72,122,.18)}
+body[data-theme="pink-cute"] .themeChoice.isActive{background:linear-gradient(135deg,rgba(255,235,246,.95),rgba(235,248,255,.88));box-shadow:0 0 0 3px rgba(217,70,127,.12),0 16px 38px rgba(217,70,127,.16)}
+body[data-theme="pink-cute"] .overlayActions a{color:#b32a66;background:rgba(255,235,246,.78);border-color:rgba(210,72,122,.2)}
+body[data-theme="pink-cute"] .statusPill{color:#5a2842;background:rgba(255,255,255,.72);border-color:rgba(210,72,122,.18)}
 body[data-theme="pink-cute"] .statusOk{color:#052e14;background:#86efac}
 body[data-theme="pink-cute"] .statusWarn{color:#2b2200;background:#facc15}
 body[data-theme="pink-cute"] .statusError{color:#fff;background:#df4b86}
-
-body[data-theme="pink-cute"] .qrFrame{
-  box-shadow:0 12px 30px rgba(210,72,122,.12);
-}
-
-body[data-theme="pink-cute"] #editorArea{
-  color:#432136;
-  background:rgba(255,255,255,.88);
-}
-
-body[data-theme="pink-cute"] #previewArea{
-  border-color:rgba(210,72,122,.22);
-}
-
-@media(max-width:760px){
-  .themeSwitchGrid,
-  .goalEditItem{
-    grid-template-columns:1fr;
-  }
-  .goalEditItem .checkLabel{
-    justify-content:flex-start;
-  }
-  .goalSettingsGrid select,
-  .goalSettingsGrid input[type=text],
-  .clockSettingsGrid select,
-  .clockSettingsGrid input[type=text]{
-    min-height:38px;
-  }
-}
-
-/* v4: alpha slider + themed dashboard QR preview */
-.alphaControl{grid-column:span 2}.alphaInline{display:grid;grid-template-columns:minmax(160px,1fr) 96px;gap:10px;align-items:center;width:100%}.alphaInline input[type=range]{width:100%;accent-color:var(--accent)}.alphaInline input[type=number]{width:100%}
+body[data-theme="pink-cute"] .qrFrame{box-shadow:0 12px 30px rgba(210,72,122,.12)}
+body[data-theme="pink-cute"] #editorArea{color:#432136;background:rgba(255,255,255,.88)}
+body[data-theme="pink-cute"] #previewArea{border-color:rgba(210,72,122,.22)}
 body[data-theme="pink-cute"] .qrCard{background:linear-gradient(135deg,rgba(255,255,255,.86),rgba(255,238,247,.72));border-color:rgba(255,127,169,.28);box-shadow:0 18px 46px rgba(255,127,169,.18)}
 body[data-theme="pink-cute"] .qrFrame{background:linear-gradient(135deg,#fff,#fff6fb);box-shadow:0 0 0 2px rgba(255,127,169,.18),0 18px 36px rgba(255,127,169,.14)}
-body[data-theme="pink-cute"] .qrMeta{background:rgba(255,255,255,.7);color:#573147}body[data-theme="pink-cute"] .qrMeta strong{color:#ff5f98}
+body[data-theme="pink-cute"] .qrMeta{background:rgba(255,255,255,.7);color:#573147}
+body[data-theme="pink-cute"] .qrMeta strong{color:#ff5f98}
 body[data-theme="blue-night"] .qrCard{background:rgba(2,8,23,.26);border-color:rgba(255,255,255,.11)}
 body[data-theme="blue-night"] .qrFrame{background:#fff}
-@media(max-width:760px){.alphaControl{grid-column:auto}.alphaInline{grid-template-columns:1fr}}
+@media(max-width:760px){
+  .themeSwitchGrid,.goalEditItem{grid-template-columns:1fr}
+  .goalEditItem .checkLabel{justify-content:flex-start}
+  .goalSettingsGrid select,.goalSettingsGrid input[type=text],.clockSettingsGrid select,.clockSettingsGrid input[type=text]{min-height:38px}
+  .alphaControl,.goalWidthControl{grid-column:auto}
+  .alphaInline,.widthInline{grid-template-columns:1fr}
+}

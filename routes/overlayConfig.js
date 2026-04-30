@@ -13,6 +13,9 @@ const defaultConfig = {
     layout: {
       direction: 'column',
       gap: 30,
+      widthMode: 'auto',
+      minWidthCol: 520,
+      minWidthRow: 220,
       baseAlpha: 0.65,
       completedAlpha: 0.65,
       completeFlashMs: 3000
@@ -34,7 +37,8 @@ const defaultConfig = {
     hour12: false,
     scale: 1,
     timeSize: '56px',
-    dateSize: '18px'
+    dateSize: '18px',
+    backgroundAlpha: 0.72
   }
 };
 
@@ -57,12 +61,17 @@ function normalizeGoal(goal = {}) {
     ...clone(defaultConfig.goal),
     ...(goal || {})
   };
+
   next.layout = {
     ...clone(defaultConfig.goal.layout),
     ...(goal.layout || {})
   };
+
   next.layout.direction = next.layout.direction === 'row' ? 'row' : 'column';
-  next.layout.gap = safeNumber(next.layout.gap, 30, 0, 200);
+  next.layout.gap = safeNumber(next.layout.gap, 30, 0, 240);
+  next.layout.widthMode = next.layout.widthMode === 'manual' ? 'manual' : 'auto';
+  next.layout.minWidthCol = safeNumber(next.layout.minWidthCol, 520, 120, 5000);
+  next.layout.minWidthRow = safeNumber(next.layout.minWidthRow, 220, 120, 5000);
   next.layout.baseAlpha = safeNumber(next.layout.baseAlpha, 0.65, 0, 1);
   next.layout.completedAlpha = safeNumber(next.layout.completedAlpha ?? next.layout.baseAlpha, next.layout.baseAlpha, 0, 1);
   next.layout.completeFlashMs = safeNumber(next.layout.completeFlashMs, 3000, 0, 30000);
@@ -91,7 +100,8 @@ function normalizeClock(clock = {}) {
     hour12: Boolean(clock.hour12),
     scale: safeNumber(clock.scale, 1, 0.3, 3),
     timeSize: String(clock.timeSize || defaultConfig.clock.timeSize),
-    dateSize: String(clock.dateSize || defaultConfig.clock.dateSize)
+    dateSize: String(clock.dateSize || defaultConfig.clock.dateSize),
+    backgroundAlpha: safeNumber(clock.backgroundAlpha, defaultConfig.clock.backgroundAlpha, 0, 1)
   };
 }
 
