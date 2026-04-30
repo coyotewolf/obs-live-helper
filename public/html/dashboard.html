@@ -104,7 +104,7 @@
       <label><span>小目標卡片數量</span><input type="number" id="goalCount" min="1" max="20" value="1"></label>
       <label><span>排列方向</span><select id="goalDirection"><option value="column">垂直</option><option value="row">水平</option></select></label>
       <label><span>卡片間距</span><input type="number" id="goalGap" min="0" max="200" value="30"></label>
-      <label><span>背景透明度</span><input type="number" id="goalAlpha" min="0" max="1" step="0.05" value="0.65"></label>
+      <label class="alphaControl"><span>背景透明度</span><div class="alphaInline"><input type="range" id="goalAlphaRange" min="0" max="100" step="1" value="65"><input type="number" id="goalAlpha" min="0" max="1" step="0.01" value="0.65"></div></label>
       <label><span>完成動畫秒數</span><input type="number" id="goalFlashSec" min="0" max="30" step="0.5" value="3"></label>
     </div>
     <div id="goalCardsEditor" class="goalCardsEditor"></div>

@@ -155,7 +155,8 @@
     if($('goalCount')) $('goalCount').value = goal.cards.length;
     if($('goalDirection')) $('goalDirection').value = goal.layout.direction || 'column';
     if($('goalGap')) $('goalGap').value = goal.layout.gap ?? 30;
-    if($('goalAlpha')) $('goalAlpha').value = goal.layout.baseAlpha ?? 0.65;
+    if($('goalAlpha')) $('goalAlpha').value = Number(goal.layout.baseAlpha ?? 0.65).toFixed(2);
+    if($('goalAlphaRange')) $('goalAlphaRange').value = Math.round(Number(goal.layout.baseAlpha ?? 0.65) * 100);
     if($('goalFlashSec')) $('goalFlashSec').value = (goal.layout.completeFlashMs ?? 3000) / 1000;
     renderGoalCardsEditor(goal);
   }
@@ -168,6 +169,24 @@
     if($('clockHour12')) $('clockHour12').value = String(Boolean(clock.hour12));
     if($('clockScale')) $('clockScale').value = clock.scale ?? 1;
     if($('clockTimeSize')) $('clockTimeSize').value = clock.timeSize || '56px';
+  }
+
+
+  function syncGoalAlphaFromRange(){
+    const range=$('goalAlphaRange');
+    const num=$('goalAlpha');
+    if(!range||!num) return;
+    const alpha=Math.max(0,Math.min(1,Number(range.value||65)/100));
+    num.value=alpha.toFixed(2);
+  }
+
+  function syncGoalAlphaFromNumber(){
+    const range=$('goalAlphaRange');
+    const num=$('goalAlpha');
+    if(!range||!num) return;
+    const alpha=Math.max(0,Math.min(1,Number(num.value||0.65)));
+    num.value=alpha.toFixed(2);
+    range.value=Math.round(alpha*100);
   }
 
   function collectGoalConfig(){
@@ -183,6 +202,7 @@
       return { ...existing, text, current, total, visible, completed: current >= total ? existing.completed : false };
     });
     const alpha = Math.max(0, Math.min(1, Number($('goalAlpha')?.value || 0.65)));
+    if($('goalAlphaRange')) $('goalAlphaRange').value = Math.round(alpha * 100);
     return normalizeGoalConfig({
       layout: {
         direction: $('goalDirection')?.value || 'column',
@@ -272,7 +292,26 @@
   $('saveClockBtn')?.addEventListener('click', saveClockSettings);
   $('resetClockBtn')?.addEventListener('click', resetClockSettings);
 
-  $('goalCount')?.addEventListener('input', ()=>{ renderGoalCardsEditor(collectGoalConfig()); });
+  $('goalCount')?.addEventListener('input', ()=>{
+    const goal=collectGoalConfig();
+    writeJson(GOAL_KEY, goal);
+    renderGoalCardsEditor(goal);
+    broadcastConfigs(goal, normalizeClockConfig(readJson(CLOCK_KEY, defaultClockConfig)));
+    scheduleSharedSave();
+  });
+
+  $('goalAlphaRange')?.addEventListener('input', ()=>{
+    syncGoalAlphaFromRange();
+    const goal=collectGoalConfig();
+    const clock=normalizeClockConfig(readJson(CLOCK_KEY, defaultClockConfig));
+    writeJson(GOAL_KEY, goal);
+    broadcastConfigs(goal, clock);
+    scheduleSharedSave();
+  });
+
+  $('goalAlpha')?.addEventListener('input', ()=>{
+    syncGoalAlphaFromNumber();
+  });
 
   document.addEventListener('input', event=>{
     if(event.target?.closest?.('.goalSettingsPanel')){
