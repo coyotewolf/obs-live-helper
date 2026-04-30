@@ -38,6 +38,31 @@ function buildDefaultParams(query = {}) {
   });
 }
 
+function cssColor(value, fallback) {
+  const text = String(value || '').trim();
+  if (/^#[0-9a-fA-F]{3,8}$/.test(text)) return text;
+  if (/^rgba?\([0-9.,%\s]+\)$/.test(text)) return text;
+  return fallback;
+}
+
+function cssNumber(value, fallback, min, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function deriveAvatarGlowVars(query = {}) {
+  const rawAccent = String(query.bg_shadow_color || '').trim().toLowerCase();
+  const accent = (!rawAccent || rawAccent === '#000' || rawAccent === '#000000')
+    ? '#c084fc'
+    : cssColor(query.bg_shadow_color, '#c084fc');
+
+  // Keep purple depth for blue-night. For pink theme, dcprofilepic.js sends a pink bg_color.
+  const accent2 = accent === '#c084fc' ? '#7c3aed' : cssColor(query.bg_color, accent);
+  const glow = cssNumber(query.bg_shadow_size, 18, 0, 64);
+  return { accent, accent2, glow };
+}
+
 function injectedBridgeScript() {
   return `
 <script id="obs-live-helper-discord-rpc-bridge">
@@ -71,15 +96,17 @@ function injectedBridgeScript() {
 </script>`;
 }
 
-function injectedStyle() {
+function injectedStyle(query = {}) {
+  const { accent, accent2, glow } = deriveAvatarGlowVars(query);
+
   return `
 <style id="obs-live-helper-discord-style">
 :root{
-  --accent:#7dd3fc;
-  --accent-2:#a78bfa;
+  --accent:${accent};
+  --accent-2:${accent2};
   --idle:0.30;
   --scale:1.10;
-  --glow:18px;
+  --glow:${glow}px;
   --gap:14px;
   --avatar:90px;
   --font:'Segoe UI', system-ui, sans-serif;
@@ -96,23 +123,7 @@ html,body{
   text-align:left !important;
 }
 
-/* 只把 StreamKit 的最外層固定成左上角，不動內部結構 
-body > div,
-#root,
-[class^="App"],
-[class*=" App"]{
-  position:static !important;
-  transform:none !important;
-  margin:0 !important;
-  padding:0 !important;
-  width:100% !important;
-  height:auto !important;
-  min-width:0 !important;
-  text-align:left !important;
-  overflow:visible !important;
-}*/
-
-/* 這裡才是整排頭像的排列方向：由左往右 */
+/* Avatar row */
 [class^="Voice_voiceStates"],
 [class*=" Voice_voiceStates"]{
   position:static !important;
@@ -124,6 +135,8 @@ body > div,
   align-items:flex-start !important;
   align-content:flex-start !important;
   gap:var(--gap) !important;
+  column-gap:var(--gap) !important;
+  row-gap:0 !important;
   padding:var(--speak-pad) 0 0 var(--speak-pad) !important;
   margin:0 !important;
   width:max-content !important;
@@ -134,7 +147,6 @@ body > div,
   text-align:left !important;
 }
 
-/* 不要讓任何子層用負 margin 疊在一起 */
 [class^="Voice_voiceStates"] > *,
 [class*=" Voice_voiceStates"] > *,
 [class^="Voice_voiceState"],
@@ -147,7 +159,6 @@ body > div,
   overflow:visible !important;
 }
 
-/* 每個使用者卡片：保留內部上下結構，但不要壓成窄欄造成換行重疊 */
 [class^="Voice_voiceState"],
 [class*=" Voice_voiceState"]{
   display:flex !important;
@@ -166,7 +177,7 @@ body > div,
   border-radius:0 !important;
 }
 
-/* 頭像本體 */
+/* Avatar body. Speaking glow is controlled here, same as the supplied Black&Gold sample. */
 img[class^="Voice_avatar"],
 img[class*=" Voice_avatar"]{
   display:block !important;
@@ -180,7 +191,7 @@ img[class*=" Voice_avatar"]{
   max-height:var(--avatar) !important;
   object-fit:cover !important;
   border-radius:18px !important;
-  border:2px solid rgba(125,211,252,.32) !important;
+  border:2px solid color-mix(in srgb, var(--accent) 28%, transparent) !important;
   box-sizing:border-box !important;
   box-shadow:inset 0 0 0 2px rgba(0,0,0,.65),0 8px 24px rgba(0,0,0,.22) !important;
   transition:transform .15s ease, box-shadow .2s ease, opacity .2s ease, filter .2s ease, border-color .2s ease !important;
@@ -189,20 +200,20 @@ img[class*=" Voice_avatar"]{
   filter:saturate(.82) brightness(.92) !important;
 }
 
+/* Speaking: purple/selected glow comes from --accent and --accent-2. */
 img[class*="Voice_avatarSpeaking"]{
   opacity:1 !important;
   transform:scale(var(--scale)) !important;
-  filter:saturate(1.08) brightness(1.16) !important;
+  filter:saturate(1.05) brightness(1.1) !important;
   border-color:var(--accent) !important;
   box-shadow:
-    0 0 var(--glow) rgba(125,211,252,.95),
-    0 0 calc(var(--glow)*.85) rgba(167,139,250,.75),
-    0 0 calc(var(--glow)*.55) rgba(125,211,252,.55) inset,
-    0 6px 18px rgba(0,0,0,.36) !important;
+    0 0 var(--glow) var(--accent),
+    0 0 calc(var(--glow)*.55) var(--accent-2) inset,
+    0 6px 18px rgba(0,0,0,.35) !important;
   animation:obs-discord-pulse 1.1s ease-in-out infinite alternate !important;
 }
 
-/* 名字放在頭像下方，不參與頭像水平排列 */
+/* User names remain visually unchanged; this is not the speaking glow. */
 [class^="Voice_user"],
 [class*=" Voice_user"]{
   order:2 !important;
@@ -256,7 +267,6 @@ div[class*="userName"]{
   transform:translateX(0);
 }
 
-/* 只有真的啟用跑馬燈時，才改成左對齊，讓文字從左邊開始滑 */
 .obs-marquee-active .obs-name-marquee-viewport{
   text-align:left !important;
 }
@@ -266,15 +276,10 @@ div[class*="userName"]{
 }
 
 @keyframes obs-discord-name-marquee{
-  0%,18%{
-    transform:translateX(0);
-  }
-  82%,100%{
-    transform:translateX(calc(var(--marquee-distance, 0px) * -1));
-  }
+  0%,18%{ transform:translateX(0); }
+  82%,100%{ transform:translateX(calc(var(--marquee-distance, 0px) * -1)); }
 }
 
-/* 避免 aria-label 備援文字擠出第二層名字造成重疊 */
 [class^="Voice_voiceState"][aria-label]::after,
 [class*=" Voice_voiceState"][aria-label]::after{
   display:none !important;
@@ -282,8 +287,8 @@ div[class*="userName"]{
 }
 
 @keyframes obs-discord-pulse{
-  0%{filter:brightness(1.02) saturate(1.02);}
-  100%{filter:brightness(1.36) saturate(1.14);}
+  0%{filter:brightness(1.0) saturate(1.0);}
+  100%{filter:brightness(1.35) saturate(1.1);}
 }
 </style>`;
 }
@@ -312,18 +317,16 @@ function injectedSafeHorizontalScript() {
     });
   }
 
-    function isNameNode(el){
+  function isNameNode(el){
     var cls = classText(el);
     return cls.indexOf('Voice_name') >= 0 || cls.indexOf('userName') >= 0;
   }
 
   function getTextWidth(el){
     if (!el) return 0;
-
     var text = el.textContent || '';
     var canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement('canvas'));
     var ctx = canvas.getContext('2d');
-
     var style = window.getComputedStyle(el);
     ctx.font = [
       style.fontStyle,
@@ -332,7 +335,6 @@ function injectedSafeHorizontalScript() {
       style.fontSize,
       style.fontFamily
     ].join(' ');
-
     return ctx.measureText(text).width;
   }
 
@@ -344,7 +346,6 @@ function injectedSafeHorizontalScript() {
     names.forEach(function(name){
       if (name.dataset.obsMarqueeReady !== '1') {
         var originalText = name.textContent || '';
-
         name.textContent = '';
 
         var viewport = document.createElement('span');
@@ -376,7 +377,6 @@ function injectedSafeHorizontalScript() {
 
       if (overflow > 4) {
         var duration = Math.max(5, Math.min(14, textWidth / 18));
-
         name.classList.add('obs-marquee-active');
         viewport.style.setProperty('text-align', 'left', 'important');
         name.style.setProperty('--marquee-distance', overflow + 'px');
@@ -391,7 +391,7 @@ function injectedSafeHorizontalScript() {
       }
     });
   }
-  
+
   function applyHorizontalLayout(){
     var containers = Array.prototype.slice
       .call(document.querySelectorAll('[class*="Voice_voiceStates"]'))
@@ -476,13 +476,13 @@ function injectedSafeHorizontalScript() {
 </script>`;
 }
 
-function injectIntoHtml(html) {
+function injectIntoHtml(html, query = {}) {
   let out = String(html || '');
 
   // Cloudflare challenge scripts are not useful in the local proxy and can break MIME checks.
   out = out.replace(/<script[^>]+src=["'][^"']*\/cdn-cgi\/challenge-platform[^"']*["'][^>]*><\/script>/gi, '');
 
-  const injection = `${injectedBridgeScript()}${injectedStyle()}${injectedSafeHorizontalScript()}`;
+  const injection = `${injectedBridgeScript()}${injectedStyle(query)}${injectedSafeHorizontalScript()}`;
   if (out.includes('</head>')) return out.replace('</head>', `${injection}</head>`);
   return `${injection}${out}`;
 }
@@ -510,7 +510,7 @@ async function proxyStreamkitHtml(req, res, guild, channel) {
 
     res.type('html');
     res.setHeader('Cache-Control', 'no-store');
-    return res.send(injectIntoHtml(response.data));
+    return res.send(injectIntoHtml(response.data, req.query));
   } catch (err) {
     console.error('Discord StreamKit proxy error:', err.response?.status, err.message);
     return res.status(502).type('html').send(`

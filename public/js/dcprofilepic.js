@@ -30,8 +30,9 @@ function getThemeParams(theme) {
     };
   }
 
-  // Blue-night theme:
-  // Keep the old text style unchanged, but use a purple shadow for the speaking avatar/card glow.
+  // Blue-night theme keeps the old text styling. Avatar speaking glow is handled
+  // by an injected iframe CSS override below, because StreamKit's injected CSS
+  // controls Voice_avatarSpeaking more strongly than URL query params.
   return {
     logo: 'white',
     text_color: '#ffffff',
@@ -42,8 +43,59 @@ function getThemeParams(theme) {
     bg_color: '#1e2124',
     bg_opacity: '0',
     bg_shadow_color: '#c084fc',
-    bg_shadow_size: '10'
+    bg_shadow_size: '18'
   };
+}
+
+function getAvatarGlowCss(theme) {
+  if (theme === 'pink-cute') {
+    return `
+      img[class*="Voice_avatarSpeaking"]{
+        border-color:#ff7fa9 !important;
+        box-shadow:
+          0 0 18px rgba(255,127,169,.95),
+          0 0 15px rgba(168,216,255,.72),
+          0 0 10px rgba(255,127,169,.58) inset,
+          0 6px 18px rgba(0,0,0,.36) !important;
+      }
+    `;
+  }
+
+  return `
+    img[class*="Voice_avatarSpeaking"]{
+      border-color:#c084fc !important;
+      box-shadow:
+        0 0 20px rgba(192,132,252,.98),
+        0 0 18px rgba(124,58,237,.82),
+        0 0 11px rgba(192,132,252,.62) inset,
+        0 6px 18px rgba(0,0,0,.36) !important;
+    }
+  `;
+}
+
+function injectAvatarGlowOverride() {
+  try {
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc || !doc.documentElement) return;
+
+    let style = doc.getElementById('obs-helper-avatar-glow-override');
+    if (!style) {
+      style = doc.createElement('style');
+      style.id = 'obs-helper-avatar-glow-override';
+      (doc.head || doc.documentElement).appendChild(style);
+    }
+    style.textContent = getAvatarGlowCss(currentTheme);
+  } catch (err) {
+    // Same-origin local proxy should allow this. If it ever does not, the normal
+    // StreamKit params still remain as a fallback.
+  }
+}
+
+function scheduleAvatarGlowOverride() {
+  injectAvatarGlowOverride();
+  setTimeout(injectAvatarGlowOverride, 80);
+  setTimeout(injectAvatarGlowOverride, 350);
+  setTimeout(injectAvatarGlowOverride, 900);
 }
 
 function applyThemeToStreamKitUrl(rawUrl, theme = currentTheme) {
@@ -82,12 +134,17 @@ function setFrame(src) {
     iframe.classList.remove('is-loaded');
     if (loadingText) loadingText.style.display = '';
     iframe.src = nextSrc;
+  } else {
+    scheduleAvatarGlowOverride();
   }
 }
 
 function applyTheme(theme) {
   const next = normalizeTheme(theme);
-  if (next === currentTheme && iframe.src) return;
+  if (next === currentTheme && iframe.src) {
+    scheduleAvatarGlowOverride();
+    return;
+  }
   currentTheme = next;
   localStorage.setItem('obsHelperTheme', currentTheme);
   setFrame(configuredProxyUrl || fallbackProxyUrl());
@@ -108,6 +165,7 @@ async function fetchSharedTheme() {
 iframe.addEventListener('load', () => {
   if (loadingText) loadingText.style.display = 'none';
   iframe.classList.add('is-loaded');
+  scheduleAvatarGlowOverride();
 });
 
 themeChannel.addEventListener('message', event => {
@@ -136,3 +194,4 @@ window.addEventListener('obs-helper-theme-applied', event => {
 })();
 
 setInterval(fetchSharedTheme, 1000);
+setInterval(scheduleAvatarGlowOverride, 1500);

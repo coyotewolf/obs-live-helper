@@ -65,3 +65,161 @@ body[data-theme="blue-night"] .qrFrame{background:#fff}
   .alphaControl,.goalWidthControl{grid-column:auto}
   .alphaInline,.widthInline{grid-template-columns:1fr}
 }
+
+/* v8: robust alpha / width controls layout. Prevent dashboard.css :has(input[type=number]) from splitting these rows. */
+.goalSettingsPanel .settingsGrid,
+.clockSettingsPanel .settingsGrid{
+  align-items:start;
+}
+
+.goalSettingsPanel .alphaControl,
+.clockSettingsPanel .alphaControl,
+.goalSettingsPanel .goalWidthControl{
+  grid-column:1 / -1 !important;
+  display:grid !important;
+  grid-template-columns:minmax(150px,220px) minmax(320px,1fr) !important;
+  gap:12px 18px !important;
+  align-items:center !important;
+  width:100% !important;
+  min-width:0 !important;
+  padding:12px !important;
+}
+
+.goalSettingsPanel .alphaControl > span,
+.clockSettingsPanel .alphaControl > span,
+.goalSettingsPanel .goalWidthControl > span{
+  white-space:nowrap !important;
+  min-width:0 !important;
+}
+
+.goalSettingsPanel .alphaInline,
+.clockSettingsPanel .alphaInline,
+.goalSettingsPanel .widthInline{
+  display:grid !important;
+  grid-template-columns:minmax(220px,1fr) 96px !important;
+  gap:12px !important;
+  align-items:center !important;
+  width:100% !important;
+  min-width:0 !important;
+}
+
+.goalSettingsPanel .widthInline{
+  grid-template-columns:160px minmax(120px,220px) !important;
+}
+
+.goalSettingsPanel .alphaInline input[type=range],
+.clockSettingsPanel .alphaInline input[type=range]{
+  width:100% !important;
+  min-width:160px !important;
+  max-width:none !important;
+}
+
+.goalSettingsPanel .alphaInline input[type=number],
+.clockSettingsPanel .alphaInline input[type=number],
+.goalSettingsPanel .widthInline input[type=number]{
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+}
+
+.goalSettingsPanel .widthInline select{
+  width:100% !important;
+  min-width:0 !important;
+}
+
+body[data-theme="pink-cute"] .goalSettingsPanel .alphaControl,
+body[data-theme="pink-cute"] .clockSettingsPanel .alphaControl,
+body[data-theme="pink-cute"] .goalSettingsPanel .goalWidthControl{
+  background:rgba(255,255,255,.72) !important;
+  border-color:rgba(210,72,122,.18) !important;
+}
+
+@media(max-width:900px){
+  .goalSettingsPanel .alphaControl,
+  .clockSettingsPanel .alphaControl,
+  .goalSettingsPanel .goalWidthControl{
+    grid-template-columns:1fr !important;
+  }
+  .goalSettingsPanel .alphaInline,
+  .clockSettingsPanel .alphaInline,
+  .goalSettingsPanel .widthInline{
+    grid-template-columns:1fr !important;
+  }
+  .goalSettingsPanel .alphaInline input[type=range],
+  .clockSettingsPanel .alphaInline input[type=range]{
+    min-width:0 !important;
+  }
+}
+
+
+/* v9: final alpha slider layout fix.
+   Force alpha rows to ignore dashboard.css .settingsGrid label:has(input[type=number]) split layout. */
+body .goalSettingsPanel .settingsGrid > label.alphaControl,
+body .clockSettingsPanel .settingsGrid > label.alphaControl,
+body .goalSettingsPanel .settingsGrid > label.clockAlphaControl,
+body .clockSettingsPanel .settingsGrid > label.clockAlphaControl{
+  grid-column:1 / -1 !important;
+  display:grid !important;
+  grid-template-columns:180px minmax(0,1fr) !important;
+  gap:12px 18px !important;
+  align-items:center !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+  padding:12px 14px !important;
+}
+body .goalSettingsPanel .settingsGrid > label.alphaControl > span,
+body .clockSettingsPanel .settingsGrid > label.alphaControl > span,
+body .goalSettingsPanel .settingsGrid > label.clockAlphaControl > span,
+body .clockSettingsPanel .settingsGrid > label.clockAlphaControl > span{
+  display:block !important;
+  width:auto !important;
+  min-width:0 !important;
+  white-space:nowrap !important;
+}
+body .goalSettingsPanel .settingsGrid > label.alphaControl .alphaInline,
+body .clockSettingsPanel .settingsGrid > label.alphaControl .alphaInline,
+body .goalSettingsPanel .settingsGrid > label.clockAlphaControl .alphaInline,
+body .clockSettingsPanel .settingsGrid > label.clockAlphaControl .alphaInline{
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) 110px !important;
+  gap:12px !important;
+  align-items:center !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+}
+body .goalSettingsPanel .settingsGrid > label.alphaControl .alphaInline input[type=range],
+body .clockSettingsPanel .settingsGrid > label.alphaControl .alphaInline input[type=range],
+body .goalSettingsPanel .settingsGrid > label.clockAlphaControl .alphaInline input[type=range],
+body .clockSettingsPanel .settingsGrid > label.clockAlphaControl .alphaInline input[type=range]{
+  display:block !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+}
+body .goalSettingsPanel .settingsGrid > label.alphaControl .alphaInline input[type=number],
+body .clockSettingsPanel .settingsGrid > label.alphaControl .alphaInline input[type=number],
+body .goalSettingsPanel .settingsGrid > label.clockAlphaControl .alphaInline input[type=number],
+body .clockSettingsPanel .settingsGrid > label.clockAlphaControl .alphaInline input[type=number]{
+  display:block !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:110px !important;
+  justify-self:end !important;
+}
+@media(max-width:760px){
+  body .goalSettingsPanel .settingsGrid > label.alphaControl,
+  body .clockSettingsPanel .settingsGrid > label.alphaControl,
+  body .goalSettingsPanel .settingsGrid > label.clockAlphaControl,
+  body .clockSettingsPanel .settingsGrid > label.clockAlphaControl{
+    grid-template-columns:1fr !important;
+  }
+  body .goalSettingsPanel .settingsGrid > label.alphaControl .alphaInline,
+  body .clockSettingsPanel .settingsGrid > label.alphaControl .alphaInline,
+  body .goalSettingsPanel .settingsGrid > label.clockAlphaControl .alphaInline,
+  body .clockSettingsPanel .settingsGrid > label.clockAlphaControl .alphaInline{
+    grid-template-columns:1fr 96px !important;
+  }
+}
