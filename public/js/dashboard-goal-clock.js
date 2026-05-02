@@ -38,12 +38,7 @@
   function clone(value){ return JSON.parse(JSON.stringify(value)); }
   function showToastSafe(message){
     if (typeof window.showToast === 'function') return window.showToast(message);
-    const toast=$('toast');
-    if(!toast) return;
-    toast.textContent=message;
-    toast.classList.add('show');
-    clearTimeout(showToastSafe.timer);
-    showToastSafe.timer=setTimeout(()=>toast.classList.remove('show'),1800);
+    alert(message);
   }
   function escapeHtml(text){ return String(text||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch])); }
   function readJson(key, fallback){ try { return JSON.parse(localStorage.getItem(key)||'null') || clone(fallback); } catch { return clone(fallback); } }
