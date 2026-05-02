@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS = {
   blockExplicit: false,
   cooldownSeconds: 60,
   controlCooldownSeconds: 10,
-  duplicateWindowMinutes: 10,
+  duplicateWindowSeconds: 20,
   maxPending: 80
 };
 
@@ -68,9 +68,11 @@ function writeJson(file, data) {
 }
 
 function getSettings() {
+  const stored = readJson(SETTINGS_FILE, {}) || {};
+  const { duplicateWindowMinutes, ...rest } = stored;
   return {
     ...DEFAULT_SETTINGS,
-    ...(readJson(SETTINGS_FILE, {}) || {})
+    ...rest
   };
 }
 
@@ -86,7 +88,7 @@ function saveSettings(patch = {}) {
     blockExplicit: Boolean(patch.blockExplicit ?? current.blockExplicit),
     cooldownSeconds: clampInt(patch.cooldownSeconds ?? current.cooldownSeconds, 0, 3600),
     controlCooldownSeconds: clampInt(patch.controlCooldownSeconds ?? current.controlCooldownSeconds, 0, 3600),
-    duplicateWindowMinutes: clampInt(patch.duplicateWindowMinutes ?? current.duplicateWindowMinutes, 0, 1440),
+    duplicateWindowSeconds: clampInt(patch.duplicateWindowSeconds ?? current.duplicateWindowSeconds ?? 20, 0, 86400),
     maxPending: clampInt(patch.maxPending ?? current.maxPending, 1, 300),
     updatedAt: new Date().toISOString()
   };
@@ -290,15 +292,16 @@ function cooldownCheck(map, key, seconds) {
 }
 
 function duplicateCheck(track, settings) {
-  if (!settings.duplicateWindowMinutes || !track?.uri) return { ok: true };
+  const windowSeconds = clampInt(settings.duplicateWindowSeconds ?? 20, 0, 86400);
+  if (!windowSeconds || !track?.uri) return { ok: true };
   const now = Date.now();
-  const windowMs = settings.duplicateWindowMinutes * 60 * 1000;
+  const windowMs = windowSeconds * 1000;
   for (const [uri, t] of recentTrackMap.entries()) {
     if (now - t > windowMs) recentTrackMap.delete(uri);
   }
   const prev = recentTrackMap.get(track.uri);
   if (prev && now - prev < windowMs) {
-    return { ok: false, waitMinutes: Math.ceil((windowMs - (now - prev)) / 60000) };
+    return { ok: false, waitSeconds: Math.ceil((windowMs - (now - prev)) / 1000) };
   }
   recentTrackMap.set(track.uri, now);
   return { ok: true };
@@ -511,7 +514,7 @@ router.post('/submit', requirePin, async (req, res) => {
   if (settings.blockExplicit && track.explicit) return res.status(403).json({ ok: false, error: 'explicit_blocked', message: '目前不接受 Explicit 歌曲。' });
 
   const dup = duplicateCheck(track, settings);
-  if (!dup.ok) return res.status(409).json({ ok: false, error: 'duplicate_track', message: `這首歌剛剛有人點過，約 ${dup.waitMinutes} 分鐘後可再點。` });
+  if (!dup.ok) return res.status(409).json({ ok: false, error: 'duplicate_track', message: `這首歌剛剛有人點過，請 ${dup.waitSeconds} 秒後再點。` });
 
   const shouldAutoQueue = mode === 'queue' && settings.autoApproveQueue;
   const shouldPlayNow = mode === 'play-now' && settings.allowPlayNow;
