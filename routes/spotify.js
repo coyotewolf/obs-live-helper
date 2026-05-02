@@ -25,6 +25,78 @@ const SCOPES = [
 // in-memory code verifier just for single-user local app
 let CODE_VERIFIER = null;
 
+function formatBytes(bytes = 0) {
+  const n = Number(bytes || 0);
+  if (!Number.isFinite(n) || n <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = n;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function getLyricsCacheStats() {
+  const cachePath = storagePath('lrclib-cache.json');
+  const now = Date.now();
+  const stats = {
+    exists: false,
+    file_size_bytes: 0,
+    file_size_label: '0 B',
+    total_entries: 0,
+    ready_entries: 0,
+    not_found_entries: 0,
+    expired_entries: 0,
+    other_entries: 0,
+    newest_updated_at: 0,
+    oldest_updated_at: 0,
+    path: cachePath
+  };
+
+  if (!fs.existsSync(cachePath)) return stats;
+  stats.exists = true;
+
+  try {
+    const fileStat = fs.statSync(cachePath);
+    stats.file_size_bytes = fileStat.size;
+    stats.file_size_label = formatBytes(fileStat.size);
+    stats.file_modified_at = fileStat.mtimeMs;
+  } catch {}
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+    const entries = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? Object.values(parsed) : [];
+    stats.total_entries = entries.length;
+
+    let oldest = Infinity;
+    let newest = 0;
+    for (const entry of entries) {
+      if (!entry || typeof entry !== 'object') {
+        stats.other_entries += 1;
+        continue;
+      }
+      if (entry.expiresAt && entry.expiresAt <= now) stats.expired_entries += 1;
+      if (entry.status === 'ready') stats.ready_entries += 1;
+      else if (entry.status === 'not_found') stats.not_found_entries += 1;
+      else stats.other_entries += 1;
+
+      if (entry.updatedAt && Number.isFinite(Number(entry.updatedAt))) {
+        const updatedAt = Number(entry.updatedAt);
+        newest = Math.max(newest, updatedAt);
+        oldest = Math.min(oldest, updatedAt);
+      }
+    }
+    stats.newest_updated_at = newest || 0;
+    stats.oldest_updated_at = Number.isFinite(oldest) ? oldest : 0;
+  } catch (err) {
+    stats.error = `cache_parse_failed: ${err.message}`;
+  }
+
+  return stats;
+}
+
 /**
  * Step 1 — redirect user to Spotify consent page (PKCE)
  */
@@ -79,9 +151,13 @@ router.post('/retry', async (req, res) => {
   res.json({ ok: true, message: 'Spotify rate-limit / timeout lock cleared. The next request will retry Spotify.' });
 });
 
+router.get('/lyrics-cache/stats', async (req, res) => {
+  res.json({ ok: true, cache: getLyricsCacheStats() });
+});
+
 router.post('/lyrics-cache/clear', async (req, res) => {
   const result = clearLyricsCache();
-  res.json({ ok: true, ...result, message: 'LRCLib lyrics cache cleared.' });
+  res.json({ ok: true, ...result, cache: getLyricsCacheStats(), message: 'LRCLib lyrics cache cleared.' });
 });
 
 function spotifyTimingFields(payload = {}) {
