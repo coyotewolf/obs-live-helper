@@ -41,6 +41,7 @@ const LYRICS_LOOP_INTERVAL_MS = Number(process.env.LYRICS_LOOP_INTERVAL_MS || 50
 const SAME_TRACK_RETRY_MS = Number(process.env.LYRICS_SAME_TRACK_RETRY_MS || 8000);
 const MAX_SAME_TRACK_RETRIES = Number(process.env.LYRICS_MAX_SAME_TRACK_RETRIES || 3);
 const LRCLIB_TIMEOUT_MS = Number(process.env.LRCLIB_TIMEOUT_MS || 8000);
+const LRCLIB_PREFETCH_TIMEOUT_MS = Number(process.env.LRCLIB_PREFETCH_TIMEOUT_MS || 45000);
 const LRCLIB_MAX_BACKOFF_MS = Number(process.env.LRCLIB_MAX_BACKOFF_MS || 120000);
 const LRCLIB_CIRCUIT_FAILURE_THRESHOLD = Number(process.env.LRCLIB_CIRCUIT_FAILURE_THRESHOLD || 3);
 const LRCLIB_CIRCUIT_OPEN_MS = Number(process.env.LRCLIB_CIRCUIT_OPEN_MS || 120000);
@@ -50,6 +51,7 @@ const LRCLIB_PREFETCH_LIMIT = Number(process.env.LRCLIB_PREFETCH_LIMIT || 3);
 const LRCLIB_MAX_FUZZY_SEARCHES = Number(process.env.LRCLIB_MAX_FUZZY_SEARCHES || 1);
 const LRCLIB_REQUEST_INTERVAL_MS = Number(process.env.LRCLIB_REQUEST_INTERVAL_MS || 1500);
 const LRCLIB_PREFETCH_TRACK_INTERVAL_MS = Number(process.env.LRCLIB_PREFETCH_TRACK_INTERVAL_MS || 6000);
+const LRCLIB_PREFETCH_TIMEOUT_COUNTS_FAILURE = String(process.env.LRCLIB_PREFETCH_TIMEOUT_COUNTS_FAILURE || 'false').toLowerCase() === 'true';
 
 let lyricsCache = loadLyricsCache();
 let cacheDirty = false;
@@ -228,7 +230,7 @@ function recordLrclibSuccess() {
   }
 }
 
-function recordLrclibFailure(err) {
+function recordLrclibFailure(err, options = {}) {
   const status = err.response?.status;
   if (status === 404) return;
 
@@ -243,7 +245,17 @@ function recordLrclibFailure(err) {
   }
 
   if (isTimeoutLikeError(err)) {
-    reason = `LRCLib timeout after ${LRCLIB_TIMEOUT_MS}ms`;
+    const timeoutMs = options.timeoutMs || LRCLIB_TIMEOUT_MS;
+    reason = options.prefetch
+      ? `LRCLib prefetch timeout after ${timeoutMs}ms`
+      : `LRCLib timeout after ${timeoutMs}ms`;
+
+    // Prefetch is background work. A slow LRCLib response here should not block
+    // current-track lyric lookup unless explicitly enabled. 429 still opens the circuit.
+    if (options.prefetch && !LRCLIB_PREFETCH_TIMEOUT_COUNTS_FAILURE) {
+      lrclibCircuit.lastError = reason;
+      return;
+    }
   }
 
   lrclibCircuit.failures += 1;
@@ -351,29 +363,32 @@ function scoreSearchResult(item, context) {
   return score;
 }
 
-async function callLrclib(pathname, params) {
+async function callLrclib(pathname, params, options = {}) {
   beforeLrclibRequest();
   await waitForLrclibRequestSlot();
 
+  const timeoutMs = options.prefetch ? LRCLIB_PREFETCH_TIMEOUT_MS : LRCLIB_TIMEOUT_MS;
+
   try {
-    const response = await lrclibClient.get(pathname, { params });
+    const response = await lrclibClient.get(pathname, { params, timeout: timeoutMs });
     recordLrclibSuccess();
     if (response.status === 404) return null;
     return response.data;
   } catch (err) {
-    recordLrclibFailure(err);
+    recordLrclibFailure(err, { ...options, timeoutMs });
     if (err.response?.status === 429) {
       const waitMs = getRetryAfterMs(err);
       throw new Error(`LRCLib too many requests, backing off ${Math.ceil(waitMs / 1000)}s`);
     }
     if (isTimeoutLikeError(err)) {
-      throw new Error(`LRCLib request timed out after ${LRCLIB_TIMEOUT_MS}ms`);
+      const label = options.prefetch ? 'LRCLib prefetch request' : 'LRCLib request';
+      throw new Error(`${label} timed out after ${timeoutMs}ms`);
     }
     throw err;
   }
 }
 
-async function tryExactGet(context) {
+async function tryExactGet(context, options = {}) {
   const exactCandidates = uniqueObjects([
     {
       label: 'exact original title + first artist',
@@ -400,7 +415,7 @@ async function tryExactGet(context) {
     if (candidate.album_name) params.album_name = candidate.album_name;
     if (candidate.duration) params.duration = String(candidate.duration);
 
-    const data = await callLrclib('/api/get', params);
+    const data = await callLrclib('/api/get', params, options);
     if (hasSyncedLyrics(data)) {
       return {
         lyrics: getSyncedLyrics(data),
@@ -413,7 +428,7 @@ async function tryExactGet(context) {
   return null;
 }
 
-async function searchLrclib(context) {
+async function searchLrclib(context, options = {}) {
   const allSearchQueries = uniqueObjects([
     {
       label: 'search by q cleaned',
@@ -434,7 +449,7 @@ async function searchLrclib(context) {
   let plainOnlyCount = 0;
 
   for (const query of searchQueries) {
-    const data = await callLrclib('/api/search', query.params);
+    const data = await callLrclib('/api/search', query.params, options);
     const list = Array.isArray(data) ? data : [];
     if (list.length === 0) continue;
 
@@ -506,8 +521,8 @@ async function fetchLyricsLRC(input, options = {}) {
 
   const lookupPromise = (async () => {
     try {
-      const exact = await tryExactGet(context);
-      const result = exact?.lyrics ? exact : await searchLrclib(context);
+      const exact = await tryExactGet(context, options);
+      const result = exact?.lyrics ? exact : await searchLrclib(context, options);
       setCachedLyrics(context, {
         status: 'ready',
         lyrics: result.lyrics,
