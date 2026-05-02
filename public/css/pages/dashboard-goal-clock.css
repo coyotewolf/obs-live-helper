@@ -223,3 +223,44 @@ body .clockSettingsPanel .settingsGrid > label.clockAlphaControl .alphaInline in
     grid-template-columns:1fr 96px !important;
   }
 }
+
+/* v10: dashboard accordion consistency fix.
+   These panels used to be standalone cards with their own padding. After moving them into
+   <details>, that padding made the collapsed header look thicker than other accordions. */
+.dashboardAccordion.themePanel,
+.dashboardAccordion.goalSettingsPanel,
+.dashboardAccordion.clockSettingsPanel{
+  padding:0 !important;
+}
+
+.dashboardAccordion.themePanel > summary,
+.dashboardAccordion.goalSettingsPanel > summary,
+.dashboardAccordion.clockSettingsPanel > summary{
+  padding:20px 22px !important;
+}
+
+.dashboardAccordion.themePanel > .dashboardAccordionBody,
+.dashboardAccordion.goalSettingsPanel > .dashboardAccordionBody,
+.dashboardAccordion.clockSettingsPanel > .dashboardAccordionBody{
+  padding:0 22px 22px !important;
+}
+
+.dashboardAccordion.themePanel:not([open]) > summary,
+.dashboardAccordion.goalSettingsPanel:not([open]) > summary,
+.dashboardAccordion.clockSettingsPanel:not([open]) > summary{
+  margin-bottom:0 !important;
+  border-bottom:0 !important;
+}
+
+.dashboardAccordion.themePanel[open] > summary,
+.dashboardAccordion.goalSettingsPanel[open] > summary,
+.dashboardAccordion.clockSettingsPanel[open] > summary{
+  margin-bottom:18px !important;
+  border-bottom:1px solid rgba(255,255,255,.08) !important;
+}
+
+body[data-theme="pink-cute"] .dashboardAccordion.themePanel[open] > summary,
+body[data-theme="pink-cute"] .dashboardAccordion.goalSettingsPanel[open] > summary,
+body[data-theme="pink-cute"] .dashboardAccordion.clockSettingsPanel[open] > summary{
+  border-bottom-color:rgba(210,72,122,.14) !important;
+}
