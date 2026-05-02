@@ -540,5 +540,29 @@
     "artists": "Imagine Dragons",
     "album": "Mercury - Act 1",
     "updatedAt": 1777741654366
+  },
+  "7o2CTH4ctstm8TNelqjb51": {
+    "status": "ready",
+    "lyrics": "[00:46.34] She's got a smile that it seems to me\n[00:49.58] Reminds me of childhood memories\n[00:53.67] Where everything was as fresh\n[00:56.08] As the bright blue sky (sky)\n[01:01.34] Now and then when I see her face\n[01:04.54] She takes me away to that special place\n[01:08.38] And if I stare too long\n[01:10.77] I'd probably break down and cry\n[01:16.33] Whoa-o-oh, sweet child o' mine\n[01:23.28] Whoa-o-o-oh, sweet love of mine\n[01:29.04] \n[01:47.22] She's got eyes of the bluest skies\n[01:51.07] As if they thought of rain\n[01:55.00] I'd hate to look into those eyes\n[01:58.57] And see an ounce of pain\n[02:02.73] Her hair reminds me of a warm safe place\n[02:06.27] Where as a child I'd hide\n[02:10.26] And pray for the thunder\n[02:12.32] And the rain to quietly pass me by\n[02:17.49] Whoa-o-oh, sweet child o' mine\n[02:25.13] Whoa-o-o-oh, sweet love of mine\n[02:32.31] \n[03:02.53] Whoa-o-o-oh, sweet child o' mine\n[03:09.30] \n[03:11.98] Whoa-o-o-oh, sweet love of mine\n[03:19.63] Whoa-o-o-oh, sweet child o' mine\n[03:26.13] Ooh, yeah, o-o-oh, sweet love of mine\n[03:33.96] \n[04:40.85] Where do we go?\n[04:41.64] Where do we go now?\n[04:43.59] Where do we go?\n[04:46.79] Where do we go?\n[04:48.40] Where do we go now?\n[04:49.97] Oh, where do we go now?\n[04:53.96] Where do we go?\n[04:55.53] (Sweet child)\n[04:57.44] Where do we go now?\n[05:01.75] Oh, where do we go now?\n[05:04.95] \n[05:08.93] Where do we go?\n[05:12.67] Oh, where do we go now?\n[05:16.39] Oh, where do we go?\n[05:20.11] Where do we go now?\n[05:23.85] Where do we go?\n[05:27.00] Oh, where do we go now?\n[05:30.57] Now, now, now, now, now, now, now\n[05:32.66] Sweet child\n[05:34.57] Sweet child o' mine\n[05:40.24] ",
+    "source": "/api/get (exact original title + first artist)",
+    "matched": {
+      "id": 13330254,
+      "name": "Sweet Child O' Mine",
+      "trackName": "Sweet Child O' Mine",
+      "artistName": "Guns n' Roses",
+      "albumName": "Appetite For Destruction",
+      "duration": 352.843875,
+      "instrumental": false,
+      "plainLyrics": "She's got a smile that it seems to me\nReminds me of childhood memories\nWhere everything was as fresh\nAs the bright blue sky (sky)\n\nNow and then when I see her face\nShe takes me away to that special place\nAnd if I stare too long\nI'd probably break down and cry\n\nWhoa-o-oh, sweet child o' mine\nWhoa-o-o-oh, sweet love of mine\n\nShe's got eyes of the bluest skies\nAs if they thought of rain\nI'd hate to look into those eyes\nAnd see an ounce of pain\n\nHer hair reminds me of a warm safe place\nWhere as a child I'd hide\nAnd pray for the thunder\nAnd the rain to quietly pass me by\n\nWhoa-o-oh, sweet child o' mine\nWhoa-o-o-oh, sweet love of mine\n\nWhoa-o-o-oh, sweet child o' mine\nWhoa-o-o-oh, sweet love of mine\nWhoa-o-o-oh, sweet child o' mine\nOoh, yeah, o-o-oh, sweet love of mine\n\nWhere do we go?\nWhere do we go now?\nWhere do we go?\nWhere do we go?\nWhere do we go now?\nOh, where do we go now?\nWhere do we go?\n(Sweet child)\nWhere do we go now?\n\nOh, where do we go now?\nWhere do we go?\nOh, where do we go now?\nOh, where do we go?\nWhere do we go now?\nWhere do we go?\nOh, where do we go now?\nNow, now, now, now, now, now, now\nSweet child\n\nSweet child o' mine",
+      "syncedLyrics": "[00:46.34] She's got a smile that it seems to me\n[00:49.58] Reminds me of childhood memories\n[00:53.67] Where everything was as fresh\n[00:56.08] As the bright blue sky (sky)\n[01:01.34] Now and then when I see her face\n[01:04.54] She takes me away to that special place\n[01:08.38] And if I stare too long\n[01:10.77] I'd probably break down and cry\n[01:16.33] Whoa-o-oh, sweet child o' mine\n[01:23.28] Whoa-o-o-oh, sweet love of mine\n[01:29.04] \n[01:47.22] She's got eyes of the bluest skies\n[01:51.07] As if they thought of rain\n[01:55.00] I'd hate to look into those eyes\n[01:58.57] And see an ounce of pain\n[02:02.73] Her hair reminds me of a warm safe place\n[02:06.27] Where as a child I'd hide\n[02:10.26] And pray for the thunder\n[02:12.32] And the rain to quietly pass me by\n[02:17.49] Whoa-o-oh, sweet child o' mine\n[02:25.13] Whoa-o-o-oh, sweet love of mine\n[02:32.31] \n[03:02.53] Whoa-o-o-oh, sweet child o' mine\n[03:09.30] \n[03:11.98] Whoa-o-o-oh, sweet love of mine\n[03:19.63] Whoa-o-o-oh, sweet child o' mine\n[03:26.13] Ooh, yeah, o-o-oh, sweet love of mine\n[03:33.96] \n[04:40.85] Where do we go?\n[04:41.64] Where do we go now?\n[04:43.59] Where do we go?\n[04:46.79] Where do we go?\n[04:48.40] Where do we go now?\n[04:49.97] Oh, where do we go now?\n[04:53.96] Where do we go?\n[04:55.53] (Sweet child)\n[04:57.44] Where do we go now?\n[05:01.75] Oh, where do we go now?\n[05:04.95] \n[05:08.93] Where do we go?\n[05:12.67] Oh, where do we go now?\n[05:16.39] Oh, where do we go?\n[05:20.11] Where do we go now?\n[05:23.85] Where do we go?\n[05:27.00] Oh, where do we go now?\n[05:30.57] Now, now, now, now, now, now, now\n[05:32.66] Sweet child\n[05:34.57] Sweet child o' mine\n[05:40.24] ",
+      "lyricsfile": null
+    },
+    "expiresAt": 1780333890136,
+    "key": "7o2CTH4ctstm8TNelqjb51",
+    "trackId": "7o2CTH4ctstm8TNelqjb51",
+    "title": "Sweet Child O' Mine",
+    "artists": "Guns N' Roses",
+    "album": "Appetite For Destruction",
+    "updatedAt": 1777741890136
   }
 }
