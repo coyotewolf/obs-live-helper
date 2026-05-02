@@ -4,7 +4,7 @@
  * Why this exists:
  * - OBS overlays, Dashboard, lyrics sync, and queue pages all ask for Spotify state.
  * - If every endpoint calls Spotify directly, Spotify can return 429 Too many requests.
- * - This module makes one shared cached request and switches to manual retry when Spotify rate limits.
+ * - This module makes one shared cached request and switches to manual retry when Spotify rate limits or times out.
  */
 const axios = require('axios');
 const fs = require('fs');
@@ -23,6 +23,8 @@ const PLAYBACK_TTL_MS = Number(process.env.SPOTIFY_PLAYBACK_CACHE_MS || 10000);
 const QUEUE_TTL_MS = Number(process.env.SPOTIFY_QUEUE_CACHE_MS || 30000);
 const DEFAULT_BACKOFF_MS = Number(process.env.SPOTIFY_DEFAULT_BACKOFF_MS || 8000);
 const MAX_BACKOFF_MS = Number(process.env.SPOTIFY_MAX_BACKOFF_MS || 60000);
+const SPOTIFY_PLAYBACK_TIMEOUT_MS = Number(process.env.SPOTIFY_PLAYBACK_TIMEOUT_MS || 8000);
+const SPOTIFY_QUEUE_TIMEOUT_MS = Number(process.env.SPOTIFY_QUEUE_TIMEOUT_MS || 8000);
 
 let playbackCache = null;
 let playbackFetchedAt = 0;
@@ -30,6 +32,7 @@ let playbackPromise = null;
 let playbackBackoffUntil = 0;
 let playbackManualRetryRequired = false;
 let playbackRateLimitInfo = null;
+let playbackTimeoutInfo = null;
 
 let queueCache = null;
 let queueFetchedAt = 0;
@@ -37,9 +40,12 @@ let queuePromise = null;
 let queueBackoffUntil = 0;
 let queueManualRetryRequired = false;
 let queueRateLimitInfo = null;
+let queueTimeoutInfo = null;
 
 let lastPlaybackRateLimitLogAt = 0;
 let lastQueueRateLimitLogAt = 0;
+let lastPlaybackTimeoutLogAt = 0;
+let lastQueueTimeoutLogAt = 0;
 
 function appendSpotifyLog(message) {
   const stamp = new Date().toISOString();
@@ -66,6 +72,25 @@ function warnAndLogRateLimit(kind, rawRetryAfter, waitMs) {
     if (isPlayback) lastPlaybackRateLimitLogAt = now;
     else lastQueueRateLimitLogAt = now;
   }
+}
+
+function warnAndLogTimeout(kind, info) {
+  const message = `⚠️ Spotify ${kind} timeout after ${info.elapsed_ms}ms. requested_at=${new Date(info.request_started_at).toISOString()}, timeout_at=${new Date(info.timed_out_at).toISOString()}, manual retry required.`;
+  console.warn(message);
+
+  const now = Date.now();
+  const isPlayback = kind === 'playback';
+  const last = isPlayback ? lastPlaybackTimeoutLogAt : lastQueueTimeoutLogAt;
+
+  if (now - last > 5000) {
+    appendSpotifyLog(message);
+    if (isPlayback) lastPlaybackTimeoutLogAt = now;
+    else lastQueueTimeoutLogAt = now;
+  }
+}
+
+function isTimeoutError(err) {
+  return err?.code === 'ECONNABORTED' || /timeout|timed out/i.test(String(err?.message || ''));
 }
 
 function getRetryAfterMs(err) {
@@ -97,6 +122,20 @@ function buildManualRateLimitPayload(kind, now = Date.now()) {
     retry_after_ms: info?.waitMs || 0,
     retry_after_raw: info?.rawRetryAfter || '',
     rate_limited_at: info?.at || now
+  };
+}
+
+function buildManualTimeoutPayload(kind, now = Date.now()) {
+  const info = kind === 'playback' ? playbackTimeoutInfo : queueTimeoutInfo;
+  return {
+    spotify_timeout: true,
+    manual_retry_required: true,
+    retry_after_ms: info?.waitMs || DEFAULT_BACKOFF_MS,
+    spotify_timeout_ms: info?.timeout_ms || 0,
+    spotify_response_elapsed_ms: info?.elapsed_ms || 0,
+    spotify_request_started_at: info?.request_started_at || now,
+    spotify_timeout_at: info?.timed_out_at || now,
+    spotify_response_at: info?.timed_out_at || now
   };
 }
 
@@ -183,14 +222,27 @@ async function fetchPlaybackFromSpotify() {
     };
   }
 
-  const response = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    timeout: 8000,
-    validateStatus: status => (status >= 200 && status < 300) || status === 204
-  });
+  const requestStartedAt = Date.now();
+  try {
+    const response = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: SPOTIFY_PLAYBACK_TIMEOUT_MS,
+      validateStatus: status => (status >= 200 && status < 300) || status === 204
+    });
 
-  if (response.status === 204) return buildPlaybackPayload(null);
-  return buildPlaybackPayload(response.data);
+    const payload = response.status === 204 ? buildPlaybackPayload(null) : buildPlaybackPayload(response.data);
+    payload.spotify_response_elapsed_ms = Date.now() - requestStartedAt;
+    payload.spotify_response_at = Date.now();
+    return payload;
+  } catch (err) {
+    err.spotifyTiming = {
+      request_started_at: requestStartedAt,
+      timed_out_at: Date.now(),
+      elapsed_ms: Date.now() - requestStartedAt,
+      timeout_ms: SPOTIFY_PLAYBACK_TIMEOUT_MS
+    };
+    throw err;
+  }
 }
 
 async function getCurrentPlayback(options = {}) {
@@ -198,7 +250,7 @@ async function getCurrentPlayback(options = {}) {
   const ttlMs = Number(options.ttlMs ?? PLAYBACK_TTL_MS);
 
   if (!options.force && playbackManualRetryRequired) {
-    const manual = buildManualRateLimitPayload('playback', now);
+    const manual = playbackTimeoutInfo ? buildManualTimeoutPayload('playback', now) : buildManualRateLimitPayload('playback', now);
     if (playbackCache) return { ...withLiveProgress(playbackCache), ...manual };
     return { authorized: true, playing: false, track: null, ...manual, fetched_at: now };
   }
@@ -222,6 +274,7 @@ async function getCurrentPlayback(options = {}) {
       playbackBackoffUntil = 0;
       playbackManualRetryRequired = false;
       playbackRateLimitInfo = null;
+      playbackTimeoutInfo = null;
       return payload;
     })
     .catch(err => {
@@ -231,8 +284,20 @@ async function getCurrentPlayback(options = {}) {
         playbackBackoffUntil = 0;
         playbackManualRetryRequired = true;
         playbackRateLimitInfo = { rawRetryAfter, waitMs, at: Date.now() };
+        playbackTimeoutInfo = null;
         warnAndLogRateLimit('playback', rawRetryAfter, waitMs);
         const manual = buildManualRateLimitPayload('playback');
+        if (playbackCache) return { ...withLiveProgress(playbackCache), ...manual };
+        return { authorized: true, playing: false, track: null, ...manual, fetched_at: Date.now() };
+      }
+      if (isTimeoutError(err)) {
+        const timing = err.spotifyTiming || { request_started_at: Date.now(), timed_out_at: Date.now(), elapsed_ms: SPOTIFY_PLAYBACK_TIMEOUT_MS, timeout_ms: SPOTIFY_PLAYBACK_TIMEOUT_MS };
+        playbackBackoffUntil = 0;
+        playbackManualRetryRequired = true;
+        playbackRateLimitInfo = null;
+        playbackTimeoutInfo = { ...timing, waitMs: DEFAULT_BACKOFF_MS };
+        warnAndLogTimeout('playback', playbackTimeoutInfo);
+        const manual = buildManualTimeoutPayload('playback');
         if (playbackCache) return { ...withLiveProgress(playbackCache), ...manual };
         return { authorized: true, playing: false, track: null, ...manual, fetched_at: Date.now() };
       }
@@ -249,17 +314,30 @@ async function fetchQueueFromSpotify() {
   const accessToken = await getAccessToken();
   if (!accessToken) return { authorized: false, queue: [] };
 
-  const { data } = await axios.get('https://api.spotify.com/v1/me/player/queue', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    timeout: 8000
-  });
+  const requestStartedAt = Date.now();
+  try {
+    const { data } = await axios.get('https://api.spotify.com/v1/me/player/queue', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: SPOTIFY_QUEUE_TIMEOUT_MS
+    });
 
-  return {
-    authorized: true,
-    currently_playing: normalizeTrack(data.currently_playing),
-    queue: (data.queue || []).map(normalizeTrack).filter(Boolean).slice(0, 8),
-    fetched_at: Date.now()
-  };
+    return {
+      authorized: true,
+      currently_playing: normalizeTrack(data.currently_playing),
+      queue: (data.queue || []).map(normalizeTrack).filter(Boolean).slice(0, 8),
+      fetched_at: Date.now(),
+      spotify_response_elapsed_ms: Date.now() - requestStartedAt,
+      spotify_response_at: Date.now()
+    };
+  } catch (err) {
+    err.spotifyTiming = {
+      request_started_at: requestStartedAt,
+      timed_out_at: Date.now(),
+      elapsed_ms: Date.now() - requestStartedAt,
+      timeout_ms: SPOTIFY_QUEUE_TIMEOUT_MS
+    };
+    throw err;
+  }
 }
 
 async function getQueue(options = {}) {
@@ -267,7 +345,7 @@ async function getQueue(options = {}) {
   const ttlMs = Number(options.ttlMs ?? QUEUE_TTL_MS);
 
   if (!options.force && queueManualRetryRequired) {
-    const manual = buildManualRateLimitPayload('queue', now);
+    const manual = queueTimeoutInfo ? buildManualTimeoutPayload('queue', now) : buildManualRateLimitPayload('queue', now);
     if (queueCache) return { ...queueCache, ...manual };
     return { authorized: true, queue: [], ...manual };
   }
@@ -289,6 +367,7 @@ async function getQueue(options = {}) {
       queueBackoffUntil = 0;
       queueManualRetryRequired = false;
       queueRateLimitInfo = null;
+      queueTimeoutInfo = null;
       return payload;
     })
     .catch(err => {
@@ -298,8 +377,20 @@ async function getQueue(options = {}) {
         queueBackoffUntil = 0;
         queueManualRetryRequired = true;
         queueRateLimitInfo = { rawRetryAfter, waitMs, at: Date.now() };
+        queueTimeoutInfo = null;
         warnAndLogRateLimit('queue', rawRetryAfter, waitMs);
         const manual = buildManualRateLimitPayload('queue');
+        if (queueCache) return { ...queueCache, ...manual };
+        return { authorized: true, queue: [], ...manual };
+      }
+      if (isTimeoutError(err)) {
+        const timing = err.spotifyTiming || { request_started_at: Date.now(), timed_out_at: Date.now(), elapsed_ms: SPOTIFY_QUEUE_TIMEOUT_MS, timeout_ms: SPOTIFY_QUEUE_TIMEOUT_MS };
+        queueBackoffUntil = 0;
+        queueManualRetryRequired = true;
+        queueRateLimitInfo = null;
+        queueTimeoutInfo = { ...timing, waitMs: DEFAULT_BACKOFF_MS };
+        warnAndLogTimeout('queue', queueTimeoutInfo);
+        const manual = buildManualTimeoutPayload('queue');
         if (queueCache) return { ...queueCache, ...manual };
         return { authorized: true, queue: [], ...manual };
       }
@@ -319,7 +410,9 @@ function clearSpotifyRateLimitLocks() {
   queueManualRetryRequired = false;
   playbackRateLimitInfo = null;
   queueRateLimitInfo = null;
-  appendSpotifyLog('ℹ️ Spotify rate limit lock cleared by manual retry.');
+  playbackTimeoutInfo = null;
+  queueTimeoutInfo = null;
+  appendSpotifyLog('ℹ️ Spotify manual retry triggered: rate-limit / timeout locks cleared.');
 }
 
 function clearPlaybackCache() {
@@ -328,6 +421,7 @@ function clearPlaybackCache() {
   playbackBackoffUntil = 0;
   playbackManualRetryRequired = false;
   playbackRateLimitInfo = null;
+  playbackTimeoutInfo = null;
 }
 
 function clearQueueCache() {
@@ -336,6 +430,7 @@ function clearQueueCache() {
   queueBackoffUntil = 0;
   queueManualRetryRequired = false;
   queueRateLimitInfo = null;
+  queueTimeoutInfo = null;
 }
 
 function clearAllSpotifyCache() {
