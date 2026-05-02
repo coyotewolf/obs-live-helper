@@ -330,6 +330,12 @@ function publicSettings(settings = getSettings()) {
   };
 }
 
+function resolveApprovalMode(bodyMode, itemMode) {
+  const requestedMode = String(bodyMode || '').trim();
+  if (requestedMode === 'queue' || requestedMode === 'play-now') return requestedMode;
+  return itemMode === 'play-now' ? 'play-now' : 'queue';
+}
+
 async function buildQrDataUrl(url, options = {}) {
   return QRCode.toDataURL(url, {
     errorCorrectionLevel: 'M',
@@ -533,7 +539,6 @@ router.post('/submit', requirePin, async (req, res) => {
 
 router.post('/approve', requireAdmin, async (req, res) => {
   const id = String(req.body?.id || '');
-  const modeOverride = req.body?.mode === 'play-now' ? 'play-now' : null;
   const list = readRequests();
   const item = list.find(r => r.id === id);
   if (!item) return res.status(404).json({ ok: false, error: 'not_found', message: '找不到這筆點歌請求。' });
@@ -541,7 +546,7 @@ router.post('/approve', requireAdmin, async (req, res) => {
   const access_token = await getAuthorizedToken(res);
   if (!access_token) return;
 
-  const mode = modeOverride || item.mode || 'queue';
+  const mode = resolveApprovalMode(req.body?.mode, item.mode);
   try {
     if (mode === 'play-now') await playNow(item.track.uri, access_token);
     else await addToQueue(item.track.uri, access_token);
