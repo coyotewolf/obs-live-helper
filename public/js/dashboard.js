@@ -25,6 +25,8 @@ const toast = $('toast');
 
 const DEFAULT_MESSAGE_FONT_SIZE = 28;
 const DEFAULT_MESSAGE_COLOR = '#ffffff';
+let suppressNextLogAutoRefresh = false;
+let logManuallyClearedAt = 0;
 
 function showToast(message){
   if (!toast) return;
@@ -324,17 +326,40 @@ async function loadStatus(){
     renderTrackCover(null); setSpotifyPill('連線錯誤', 'statusError');
   }
 }
-async function loadLog(){
+async function loadLog(options = {}){
   if (!logView) return;
+  if (suppressNextLogAutoRefresh && !options.force) return;
   try {
     const txt = await fetch('/api/spotify/log').then(r => r.text());
+    if (logManuallyClearedAt && !txt) {
+      logView.textContent = '';
+      return;
+    }
     logView.textContent = txt || '目前沒有 log。';
     logView.scrollTop = logView.scrollHeight;
   } catch { logView.textContent = '讀取 log 失敗。'; }
 }
-clearLogViewBtn?.addEventListener('click', () => {
-  if (logView) logView.textContent = '';
-  showToast('已清除畫面上的 log');
+clearLogViewBtn?.addEventListener('click', async () => {
+  if (!logView) return;
+  clearLogViewBtn.disabled = true;
+  const original = clearLogViewBtn.textContent;
+  clearLogViewBtn.textContent = '清除中...';
+  try {
+    const res = await fetch('/api/spotify/log/clear', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.message || '清除 log 失敗');
+    logManuallyClearedAt = Date.now();
+    suppressNextLogAutoRefresh = false;
+    logView.textContent = '';
+    showToast('已清除 Spotify / Lyrics Log');
+  } catch (err) {
+    logView.textContent = '';
+    suppressNextLogAutoRefresh = true;
+    showToast(`${err.message}，已先清除目前畫面`);
+  } finally {
+    clearLogViewBtn.disabled = false;
+    clearLogViewBtn.textContent = original;
+  }
 });
 clearLyricsCacheBtn?.addEventListener('click', async () => {
   if (!confirm('確定要清除 LRCLib 歌詞快取嗎？下一次播放會重新查詢歌詞。')) return;
@@ -346,7 +371,7 @@ clearLyricsCacheBtn?.addEventListener('click', async () => {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) throw new Error(data.message || '清除歌詞快取失敗');
     showToast('已清除 LRCLib 歌詞快取');
-    loadLog();
+    loadLog({ force: true });
   } catch (err) {
     showToast(err.message);
   } finally {
