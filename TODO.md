@@ -9,7 +9,7 @@
 - [x] Add dashboard tab behavior.
 - [x] Fix Spotify playback manual retry required bottom 消失 bug.
 - [x] Fix spotify 頁面清除畫面無效bug.
-- [ ] Edit toast to 彈窗。
+- [x] Edit toast to 彈窗。
 - [ ] Add 啟動時重複(已有同樣的軟體啟動or使用同樣port) port warnings.
 - [ ] Add 備份 button behavior.
 - [ ] Fix manual / automatic card length 目前無法實際改變長度 bug.
