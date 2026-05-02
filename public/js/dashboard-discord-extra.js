@@ -1,21 +1,17 @@
-(function setupDashboardTabs(){
+(function(){
   const buttons = Array.from(document.querySelectorAll('[data-dashboard-tab]'));
   const panes = Array.from(document.querySelectorAll('[data-dashboard-pane]'));
-  if (!buttons.length || !panes.length) return;
-
-  const saved = localStorage.getItem('obsHelperDashboardTab') || 'start';
-
-  function activate(tabName){
-    buttons.forEach(btn => btn.classList.toggle('isActive', btn.dataset.dashboardTab === tabName));
-    panes.forEach(pane => pane.classList.toggle('isActive', pane.dataset.dashboardPane === tabName));
-    localStorage.setItem('obsHelperDashboardTab', tabName);
+  if (buttons.length && panes.length) {
+    const saved = localStorage.getItem('obsHelperDashboardTab') || 'start';
+    const activate = tabName => {
+      buttons.forEach(btn => btn.classList.toggle('isActive', btn.dataset.dashboardTab === tabName));
+      panes.forEach(pane => pane.classList.toggle('isActive', pane.dataset.dashboardPane === tabName));
+      localStorage.setItem('obsHelperDashboardTab', tabName);
+    };
+    buttons.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.dashboardTab)));
+    activate(buttons.some(btn => btn.dataset.dashboardTab === saved) ? saved : buttons[0].dataset.dashboardTab);
   }
 
-  buttons.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.dashboardTab)));
-  activate(buttons.some(btn => btn.dataset.dashboardTab === saved) ? saved : buttons[0].dataset.dashboardTab);
-})();
-
-(function persistDashboardAccordions(){
   document.querySelectorAll('.dashboardAccordion').forEach((details, index) => {
     const title = details.querySelector('summary strong')?.textContent?.trim() || `section-${index}`;
     const key = `obsHelperAccordion:${title}`;
@@ -26,47 +22,37 @@
   });
 })();
 
-(function addDiscordProfileOverlayCard(){
+(function(){
+  function showUiToast(message){
+    const toastEl = document.getElementById('toast');
+    if (!toastEl) return;
+    toastEl.textContent = message;
+    toastEl.classList.add('show');
+    clearTimeout(showUiToast.timer);
+    showUiToast.timer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+  }
+  window.showToast = showUiToast;
+  try { showToast = showUiToast; } catch {}
+})();
+
+(function(){
   const grid = document.querySelector('.overlayGrid');
   if (!grid || document.getElementById('dcProfilePicUrl')) return;
-
   const card = document.createElement('article');
   card.className = 'overlayCard panel';
-  card.innerHTML = `
-    <div class="overlayIcon">DC</div>
-    <div class="overlayBody">
-      <h3>Discord 語音頭貼 Overlay</h3>
-      <p>顯示 Discord 語音頻道中正在說話的使用者頭貼，已套用 OBS Live Helper 發光風格。</p>
-      <code id="dcProfilePicUrl"></code>
-    </div>
-    <div class="overlayActions">
-      <a href="/html/dcprofilepic.html" target="_blank">預覽</a>
-      <button class="btnMini" type="button" data-copy-discord-url>複製</button>
-    </div>
-  `;
+  card.innerHTML = '<div class="overlayIcon">DC</div><div class="overlayBody"><h3>Discord 語音頭貼 Overlay</h3><p>顯示 Discord 語音頻道中正在說話的使用者頭貼，已套用 OBS Live Helper 發光風格。</p><code id="dcProfilePicUrl"></code></div><div class="overlayActions"><a href="/html/dcprofilepic.html" target="_blank">預覽</a><button class="btnMini" type="button" data-copy-discord-url>複製</button></div>';
   grid.appendChild(card);
-
   const urlEl = document.getElementById('dcProfilePicUrl');
   if (urlEl) urlEl.textContent = `${location.origin}/html/dcprofilepic.html`;
-
   card.querySelector('[data-copy-discord-url]')?.addEventListener('click', async () => {
     const text = urlEl?.textContent?.trim();
     if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      const toast = document.getElementById('toast');
-      if (toast) {
-        toast.textContent = '已複製 Discord Overlay URL';
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 1800);
-      }
-    } catch {
-      alert('無法自動複製，請手動選取 URL');
-    }
+    try { await navigator.clipboard.writeText(text); window.showToast?.('已複製 Discord Overlay URL'); }
+    catch { window.showToast?.('無法自動複製，請手動選取 URL'); }
   });
 })();
 
-(function addSpotifyManualRetryPanel(){
+(function(){
   const spotifyBlock = document.getElementById('spotifyBlock');
   const logTitle = spotifyBlock?.querySelector('.logTitle');
   if (!spotifyBlock || !logTitle) return;
@@ -75,8 +61,7 @@
   if (!btnRow) {
     btnRow = document.createElement('div');
     btnRow.className = 'btnRow compact';
-    const existingButtons = Array.from(logTitle.querySelectorAll('button'));
-    existingButtons.forEach(btn => btnRow.appendChild(btn));
+    Array.from(logTitle.querySelectorAll('button')).forEach(btn => btnRow.appendChild(btn));
     logTitle.appendChild(btnRow);
   }
 
@@ -99,8 +84,7 @@
     timingBox.className = 'introText';
     timingBox.style.margin = '8px 0 0';
     timingBox.textContent = 'Spotify 回應時間：等待狀態更新...';
-    const trackBox = spotifyBlock.querySelector('.trackBox');
-    trackBox?.insertAdjacentElement('afterend', timingBox);
+    spotifyBlock.querySelector('.trackBox')?.insertAdjacentElement('afterend', timingBox);
   }
 
   let cacheBox = document.getElementById('lyricsCacheStatsInfo');
@@ -113,55 +97,25 @@
     timingBox.insertAdjacentElement('afterend', cacheBox);
   }
 
-  function keepRetryVisible(){
-    retryBtn.hidden = false;
-    retryBtn.style.display = '';
-  }
-
-  function toast(message){
-    const toastEl = document.getElementById('toast');
-    if (!toastEl) return;
-    toastEl.textContent = message;
-    toastEl.classList.add('show');
-    setTimeout(() => toastEl.classList.remove('show'), 1800);
-  }
-
-  function formatTime(value){
+  const keepRetryVisible = () => { retryBtn.hidden = false; retryBtn.style.display = ''; };
+  const formatTime = value => {
     const n = Number(value || 0);
-    if (!Number.isFinite(n) || n <= 0) return '';
-    return new Date(n).toLocaleTimeString('zh-TW', { hour12: false });
-  }
+    return Number.isFinite(n) && n > 0 ? new Date(n).toLocaleTimeString('zh-TW', { hour12: false }) : '';
+  };
 
   function renderTiming(st = {}){
     keepRetryVisible();
-
     if (st.spotify_timeout) {
-      const started = formatTime(st.spotify_request_started_at);
-      const timeoutAt = formatTime(st.spotify_timeout_at || st.spotify_response_at);
-      const elapsed = st.spotify_response_elapsed_ms || st.spotify_timeout_ms || 0;
-      timingBox.textContent = `Spotify timeout：請求 ${started || '-'}，逾時 ${timeoutAt || '-'}，等待 ${elapsed} ms。`;
-      return;
-    }
-
-    if (st.rate_limited || st.error === 'rate_limited') {
-      const limitedAt = formatTime(st.rate_limited_at);
-      const waitSec = Math.ceil(Number(st.retry_after_ms || 0) / 1000);
-      timingBox.textContent = `Spotify rate limit：時間 ${limitedAt || '-'}，建議等待 ${waitSec || '?'} 秒後重試。`;
-      return;
-    }
-
-    if (st.manual_retry_required) {
+      timingBox.textContent = `Spotify timeout：請求 ${formatTime(st.spotify_request_started_at) || '-'}，逾時 ${formatTime(st.spotify_timeout_at || st.spotify_response_at) || '-'}，等待 ${st.spotify_response_elapsed_ms || st.spotify_timeout_ms || 0} ms。`;
+    } else if (st.rate_limited || st.error === 'rate_limited') {
+      timingBox.textContent = `Spotify rate limit：時間 ${formatTime(st.rate_limited_at) || '-'}，建議等待 ${Math.ceil(Number(st.retry_after_ms || 0) / 1000) || '?'} 秒後重試。`;
+    } else if (st.manual_retry_required) {
       timingBox.textContent = 'Spotify 需要手動重試：請按「手動重試 Spotify」。';
-      return;
+    } else if (st.spotify_response_elapsed_ms || st.spotify_response_at) {
+      timingBox.textContent = `Spotify 回應時間：${formatTime(st.spotify_response_at) || '-'}，耗時 ${st.spotify_response_elapsed_ms || 0} ms。`;
+    } else {
+      timingBox.textContent = 'Spotify 回應時間：等待狀態更新，可隨時手動重試 Spotify。';
     }
-
-    if (st.spotify_response_elapsed_ms || st.spotify_response_at) {
-      const responseAt = formatTime(st.spotify_response_at);
-      timingBox.textContent = `Spotify 回應時間：${responseAt || '-'}，耗時 ${st.spotify_response_elapsed_ms || 0} ms。`;
-      return;
-    }
-
-    timingBox.textContent = 'Spotify 回應時間：等待狀態更新，可隨時手動重試 Spotify。';
   }
 
   function renderCacheStats(data = {}){
@@ -176,12 +130,8 @@
   }
 
   async function refreshCacheStats(){
-    try {
-      const data = await fetch('/api/spotify/lyrics-cache/stats').then(r => r.json());
-      renderCacheStats(data);
-    } catch {
-      cacheBox.textContent = '歌詞快取：讀取失敗。';
-    }
+    try { renderCacheStats(await fetch('/api/spotify/lyrics-cache/stats').then(r => r.json())); }
+    catch { cacheBox.textContent = '歌詞快取：讀取失敗。'; }
   }
 
   async function refreshTiming(){
@@ -189,9 +139,7 @@
     try {
       const response = await fetch('/api/spotify/status');
       const st = await response.json().catch(() => ({}));
-      if (!response.ok && !st.manual_retry_required) {
-        st.error = st.error || 'failed_to_fetch_playback';
-      }
+      if (!response.ok && !st.manual_retry_required) st.error = st.error || 'failed_to_fetch_playback';
       renderTiming(st);
     } catch {
       keepRetryVisible();
@@ -200,8 +148,10 @@
   }
 
   retryBtn.addEventListener('click', async () => {
-    if (!confirm('確定要手動重試 Spotify 嗎？\n\n這會清除目前的 Spotify rate-limit / timeout 鎖定，下一次狀態更新會重新呼叫 Spotify API。')) return;
-
+    const ok = await (window.showConfirmDialog
+      ? window.showConfirmDialog('確定要手動重試 Spotify 嗎？\n\n這會清除目前的 Spotify rate-limit / timeout 鎖定，下一次狀態更新會重新呼叫 Spotify API。', { title: '手動重試 Spotify' })
+      : Promise.resolve(true));
+    if (!ok) return;
     retryBtn.disabled = true;
     const original = retryBtn.textContent;
     retryBtn.textContent = '重試中...';
@@ -209,13 +159,13 @@
       const res = await fetch('/api/spotify/retry', { method: 'POST' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Spotify 手動重試失敗');
-      toast('已手動重試 Spotify');
+      window.showToast?.('已手動重試 Spotify');
       await refreshTiming();
       if (typeof window.loadStatus === 'function') window.loadStatus();
       if (typeof window.loadLog === 'function') window.loadLog();
     } catch (err) {
       keepRetryVisible();
-      toast(err.message);
+      window.showToast?.(err.message);
     } finally {
       retryBtn.disabled = false;
       retryBtn.textContent = original;
@@ -223,10 +173,7 @@
     }
   });
 
-  document.getElementById('clearLyricsCacheBtn')?.addEventListener('click', () => {
-    setTimeout(refreshCacheStats, 800);
-  });
-
+  document.getElementById('clearLyricsCacheBtn')?.addEventListener('click', () => setTimeout(refreshCacheStats, 800));
   window.refreshSpotifyManualRetryStatus = refreshTiming;
   refreshTiming();
   refreshCacheStats();
@@ -234,64 +181,20 @@
   setInterval(refreshCacheStats, 15000);
 })();
 
-(function addClearLogConfirmation(){
-  const clearLogViewBtn = document.getElementById('clearLogViewBtn');
-  if (!clearLogViewBtn) return;
-
-  clearLogViewBtn.addEventListener('click', event => {
-    if (clearLogViewBtn.dataset.confirmed === 'true') {
-      clearLogViewBtn.dataset.confirmed = 'false';
-      return;
-    }
-
-    const ok = confirm('確定要清除 Spotify / Lyrics Log 畫面嗎？\n\n這會清空 Dashboard 顯示的 log，並同步清空 storage/lyrics.log。');
-    if (!ok) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      return;
-    }
-
-    clearLogViewBtn.dataset.confirmed = 'true';
-  }, true);
-})();
-
-(function highlightAudienceRequestedAction(){
+(function(){
   if (typeof window.renderRequests !== 'function') return;
-
-  window.renderRequests = function renderRequestsWithRequestedActionHighlight(requests = []){
+  window.renderRequests = function(requests = []){
     const requestList = document.getElementById('requestList');
     if(!requestList) return;
-    if(!requests.length){
-      requestList.innerHTML = '<p class="emptyText">目前沒有點歌請求。</p>';
-      return;
-    }
-
+    if(!requests.length){ requestList.innerHTML = '<p class="emptyText">目前沒有點歌請求。</p>'; return; }
     requestList.innerHTML = requests.map(req=>{
       const track = req.track || {};
       const isPending = req.status === 'pending';
       const requestedMode = req.mode === 'play-now' ? 'play-now' : 'queue';
       const queueButtonClass = requestedMode === 'queue' ? 'btnPrimary' : 'btnGhost';
       const playNowButtonClass = requestedMode === 'play-now' ? 'btnPrimary' : 'btnGhost';
-
-      return `
-        <article class="requestItem ${isPending ? 'isPending' : ''}">
-          <img class="requestCover" src="${escapeHtml2(track.cover_url || '')}" alt="">
-          <div class="requestMeta">
-            <strong>${escapeHtml2(track.name || '未知歌曲')}</strong>
-            <span>${escapeHtml2(track.artists || '未知歌手')}</span>
-            <small>${escapeHtml2(req.nickname || '匿名觀眾')}・${requestStatusLabel(req.status)}・${requestedMode === 'play-now' ? '插播' : '佇列'}・${formatDuration(track.duration_ms)}</small>
-          </div>
-          <div class="requestActions">
-            ${isPending ? `<button class="${queueButtonClass}" data-request-action="approve" data-id="${req.id}">加入佇列</button>
-            <button class="${playNowButtonClass}" data-request-action="play-now" data-id="${req.id}">立即插播</button>
-            <button class="btnDanger" data-request-action="reject" data-id="${req.id}">拒絕</button>` : `<span class="statusPill">${requestStatusLabel(req.status)}</span>`}
-          </div>
-        </article>
-      `;
+      return `<article class="requestItem ${isPending ? 'isPending' : ''}"><img class="requestCover" src="${escapeHtml2(track.cover_url || '')}" alt=""><div class="requestMeta"><strong>${escapeHtml2(track.name || '未知歌曲')}</strong><span>${escapeHtml2(track.artists || '未知歌手')}</span><small>${escapeHtml2(req.nickname || '匿名觀眾')}・${requestStatusLabel(req.status)}・${requestedMode === 'play-now' ? '插播' : '佇列'}・${formatDuration(track.duration_ms)}</small></div><div class="requestActions">${isPending ? `<button class="${queueButtonClass}" data-request-action="approve" data-id="${req.id}">加入佇列</button><button class="${playNowButtonClass}" data-request-action="play-now" data-id="${req.id}">立即插播</button><button class="btnDanger" data-request-action="reject" data-id="${req.id}">拒絕</button>` : `<span class="statusPill">${requestStatusLabel(req.status)}</span>`}</div></article>`;
     }).join('');
   };
-
-  if (typeof window.loadRequestList === 'function') {
-    window.loadRequestList().catch(()=>{});
-  }
+  if (typeof window.loadRequestList === 'function') window.loadRequestList().catch(()=>{});
 })();
