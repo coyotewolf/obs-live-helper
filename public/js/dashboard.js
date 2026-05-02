@@ -285,6 +285,7 @@ const spotifyStatusPill = $('spotifyStatusPill');
 const trackSubInfo = $('trackSubInfo');
 const trackCover = $('trackCover');
 const clearLogViewBtn = $('clearLogViewBtn');
+const clearLyricsCacheBtn = $('clearLyricsCacheBtn');
 loginBtn?.addEventListener('click', () => window.open('/api/spotify/auth/login', '_blank'));
 function setSpotifyPill(text, state){
   if (!spotifyStatusPill) return;
@@ -334,6 +335,24 @@ async function loadLog(){
 clearLogViewBtn?.addEventListener('click', () => {
   if (logView) logView.textContent = '';
   showToast('已清除畫面上的 log');
+});
+clearLyricsCacheBtn?.addEventListener('click', async () => {
+  if (!confirm('確定要清除 LRCLib 歌詞快取嗎？下一次播放會重新查詢歌詞。')) return;
+  clearLyricsCacheBtn.disabled = true;
+  const original = clearLyricsCacheBtn.textContent;
+  clearLyricsCacheBtn.textContent = '清除中...';
+  try {
+    const res = await fetch('/api/spotify/lyrics-cache/clear', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.message || '清除歌詞快取失敗');
+    showToast('已清除 LRCLib 歌詞快取');
+    loadLog();
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    clearLyricsCacheBtn.disabled = false;
+    clearLyricsCacheBtn.textContent = original;
+  }
 });
 loadStatus(); loadLog();
 setInterval(loadStatus, 3000);
