@@ -29,12 +29,9 @@ let suppressNextLogAutoRefresh = false;
 let logManuallyClearedAt = 0;
 
 function showToast(message){
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add('show');
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => toast.classList.remove('show'), 1800);
+  alert(message);
 }
+window.showToast = showToast;
 
 function rebuildFontOptions(selected = fontSel?.value){
   if (!fontSel) return;
@@ -338,8 +335,7 @@ async function loadLog(options = {}){
     logView.textContent = txt || '目前沒有 log。';
     logView.scrollTop = logView.scrollHeight;
   } catch { logView.textContent = '讀取 log 失敗。'; }
-}
-clearLogViewBtn?.addEventListener('click', async () => {
+}\nclearLogViewBtn?.addEventListener('click', async () => {
   if (!logView) return;
   clearLogViewBtn.disabled = true;
   const original = clearLogViewBtn.textContent;
