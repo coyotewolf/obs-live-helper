@@ -13,7 +13,11 @@ const controlPanel = document.getElementById('controlPanel');
 let currentSettings = null;
 
 function showToast(message){
-  alert(message);
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
 function escapeHtml(text){
