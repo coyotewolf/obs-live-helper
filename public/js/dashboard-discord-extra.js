@@ -1,3 +1,31 @@
+(function setupDashboardTabs(){
+  const buttons = Array.from(document.querySelectorAll('[data-dashboard-tab]'));
+  const panes = Array.from(document.querySelectorAll('[data-dashboard-pane]'));
+  if (!buttons.length || !panes.length) return;
+
+  const saved = localStorage.getItem('obsHelperDashboardTab') || 'start';
+
+  function activate(tabName){
+    buttons.forEach(btn => btn.classList.toggle('isActive', btn.dataset.dashboardTab === tabName));
+    panes.forEach(pane => pane.classList.toggle('isActive', pane.dataset.dashboardPane === tabName));
+    localStorage.setItem('obsHelperDashboardTab', tabName);
+  }
+
+  buttons.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.dashboardTab)));
+  activate(buttons.some(btn => btn.dataset.dashboardTab === saved) ? saved : buttons[0].dataset.dashboardTab);
+})();
+
+(function persistDashboardAccordions(){
+  document.querySelectorAll('.dashboardAccordion').forEach((details, index) => {
+    const title = details.querySelector('summary strong')?.textContent?.trim() || `section-${index}`;
+    const key = `obsHelperAccordion:${title}`;
+    const saved = localStorage.getItem(key);
+    if (saved === 'open') details.open = true;
+    if (saved === 'closed') details.open = false;
+    details.addEventListener('toggle', () => localStorage.setItem(key, details.open ? 'open' : 'closed'));
+  });
+})();
+
 (function addDiscordProfileOverlayCard(){
   const grid = document.querySelector('.overlayGrid');
   if (!grid || document.getElementById('dcProfilePicUrl')) return;
