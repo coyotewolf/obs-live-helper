@@ -71,18 +71,34 @@ router.get('/callback', async (req, res) => {
 });
 
 /**
- * Manual retry after Spotify rate limit.
+ * Manual retry after Spotify rate limit or timeout.
  * This clears the local lock; the next status/queue read will try Spotify again.
  */
 router.post('/retry', async (req, res) => {
   clearSpotifyRateLimitLocks();
-  res.json({ ok: true, message: 'Spotify rate-limit lock cleared. The next request will retry Spotify.' });
+  res.json({ ok: true, message: 'Spotify rate-limit / timeout lock cleared. The next request will retry Spotify.' });
 });
 
 router.post('/lyrics-cache/clear', async (req, res) => {
   const result = clearLyricsCache();
   res.json({ ok: true, ...result, message: 'LRCLib lyrics cache cleared.' });
 });
+
+function spotifyTimingFields(payload = {}) {
+  return {
+    rate_limited: Boolean(payload.rate_limited),
+    spotify_timeout: Boolean(payload.spotify_timeout),
+    manual_retry_required: Boolean(payload.manual_retry_required),
+    retry_after_ms: payload.retry_after_ms || 0,
+    retry_after_raw: payload.retry_after_raw || '',
+    rate_limited_at: payload.rate_limited_at || 0,
+    spotify_timeout_ms: payload.spotify_timeout_ms || 0,
+    spotify_response_elapsed_ms: payload.spotify_response_elapsed_ms || 0,
+    spotify_request_started_at: payload.spotify_request_started_at || 0,
+    spotify_timeout_at: payload.spotify_timeout_at || 0,
+    spotify_response_at: payload.spotify_response_at || 0
+  };
+}
 
 /**
  * Current playback / lyric sync status
@@ -97,11 +113,7 @@ router.get('/status', async (req, res) => {
       return res.json({
         authorized: true,
         playing: false,
-        rate_limited: Boolean(playback.rate_limited),
-        manual_retry_required: Boolean(playback.manual_retry_required),
-        retry_after_ms: playback.retry_after_ms || 0,
-        retry_after_raw: playback.retry_after_raw || '',
-        rate_limited_at: playback.rate_limited_at || 0
+        ...spotifyTimingFields(playback)
       });
     }
 
@@ -111,11 +123,7 @@ router.get('/status', async (req, res) => {
       playing: Boolean(playback.playing),
       track: playback.track,
       lyricsSynced,
-      rate_limited: Boolean(playback.rate_limited),
-      manual_retry_required: Boolean(playback.manual_retry_required),
-      retry_after_ms: playback.retry_after_ms || 0,
-      retry_after_raw: playback.retry_after_raw || '',
-      rate_limited_at: playback.rate_limited_at || 0
+      ...spotifyTimingFields(playback)
     });
   } catch (err) {
     console.error('status error:', err.response?.data || err.message);
@@ -150,11 +158,7 @@ router.get('/queue', async (req, res) => {
       currently_playing: data.currently_playing || null,
       queue: data.queue || [],
       fetched_at: data.fetched_at || Date.now(),
-      rate_limited: Boolean(data.rate_limited),
-      manual_retry_required: Boolean(data.manual_retry_required),
-      retry_after_ms: data.retry_after_ms || 0,
-      retry_after_raw: data.retry_after_raw || '',
-      rate_limited_at: data.rate_limited_at || 0
+      ...spotifyTimingFields(data)
     });
   } catch (err) {
     const spotifyError = err.response?.data;
