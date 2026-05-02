@@ -46,14 +46,18 @@ const LRCLIB_CIRCUIT_FAILURE_THRESHOLD = Number(process.env.LRCLIB_CIRCUIT_FAILU
 const LRCLIB_CIRCUIT_OPEN_MS = Number(process.env.LRCLIB_CIRCUIT_OPEN_MS || 120000);
 const LRCLIB_CACHE_READY_TTL_MS = Number(process.env.LRCLIB_CACHE_READY_TTL_MS || 30 * 24 * 60 * 60 * 1000);
 const LRCLIB_CACHE_NOT_FOUND_TTL_MS = Number(process.env.LRCLIB_CACHE_NOT_FOUND_TTL_MS || 6 * 60 * 60 * 1000);
-const LRCLIB_PREFETCH_LIMIT = Number(process.env.LRCLIB_PREFETCH_LIMIT || 5);
+const LRCLIB_PREFETCH_LIMIT = Number(process.env.LRCLIB_PREFETCH_LIMIT || 3);
 const LRCLIB_MAX_FUZZY_SEARCHES = Number(process.env.LRCLIB_MAX_FUZZY_SEARCHES || 1);
+const LRCLIB_REQUEST_INTERVAL_MS = Number(process.env.LRCLIB_REQUEST_INTERVAL_MS || 1500);
+const LRCLIB_PREFETCH_TRACK_INTERVAL_MS = Number(process.env.LRCLIB_PREFETCH_TRACK_INTERVAL_MS || 6000);
 
 let lyricsCache = loadLyricsCache();
 let cacheDirty = false;
 const inFlightLookupMap = new Map();
 const prefetchingTrackIds = new Set();
 let prefetchQueuePromise = null;
+let lastLrclibRequestAt = 0;
+let lastPrefetchTrackAt = 0;
 
 let lrclibCircuit = {
   state: 'closed',
@@ -72,6 +76,24 @@ function logLine(msg) {
   const stamp = new Date().toISOString();
   fs.appendFileSync(LOG_FILE, `[${stamp}] ${msg}\n`);
   console.log(`[${stamp}] ${msg}`);
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
+}
+
+async function waitForLrclibRequestSlot() {
+  if (!LRCLIB_REQUEST_INTERVAL_MS || LRCLIB_REQUEST_INTERVAL_MS <= 0) return;
+  const waitMs = LRCLIB_REQUEST_INTERVAL_MS - (Date.now() - lastLrclibRequestAt);
+  if (waitMs > 0) await sleep(waitMs);
+  lastLrclibRequestAt = Date.now();
+}
+
+async function waitForPrefetchTrackSlot() {
+  if (!LRCLIB_PREFETCH_TRACK_INTERVAL_MS || LRCLIB_PREFETCH_TRACK_INTERVAL_MS <= 0) return;
+  const waitMs = LRCLIB_PREFETCH_TRACK_INTERVAL_MS - (Date.now() - lastPrefetchTrackAt);
+  if (waitMs > 0) await sleep(waitMs);
+  lastPrefetchTrackAt = Date.now();
 }
 
 function writeCurrentLrc(text) {
@@ -331,6 +353,7 @@ function scoreSearchResult(item, context) {
 
 async function callLrclib(pathname, params) {
   beforeLrclibRequest();
+  await waitForLrclibRequestSlot();
 
   try {
     const response = await lrclibClient.get(pathname, { params });
@@ -710,6 +733,7 @@ async function prefetchLyricsForTracks(tracks = []) {
 
       prefetchingTrackIds.add(context.trackId);
       try {
+        await waitForPrefetchTrackSlot();
         checked += 1;
         await fetchLyricsLRC({
           trackId: context.trackId,
