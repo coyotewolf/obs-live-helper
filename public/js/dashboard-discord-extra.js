@@ -65,8 +65,14 @@
   timingBox.className = 'introText';
   timingBox.style.margin = '8px 0 0';
   timingBox.textContent = 'Spotify 回應時間：等待狀態更新...';
+  const cacheBox = document.createElement('p');
+  cacheBox.id = 'lyricsCacheStatsInfo';
+  cacheBox.className = 'introText';
+  cacheBox.style.margin = '4px 0 0';
+  cacheBox.textContent = '歌詞快取：讀取中...';
   const trackBox = spotifyBlock.querySelector('.trackBox');
   trackBox?.insertAdjacentElement('afterend', timingBox);
+  timingBox.insertAdjacentElement('afterend', cacheBox);
 
   function toast(message){
     const toastEl = document.getElementById('toast');
@@ -110,6 +116,26 @@
     timingBox.textContent = 'Spotify 回應時間：等待狀態更新...';
   }
 
+  function renderCacheStats(data = {}){
+    const cache = data.cache || data;
+    if (!cache || cache.exists === false) {
+      cacheBox.textContent = '歌詞快取：0 B，0 筆。';
+      return;
+    }
+    const newest = cache.newest_updated_at ? new Date(cache.newest_updated_at).toLocaleTimeString('zh-TW', { hour12: false }) : '-';
+    const parseNote = cache.error ? `，錯誤：${cache.error}` : '';
+    cacheBox.textContent = `歌詞快取：${cache.file_size_label || '0 B'}，共 ${cache.total_entries || 0} 筆（成功 ${cache.ready_entries || 0}、找不到 ${cache.not_found_entries || 0}、過期 ${cache.expired_entries || 0}），最新 ${newest}${parseNote}`;
+  }
+
+  async function refreshCacheStats(){
+    try {
+      const data = await fetch('/api/spotify/lyrics-cache/stats').then(r => r.json());
+      renderCacheStats(data);
+    } catch {
+      cacheBox.textContent = '歌詞快取：讀取失敗。';
+    }
+  }
+
   async function refreshTiming(){
     try {
       const st = await fetch('/api/spotify/status').then(r => r.json());
@@ -139,8 +165,14 @@
     }
   });
 
+  document.getElementById('clearLyricsCacheBtn')?.addEventListener('click', () => {
+    setTimeout(refreshCacheStats, 800);
+  });
+
   refreshTiming();
+  refreshCacheStats();
   setInterval(refreshTiming, 6000);
+  setInterval(refreshCacheStats, 15000);
 })();
 
 (function highlightAudienceRequestedAction(){
