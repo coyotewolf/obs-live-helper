@@ -7,7 +7,7 @@
 
   function activate(tabName){
     buttons.forEach(btn => btn.classList.toggle('isActive', btn.dataset.dashboardTab === tabName));
-    panes.forEach(pane => pane.classList.toggle('isActive', pane.dataset.dashboardPane === tabName));
+    panes.forEach(pane => pane.classList.toggle('isActive', pane.datasetDashboardPane === tabName || pane.dataset.dashboardPane === tabName));
     localStorage.setItem('obsHelperDashboardTab', tabName);
   }
 
@@ -69,7 +69,7 @@
 (function addSpotifyManualRetryPanel(){
   const spotifyBlock = document.getElementById('spotifyBlock');
   const logTitle = spotifyBlock?.querySelector('.logTitle');
-  if (!spotifyBlock || !logTitle || document.getElementById('retrySpotifyBtn')) return;
+  if (!spotifyBlock || !logTitle) return;
 
   let btnRow = logTitle.querySelector('.btnRow');
   if (!btnRow) {
@@ -80,27 +80,45 @@
     logTitle.appendChild(btnRow);
   }
 
-  const retryBtn = document.createElement('button');
-  retryBtn.id = 'retrySpotifyBtn';
-  retryBtn.className = 'btnMini';
-  retryBtn.type = 'button';
-  retryBtn.textContent = '手動重試 Spotify';
-  retryBtn.style.display = 'none';
-  btnRow.prepend(retryBtn);
+  let retryBtn = document.getElementById('retrySpotifyBtn');
+  if (!retryBtn) {
+    retryBtn = document.createElement('button');
+    retryBtn.id = 'retrySpotifyBtn';
+    retryBtn.className = 'btnMini spotifyRetryButton';
+    retryBtn.type = 'button';
+    retryBtn.textContent = '手動重試 Spotify';
+    retryBtn.hidden = true;
+    btnRow.prepend(retryBtn);
+  }
 
-  const timingBox = document.createElement('p');
-  timingBox.id = 'spotifyTimingInfo';
-  timingBox.className = 'introText';
-  timingBox.style.margin = '8px 0 0';
-  timingBox.textContent = 'Spotify 回應時間：等待狀態更新...';
-  const cacheBox = document.createElement('p');
-  cacheBox.id = 'lyricsCacheStatsInfo';
-  cacheBox.className = 'introText';
-  cacheBox.style.margin = '4px 0 0';
-  cacheBox.textContent = '歌詞快取：讀取中...';
-  const trackBox = spotifyBlock.querySelector('.trackBox');
-  trackBox?.insertAdjacentElement('afterend', timingBox);
-  timingBox.insertAdjacentElement('afterend', cacheBox);
+  let timingBox = document.getElementById('spotifyTimingInfo');
+  if (!timingBox) {
+    timingBox = document.createElement('p');
+    timingBox.id = 'spotifyTimingInfo';
+    timingBox.className = 'introText';
+    timingBox.style.margin = '8px 0 0';
+    timingBox.textContent = 'Spotify 回應時間：等待狀態更新...';
+    const trackBox = spotifyBlock.querySelector('.trackBox');
+    trackBox?.insertAdjacentElement('afterend', timingBox);
+  }
+
+  let cacheBox = document.getElementById('lyricsCacheStatsInfo');
+  if (!cacheBox) {
+    cacheBox = document.createElement('p');
+    cacheBox.id = 'lyricsCacheStatsInfo';
+    cacheBox.className = 'introText';
+    cacheBox.style.margin = '4px 0 0';
+    cacheBox.textContent = '歌詞快取：讀取中...';
+    timingBox.insertAdjacentElement('afterend', cacheBox);
+  }
+
+  let manualRetryVisible = false;
+
+  function setRetryVisible(visible){
+    manualRetryVisible = Boolean(visible);
+    retryBtn.hidden = !manualRetryVisible;
+    retryBtn.style.display = manualRetryVisible ? '' : 'none';
+  }
 
   function toast(message){
     const toastEl = document.getElementById('toast');
@@ -117,8 +135,14 @@
   }
 
   function renderTiming(st = {}){
-    const hasProblem = Boolean(st.manual_retry_required || st.spotify_timeout || st.rate_limited);
-    retryBtn.style.display = hasProblem ? '' : 'none';
+    const hasProblem = Boolean(
+      st.manual_retry_required ||
+      st.spotify_timeout ||
+      st.rate_limited ||
+      st.error === 'rate_limited' ||
+      st.error === 'failed_to_fetch_playback'
+    );
+    setRetryVisible(hasProblem);
 
     if (st.spotify_timeout) {
       const started = formatTime(st.spotify_request_started_at);
@@ -128,10 +152,15 @@
       return;
     }
 
-    if (st.rate_limited) {
+    if (st.rate_limited || st.error === 'rate_limited') {
       const limitedAt = formatTime(st.rate_limited_at);
       const waitSec = Math.ceil(Number(st.retry_after_ms || 0) / 1000);
       timingBox.textContent = `Spotify rate limit：時間 ${limitedAt || '-'}，建議等待 ${waitSec || '?'} 秒後重試。`;
+      return;
+    }
+
+    if (st.manual_retry_required) {
+      timingBox.textContent = 'Spotify 需要手動重試：請按「手動重試 Spotify」。';
       return;
     }
 
@@ -166,10 +195,15 @@
 
   async function refreshTiming(){
     try {
-      const st = await fetch('/api/spotify/status').then(r => r.json());
+      const response = await fetch('/api/spotify/status');
+      const st = await response.json().catch(() => ({}));
+      if (!response.ok && !st.manual_retry_required) {
+        st.error = st.error || 'failed_to_fetch_playback';
+      }
       renderTiming(st);
     } catch {
-      timingBox.textContent = 'Spotify 回應時間：狀態讀取失敗。';
+      setRetryVisible(true);
+      timingBox.textContent = 'Spotify 回應時間：狀態讀取失敗，可手動重試 Spotify。';
     }
   }
 
@@ -182,10 +216,12 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Spotify 手動重試失敗');
       toast('已手動重試 Spotify');
+      setRetryVisible(false);
       await refreshTiming();
       if (typeof window.loadStatus === 'function') window.loadStatus();
       if (typeof window.loadLog === 'function') window.loadLog();
     } catch (err) {
+      setRetryVisible(true);
       toast(err.message);
     } finally {
       retryBtn.disabled = false;
@@ -197,6 +233,7 @@
     setTimeout(refreshCacheStats, 800);
   });
 
+  window.refreshSpotifyManualRetryStatus = refreshTiming;
   refreshTiming();
   refreshCacheStats();
   setInterval(refreshTiming, 6000);
