@@ -13,10 +13,7 @@ const toast = $('toast');
 let latestStatus = null;
 
 function showToast(message) {
-  toast.textContent = message;
-  toast.classList.add('show');
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => toast.classList.remove('show'), 1800);
+  alert(message);
 }
 
 function renderStatus(data) {
