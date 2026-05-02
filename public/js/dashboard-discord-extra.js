@@ -200,6 +200,8 @@
   }
 
   retryBtn.addEventListener('click', async () => {
+    if (!confirm('確定要手動重試 Spotify 嗎？\n\n這會清除目前的 Spotify rate-limit / timeout 鎖定，下一次狀態更新會重新呼叫 Spotify API。')) return;
+
     retryBtn.disabled = true;
     const original = retryBtn.textContent;
     retryBtn.textContent = '重試中...';
@@ -230,6 +232,27 @@
   refreshCacheStats();
   setInterval(refreshTiming, 6000);
   setInterval(refreshCacheStats, 15000);
+})();
+
+(function addClearLogConfirmation(){
+  const clearLogViewBtn = document.getElementById('clearLogViewBtn');
+  if (!clearLogViewBtn) return;
+
+  clearLogViewBtn.addEventListener('click', event => {
+    if (clearLogViewBtn.dataset.confirmed === 'true') {
+      clearLogViewBtn.dataset.confirmed = 'false';
+      return;
+    }
+
+    const ok = confirm('確定要清除 Spotify / Lyrics Log 畫面嗎？\n\n這會清空 Dashboard 顯示的 log，並同步清空 storage/lyrics.log。');
+    if (!ok) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    clearLogViewBtn.dataset.confirmed = 'true';
+  }, true);
 })();
 
 (function highlightAudienceRequestedAction(){
