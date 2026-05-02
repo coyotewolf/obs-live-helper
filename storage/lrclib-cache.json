@@ -435,5 +435,62 @@
     "artists": "Eminem, Joyner Lucas",
     "album": "Kamikaze",
     "updatedAt": 1777740366926
+  },
+  "0GznXc2w22AGcwj5eAW9Yo": {
+    "status": "ready",
+    "lyrics": "[00:00.96] Where have all the good men gone and where are all the gods?\n[00:07.01] Where's the streetwise Hercules to fight the rising odds?\n[00:13.74] Isn't there a white knight upon a fiery steed\n[00:20.12] Late at night I toss and I turn and I dream of what I need\n[00:25.57] I need a hero\n[00:28.01] I'm holding out for a hero 'til the end of the night\n[00:32.15] He's gotta be strong and he's gotta be fast\n[00:35.38] And he's gotta be fresh from the fight\n[00:38.43] I need a hero\n[00:40.79] I'm holding out for a hero 'til the morning light\n[00:44.95] It's gotta be sure and it's gotta be soon\n[00:48.16] And it's gotta be larger than life, larger than life\n[00:53.94] \n[01:07.21] I need a hero\n[01:10.30] \n[01:20.08] I need a hero\n[01:22.47] Holding out for a hero 'til the morning light\n[01:26.59] It's gotta be sure and it's gotta be soon\n[01:29.61] And it's gotta be larger than life\n[01:33.50] Up where the mountains meet the heavens above\n[01:36.72] Or where the lightning splits the sea\n[01:40.19] I could swear that there's someone somewhere watching me\n[01:46.36] Through the wind and the chill and the rain\n[01:49.62] And the storm and the flood\n[01:52.63] I can feel his approach like a fire in my blood\n[01:58.35] I need a hero\n[02:00.60] I'm holding out for a hero 'til the end of the night\n[02:04.81] He's gotta be strong and he's gotta be fast\n[02:08.04] And he's gotta be larger than life, larger than life\n[02:14.62] \n[02:23.90] I need a hero\n[02:26.85] \n[02:36.65] I need a hero\n[02:39.43] Holding out for a hero 'til the morning light\n[02:43.47] It's gotta be sure and it's gotta be soon\n[02:46.01] And it's gotta be larger than life\n[02:49.73] ",
+    "source": "/api/get (exact original title + first artist)",
+    "matched": {
+      "id": 4922197,
+      "name": "Holding Out For A Hero",
+      "trackName": "Holding Out For A Hero",
+      "artistName": "NIVIRO",
+      "albumName": "Holding Out For A Hero",
+      "duration": 176,
+      "instrumental": false,
+      "plainLyrics": "Where have all the good men gone and where are all the gods?\nWhere's the streetwise Hercules to fight the rising odds?\nIsn't there a white knight upon a fiery steed\nLate at night I toss and I turn and I dream of what I need\n\nI need a hero\nI'm holding out for a hero 'til the end of the night\nHe's gotta be strong and he's gotta be fast\nAnd he's gotta be fresh from the fight\n\nI need a hero\nI'm holding out for a hero 'til the morning light\nIt's gotta be sure and it's gotta be soon\nAnd it's gotta be larger than life, larger than life\n\nI need a hero\n\nI need a hero\nHolding out for a hero 'til the morning light\nIt's gotta be sure and it's gotta be soon\nAnd it's gotta be larger than life\n\nUp where the mountains meet the heavens above\nOr where the lightning splits the sea\nI could swear that there's someone somewhere watching me\nThrough the wind and the chill and the rain\nAnd the storm and the flood\nI can feel his approach like a fire in my blood\n\nI need a hero\nI'm holding out for a hero 'til the end of the night\nHe's gotta be strong and he's gotta be fast\nAnd he's gotta be larger than life, larger than life\n\nI need a hero\n\nI need a hero\nHolding out for a hero 'til the morning light\nIt's gotta be sure and it's gotta be soon\nAnd it's gotta be larger than life",
+      "syncedLyrics": "[00:00.96] Where have all the good men gone and where are all the gods?\n[00:07.01] Where's the streetwise Hercules to fight the rising odds?\n[00:13.74] Isn't there a white knight upon a fiery steed\n[00:20.12] Late at night I toss and I turn and I dream of what I need\n[00:25.57] I need a hero\n[00:28.01] I'm holding out for a hero 'til the end of the night\n[00:32.15] He's gotta be strong and he's gotta be fast\n[00:35.38] And he's gotta be fresh from the fight\n[00:38.43] I need a hero\n[00:40.79] I'm holding out for a hero 'til the morning light\n[00:44.95] It's gotta be sure and it's gotta be soon\n[00:48.16] And it's gotta be larger than life, larger than life\n[00:53.94] \n[01:07.21] I need a hero\n[01:10.30] \n[01:20.08] I need a hero\n[01:22.47] Holding out for a hero 'til the morning light\n[01:26.59] It's gotta be sure and it's gotta be soon\n[01:29.61] And it's gotta be larger than life\n[01:33.50] Up where the mountains meet the heavens above\n[01:36.72] Or where the lightning splits the sea\n[01:40.19] I could swear that there's someone somewhere watching me\n[01:46.36] Through the wind and the chill and the rain\n[01:49.62] And the storm and the flood\n[01:52.63] I can feel his approach like a fire in my blood\n[01:58.35] I need a hero\n[02:00.60] I'm holding out for a hero 'til the end of the night\n[02:04.81] He's gotta be strong and he's gotta be fast\n[02:08.04] And he's gotta be larger than life, larger than life\n[02:14.62] \n[02:23.90] I need a hero\n[02:26.85] \n[02:36.65] I need a hero\n[02:39.43] Holding out for a hero 'til the morning light\n[02:43.47] It's gotta be sure and it's gotta be soon\n[02:46.01] And it's gotta be larger than life\n[02:49.73] ",
+      "lyricsfile": null
+    },
+    "expiresAt": 1780332668816,
+    "key": "0GznXc2w22AGcwj5eAW9Yo",
+    "trackId": "0GznXc2w22AGcwj5eAW9Yo",
+    "title": "Holding Out For A Hero",
+    "artists": "NIVIRO",
+    "album": "Holding Out For A Hero",
+    "updatedAt": 1777740668817
+  },
+  "7cmpWAZsamIlIiyU1aMGZD": {
+    "status": "not_found",
+    "reason": "LRCLib synced lyrics not found after exact + limited fuzzy search",
+    "expiresAt": 1777762429525,
+    "key": "7cmpWAZsamIlIiyU1aMGZD",
+    "trackId": "7cmpWAZsamIlIiyU1aMGZD",
+    "title": "Quantum",
+    "artists": "Martin Garrix, Brooks",
+    "album": "Quantum",
+    "updatedAt": 1777740829525
+  },
+  "4jTag79RBTSkk9YX82WKEe": {
+    "status": "not_found",
+    "reason": "LRCLib synced lyrics not found after exact + limited fuzzy search",
+    "expiresAt": 1777762651776,
+    "key": "4jTag79RBTSkk9YX82WKEe",
+    "trackId": "4jTag79RBTSkk9YX82WKEe",
+    "title": "The Hill Of Sorcery",
+    "artists": "Howard Shore",
+    "album": "The Hobbit: An Unexpected Journey Original Motion Picture Soundtrack (International Version)",
+    "updatedAt": 1777741051776
+  },
+  "3H81oJuTCtddG32tEptTbs": {
+    "status": "not_found",
+    "reason": "LRCLib synced lyrics not found after exact + limited fuzzy search",
+    "expiresAt": 1777762894470,
+    "key": "3H81oJuTCtddG32tEptTbs",
+    "trackId": "3H81oJuTCtddG32tEptTbs",
+    "title": "Yeah Right",
+    "artists": "M.I.M.E, Born I",
+    "album": "Yeah Right",
+    "updatedAt": 1777741294470
   }
 }
