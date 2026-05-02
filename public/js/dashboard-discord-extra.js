@@ -38,6 +38,111 @@
   });
 })();
 
+(function addSpotifyManualRetryPanel(){
+  const spotifyBlock = document.getElementById('spotifyBlock');
+  const logTitle = spotifyBlock?.querySelector('.logTitle');
+  if (!spotifyBlock || !logTitle || document.getElementById('retrySpotifyBtn')) return;
+
+  let btnRow = logTitle.querySelector('.btnRow');
+  if (!btnRow) {
+    btnRow = document.createElement('div');
+    btnRow.className = 'btnRow compact';
+    const existingButtons = Array.from(logTitle.querySelectorAll('button'));
+    existingButtons.forEach(btn => btnRow.appendChild(btn));
+    logTitle.appendChild(btnRow);
+  }
+
+  const retryBtn = document.createElement('button');
+  retryBtn.id = 'retrySpotifyBtn';
+  retryBtn.className = 'btnMini';
+  retryBtn.type = 'button';
+  retryBtn.textContent = '手動重試 Spotify';
+  retryBtn.style.display = 'none';
+  btnRow.prepend(retryBtn);
+
+  const timingBox = document.createElement('p');
+  timingBox.id = 'spotifyTimingInfo';
+  timingBox.className = 'introText';
+  timingBox.style.margin = '8px 0 0';
+  timingBox.textContent = 'Spotify 回應時間：等待狀態更新...';
+  const trackBox = spotifyBlock.querySelector('.trackBox');
+  trackBox?.insertAdjacentElement('afterend', timingBox);
+
+  function toast(message){
+    const toastEl = document.getElementById('toast');
+    if (!toastEl) return;
+    toastEl.textContent = message;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 1800);
+  }
+
+  function formatTime(value){
+    const n = Number(value || 0);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    return new Date(n).toLocaleTimeString('zh-TW', { hour12: false });
+  }
+
+  function renderTiming(st = {}){
+    const hasProblem = Boolean(st.manual_retry_required || st.spotify_timeout || st.rate_limited);
+    retryBtn.style.display = hasProblem ? '' : 'none';
+
+    if (st.spotify_timeout) {
+      const started = formatTime(st.spotify_request_started_at);
+      const timeoutAt = formatTime(st.spotify_timeout_at || st.spotify_response_at);
+      const elapsed = st.spotify_response_elapsed_ms || st.spotify_timeout_ms || 0;
+      timingBox.textContent = `Spotify timeout：請求 ${started || '-'}，逾時 ${timeoutAt || '-'}，等待 ${elapsed} ms。`;
+      return;
+    }
+
+    if (st.rate_limited) {
+      const limitedAt = formatTime(st.rate_limited_at);
+      const waitSec = Math.ceil(Number(st.retry_after_ms || 0) / 1000);
+      timingBox.textContent = `Spotify rate limit：時間 ${limitedAt || '-'}，建議等待 ${waitSec || '?'} 秒後重試。`;
+      return;
+    }
+
+    if (st.spotify_response_elapsed_ms || st.spotify_response_at) {
+      const responseAt = formatTime(st.spotify_response_at);
+      timingBox.textContent = `Spotify 回應時間：${responseAt || '-'}，耗時 ${st.spotify_response_elapsed_ms || 0} ms。`;
+      return;
+    }
+
+    timingBox.textContent = 'Spotify 回應時間：等待狀態更新...';
+  }
+
+  async function refreshTiming(){
+    try {
+      const st = await fetch('/api/spotify/status').then(r => r.json());
+      renderTiming(st);
+    } catch {
+      timingBox.textContent = 'Spotify 回應時間：狀態讀取失敗。';
+    }
+  }
+
+  retryBtn.addEventListener('click', async () => {
+    retryBtn.disabled = true;
+    const original = retryBtn.textContent;
+    retryBtn.textContent = '重試中...';
+    try {
+      const res = await fetch('/api/spotify/retry', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data.message || 'Spotify 手動重試失敗');
+      toast('已手動重試 Spotify');
+      await refreshTiming();
+      if (typeof window.loadStatus === 'function') window.loadStatus();
+      if (typeof window.loadLog === 'function') window.loadLog();
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      retryBtn.disabled = false;
+      retryBtn.textContent = original;
+    }
+  });
+
+  refreshTiming();
+  setInterval(refreshTiming, 6000);
+})();
+
 (function highlightAudienceRequestedAction(){
   if (typeof window.renderRequests !== 'function') return;
 
