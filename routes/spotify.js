@@ -6,6 +6,7 @@ const { generateCodePair, exchangeCodeForToken } = require('../services/spotifyA
 const { isLyricsSynced, prefetchLyricsForTracks, clearLyricsCache } = require('../services/lyricsFetcher');
 const { getCurrentPlayback, getQueue, clearSpotifyRateLimitLocks } = require('../services/spotifyPlayback');
 const fs = require('fs');
+const path = require('path');
 const { storagePath } = require('../services/runtimePaths');
 
 function getClientId() {
@@ -36,6 +37,17 @@ function formatBytes(bytes = 0) {
     unitIndex += 1;
   }
   return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function getLyricsLogPath() {
+  return storagePath('lyrics.log');
+}
+
+function clearLyricsLogFile() {
+  const logPath = getLyricsLogPath();
+  fs.mkdirSync(path.dirname(logPath), { recursive: true });
+  fs.writeFileSync(logPath, '', 'utf8');
+  return { path: logPath, cleared_at: Date.now() };
 }
 
 function getLyricsCacheStats() {
@@ -277,9 +289,21 @@ router.get('/queue', async (req, res) => {
  * Serve the raw log file for dashboard
  */
 router.get('/log', (req, res) => {
-  const logPath = storagePath('lyrics.log');
+  const logPath = getLyricsLogPath();
   if (!fs.existsSync(logPath)) return res.send('');
   res.send(fs.readFileSync(logPath, 'utf8'));
+});
+
+/**
+ * Clear the persistent Spotify / lyrics log file shown in Dashboard.
+ */
+router.post('/log/clear', (req, res) => {
+  try {
+    const result = clearLyricsLogFile();
+    res.json({ ok: true, ...result, message: 'Spotify / Lyrics log cleared.' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'clear_log_failed', message: err.message || '清除 log 失敗' });
+  }
 });
 
 module.exports = router;
