@@ -8,7 +8,8 @@
 - [x] Fix LRCLib lyrics-not1-found timeout handling bug.要能跑24/7，應加上cache + 熔斷 + 減少 fuzzy search 次數+添加預查佇列中的歌的功能(利用現有的跟spotify叫佇列資料時，抓取歌曲同時查詢)+dashboard查看快取大小+清除歌詞快取功能。 
 - [x] Add dashboard tab behavior.
 - [x] Fix Spotify playback manual retry required bottom 消失 bug.
-- [ ] Fix spotify 頁面清除畫面無效bug.
+- [x] Fix spotify 頁面清除畫面無效bug.
+- [ ] Edit toast to 彈窗。
 - [ ] Add 啟動時重複(已有同樣的軟體啟動or使用同樣port) port warnings.
 - [ ] Add 備份 button behavior.
 - [ ] Fix manual / automatic card length 目前無法實際改變長度 bug.
