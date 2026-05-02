@@ -3,7 +3,7 @@
  */
 const router = require('express').Router();
 const { generateCodePair, exchangeCodeForToken } = require('../services/spotifyAuth');
-const { isLyricsSynced } = require('../services/lyricsFetcher');
+const { isLyricsSynced, prefetchLyricsForTracks, clearLyricsCache } = require('../services/lyricsFetcher');
 const { getCurrentPlayback, getQueue, clearSpotifyRateLimitLocks } = require('../services/spotifyPlayback');
 const fs = require('fs');
 const { storagePath } = require('../services/runtimePaths');
@@ -79,6 +79,11 @@ router.post('/retry', async (req, res) => {
   res.json({ ok: true, message: 'Spotify rate-limit lock cleared. The next request will retry Spotify.' });
 });
 
+router.post('/lyrics-cache/clear', async (req, res) => {
+  const result = clearLyricsCache();
+  res.json({ ok: true, ...result, message: 'LRCLib lyrics cache cleared.' });
+});
+
 /**
  * Current playback / lyric sync status
  * Uses shared cache; does NOT call Spotify directly every time.
@@ -135,6 +140,10 @@ router.get('/queue', async (req, res) => {
   try {
     const data = await getQueue();
     if (!data.authorized) return res.json({ authorized: false, queue: [] });
+
+    prefetchLyricsForTracks(data.queue || []).catch(err => {
+      console.warn('queue lyrics prefetch failed:', err.message);
+    });
 
     return res.json({
       authorized: true,
