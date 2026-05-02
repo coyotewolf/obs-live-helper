@@ -129,5 +129,112 @@
     "artists": "Michael Guratza",
     "album": "Κι Αν Έπαιζες Στον Ουρανό",
     "updatedAt": 1777723165998
+  },
+  "5lqdjWztT768cVbzR0Ff8A": {
+    "status": "not_found",
+    "reason": "LRCLib synced lyrics not found after exact + limited fuzzy search",
+    "expiresAt": 1777758909550,
+    "key": "5lqdjWztT768cVbzR0Ff8A",
+    "trackId": "5lqdjWztT768cVbzR0Ff8A",
+    "title": "Destroyer - Soul Extract Remix",
+    "artists": "NUTRONIC, Soul Extract",
+    "album": "Destroyer (Soul Extract Remix)",
+    "updatedAt": 1777737309550
+  },
+  "5ghIFY4QvjAo7LNBeJBAmu": {
+    "status": "ready",
+    "lyrics": "[00:00.16] 이 노랠 듣고 돌아와 (eight, seven, six, five)\n[00:07.58] 이 노랠 듣고 돌아와 (four, three, two, one) JYP\n[00:15.77] 있을 땐 몰랐어\n[00:19.17] 떠나고서도 몰랐어\n[00:22.91] 하지만 시간이 지난 후에야\n[00:27.32] 깨닫게 되었어\n[00:30.87] 누구를 만나도\n[00:34.31] 계속 니 생각이 나서\n[00:38.31] 점점 두려워 졌어\n[00:40.78] 널 보낸 게 잘못한 일 같아서\n[00:45.55] 어떡해 나 뒤늦게 이제와\n[00:49.05] 널 보낸 걸 후회하고 있잖아\n[00:53.00] 너를 울려 놓고 다시 돌려\n[00:56.44] 세울 자신이 없어 하지만\n[01:00.23] Give me one more chance\n[01:01.55] 이 노랠 듣고 돌아와 (돌아와)\n[01:05.22] 이 노랠 듣고 돌아와 (돌아와)\n[01:09.10] 이 노랠 듣고 돌아와 (돌아와)\n[01:13.08] 어디에 있든 누구와 있든\n[01:16.61] 잘못했으니 돌아와 (돌아와)\n[01:20.50] 후회하니까 돌아와 (돌아와)\n[01:24.40] 이 노랠 듣고 돌아와 (돌아와)\n[01:28.21] 어디에 있든 누구와 있든지\n[01:32.67] 어디까지 갔니\n[01:35.78] 이미 맘이 돌아섰니\n[01:39.57] 나 때문에 다친 가슴이 딱딱하게\n[01:44.80] 다 굳었니\n[01:46.88] 어떡해 나 뒤늦게 이제와\n[01:50.31] 널 보낸 걸 후회하고 있잖아\n[01:54.52] 너를 울려 놓고 다시 돌려\n[01:57.99] 세울 자신이 없어 하지만\n[02:01.78] Give me one more chance\n[02:03.00] 이 노랠 듣고 돌아와 (돌아와)\n[02:06.54] 이 노랠 듣고 돌아와 (돌아와)\n[02:10.41] 이 노랠 듣고 돌아와 (돌아와)\n[02:14.26] 어디에 있든 누구와 있든\n[02:18.04] 잘못했으니 돌아와 (돌아와)\n[02:21.89] 후회하니까 돌아와 (돌아와)\n[02:25.73] 이 노랠 듣고 돌아와 (돌아와)\n[02:29.47] 어디에 있든 누구와 있든지\n[02:33.90] Baby stop 내게 돌아와\n[02:35.63] 내겐 너 하나 라는 걸 알고 있잖아\n[02:37.80] 잘못한 거 알아 맞아 니가 나를 떠나자\n[02:40.66] 마자 그리움이 자라 감정이 차 올라\n[02:43.44] 이제 난 너 하나밖에 몰라\n[02:45.27] 그 동안 왜 이 말을 못했는지 몰라\n[02:47.97] 미안해 그리고 사랑해\n[02:51.00] 이 노랠 듣고 돌아와\n[02:54.49] 이 노랠 듣고 돌아와\n[02:58.37] 이 노랠 듣고 돌아와\n[03:02.04] 어디에 있든 누구와 있든\n[03:06.08] 잘못했으니 돌아와 (돌아와)\n[03:09.94] 후회하니까 돌아와 (돌아와)\n[03:13.72] 이 노랠 듣고 돌아와 (돌아와)\n[03:17.58] 어디에 있든 누구와 있든지",
+    "source": "/api/search fuzzy (score 206)",
+    "matched": {
+      "id": 3673782,
+      "name": "Comeback When You Hear This Song",
+      "trackName": "Comeback When You Hear This Song",
+      "artistName": "2PM",
+      "albumName": "Grown",
+      "duration": 218,
+      "instrumental": false,
+      "plainLyrics": "이 노랠 듣고 돌아와 (eight, seven, six, five)\n이 노랠 듣고 돌아와 (four, three, two, one) JYP\n있을 땐 몰랐어\n떠나고서도 몰랐어\n하지만 시간이 지난 후에야\n깨닫게 되었어\n누구를 만나도\n계속 니 생각이 나서\n점점 두려워 졌어\n널 보낸 게 잘못한 일 같아서\n어떡해 나 뒤늦게 이제와\n널 보낸 걸 후회하고 있잖아\n너를 울려 놓고 다시 돌려\n세울 자신이 없어 하지만\nGive me one more chance\n이 노랠 듣고 돌아와 (돌아와)\n이 노랠 듣고 돌아와 (돌아와)\n이 노랠 듣고 돌아와 (돌아와)\n어디에 있든 누구와 있든\n잘못했으니 돌아와 (돌아와)\n후회하니까 돌아와 (돌아와)\n이 노랠 듣고 돌아와 (돌아와)\n어디에 있든 누구와 있든지\n어디까지 갔니\n이미 맘이 돌아섰니\n나 때문에 다친 가슴이 딱딱하게\n다 굳었니\n어떡해 나 뒤늦게 이제와\n널 보낸 걸 후회하고 있잖아\n너를 울려 놓고 다시 돌려\n세울 자신이 없어 하지만\nGive me one more chance\n이 노랠 듣고 돌아와 (돌아와)\n이 노랠 듣고 돌아와 (돌아와)\n이 노랠 듣고 돌아와 (돌아와)\n어디에 있든 누구와 있든\n잘못했으니 돌아와 (돌아와)\n후회하니까 돌아와 (돌아와)\n이 노랠 듣고 돌아와 (돌아와)\n어디에 있든 누구와 있든지\nBaby stop 내게 돌아와\n내겐 너 하나 라는 걸 알고 있잖아\n잘못한 거 알아 맞아 니가 나를 떠나자\n마자 그리움이 자라 감정이 차 올라\n이제 난 너 하나밖에 몰라\n그 동안 왜 이 말을 못했는지 몰라\n미안해 그리고 사랑해\n이 노랠 듣고 돌아와\n이 노랠 듣고 돌아와\n이 노랠 듣고 돌아와\n어디에 있든 누구와 있든\n잘못했으니 돌아와 (돌아와)\n후회하니까 돌아와 (돌아와)\n이 노랠 듣고 돌아와 (돌아와)\n어디에 있든 누구와 있든지",
+      "syncedLyrics": "[00:00.16] 이 노랠 듣고 돌아와 (eight, seven, six, five)\n[00:07.58] 이 노랠 듣고 돌아와 (four, three, two, one) JYP\n[00:15.77] 있을 땐 몰랐어\n[00:19.17] 떠나고서도 몰랐어\n[00:22.91] 하지만 시간이 지난 후에야\n[00:27.32] 깨닫게 되었어\n[00:30.87] 누구를 만나도\n[00:34.31] 계속 니 생각이 나서\n[00:38.31] 점점 두려워 졌어\n[00:40.78] 널 보낸 게 잘못한 일 같아서\n[00:45.55] 어떡해 나 뒤늦게 이제와\n[00:49.05] 널 보낸 걸 후회하고 있잖아\n[00:53.00] 너를 울려 놓고 다시 돌려\n[00:56.44] 세울 자신이 없어 하지만\n[01:00.23] Give me one more chance\n[01:01.55] 이 노랠 듣고 돌아와 (돌아와)\n[01:05.22] 이 노랠 듣고 돌아와 (돌아와)\n[01:09.10] 이 노랠 듣고 돌아와 (돌아와)\n[01:13.08] 어디에 있든 누구와 있든\n[01:16.61] 잘못했으니 돌아와 (돌아와)\n[01:20.50] 후회하니까 돌아와 (돌아와)\n[01:24.40] 이 노랠 듣고 돌아와 (돌아와)\n[01:28.21] 어디에 있든 누구와 있든지\n[01:32.67] 어디까지 갔니\n[01:35.78] 이미 맘이 돌아섰니\n[01:39.57] 나 때문에 다친 가슴이 딱딱하게\n[01:44.80] 다 굳었니\n[01:46.88] 어떡해 나 뒤늦게 이제와\n[01:50.31] 널 보낸 걸 후회하고 있잖아\n[01:54.52] 너를 울려 놓고 다시 돌려\n[01:57.99] 세울 자신이 없어 하지만\n[02:01.78] Give me one more chance\n[02:03.00] 이 노랠 듣고 돌아와 (돌아와)\n[02:06.54] 이 노랠 듣고 돌아와 (돌아와)\n[02:10.41] 이 노랠 듣고 돌아와 (돌아와)\n[02:14.26] 어디에 있든 누구와 있든\n[02:18.04] 잘못했으니 돌아와 (돌아와)\n[02:21.89] 후회하니까 돌아와 (돌아와)\n[02:25.73] 이 노랠 듣고 돌아와 (돌아와)\n[02:29.47] 어디에 있든 누구와 있든지\n[02:33.90] Baby stop 내게 돌아와\n[02:35.63] 내겐 너 하나 라는 걸 알고 있잖아\n[02:37.80] 잘못한 거 알아 맞아 니가 나를 떠나자\n[02:40.66] 마자 그리움이 자라 감정이 차 올라\n[02:43.44] 이제 난 너 하나밖에 몰라\n[02:45.27] 그 동안 왜 이 말을 못했는지 몰라\n[02:47.97] 미안해 그리고 사랑해\n[02:51.00] 이 노랠 듣고 돌아와\n[02:54.49] 이 노랠 듣고 돌아와\n[02:58.37] 이 노랠 듣고 돌아와\n[03:02.04] 어디에 있든 누구와 있든\n[03:06.08] 잘못했으니 돌아와 (돌아와)\n[03:09.94] 후회하니까 돌아와 (돌아와)\n[03:13.72] 이 노랠 듣고 돌아와 (돌아와)\n[03:17.58] 어디에 있든 누구와 있든지",
+      "lyricsfile": null
+    },
+    "expiresAt": 1780329323422,
+    "key": "5ghIFY4QvjAo7LNBeJBAmu",
+    "trackId": "5ghIFY4QvjAo7LNBeJBAmu",
+    "title": "Comeback When You Hear This Song",
+    "artists": "2PM",
+    "album": "GROWN (Grand Edition)",
+    "updatedAt": 1777737323422
+  },
+  "1uRBbjQ3uNFXCncWyNomHf": {
+    "status": "ready",
+    "lyrics": "[00:09.36] Oh, pretty baby, you're my motivator\n[00:14.11] Got me changing my words and my behavior\n[00:18.65] Pretty lady, you're my operator\n[00:23.43] Got me dialing your number just to hear ya\n[00:27.88] Tell me the things that you want\n[00:29.87] I give you all that I've got\n[00:32.05] Open your eyes, then you will see\n[00:35.48] It's just you and me\n[00:38.53] Only\n[00:39.60] Throwing out the key\n[00:42.00] Just living in a dream\n[00:44.36] It's just you and me\n[00:47.71] Only\n[00:48.99] Listen to you breathe\n[00:51.15] Just living in a dream\n[00:53.49] It's just you and me\n[00:55.70] My disaster, you're my only answer\n[00:59.97] You got me thinking that I could be your master\n[01:04.40] Pretty baby, you're my heavy ocean\n[01:09.02] Weigh me down and give me your devotion\n[01:13.43] Tell me the things that you want (you want)\n[01:15.67] I give you all that I've got (I've got)\n[01:17.95] Open your eyes, then you will see\n[01:21.01] It's just you and me\n[01:23.80] Only\n[01:25.09] Throwing out the key\n[01:27.70] Just living in a dream\n[01:30.04] It's just you and me\n[01:33.01] Only\n[01:34.27] Listen to you breathe\n[01:36.93] Just living in a dream\n[01:39.04] It's just you and me\n[01:41.05] Take, take me over\n[01:43.10] They'll take me over\n[01:44.80] And I don't wanna wake up\n[01:47.16] It's just you and me\n[01:49.92] Take, take me over\n[01:52.35] They'll take me over\n[01:53.92] And I don't wanna wake up\n[01:56.73] It's just you and me\n[01:59.20] Dream, dream, dream, dream world\n[02:08.04] Dream, dream, dream, dream world (take, take me over)\n[02:10.59] They'll take me over\n[02:12.37] I don't wanna wake up, wake up, wake up, wake up\n[02:23.04] Listen to you breathe\n[02:24.92] Just living in a dream\n[02:27.14] It's just you and me\n[02:29.61] Only\n[02:31.42] Throwing out the key\n[02:33.81] Just living in a dream\n[02:36.02] It's just you and me\n[02:38.07] Dream, dream, dream, dream world\n[02:45.21] It's just you and me\n[02:47.10] Dream, dream, dream, dream world\n[02:55.57] Only",
+    "source": "/api/get (exact original title + first artist)",
+    "matched": {
+      "id": 944774,
+      "name": "Only",
+      "trackName": "Only",
+      "artistName": "Imagine Dragons",
+      "albumName": "Origins (Deluxe)",
+      "duration": 181,
+      "instrumental": false,
+      "plainLyrics": "Oh, pretty baby, you're my motivator\nGot me changing my words and my behavior\nPretty lady, you're my operator\nGot me dialing your number just to hear ya\nTell me the things that you want\nI give you all that I've got\nOpen your eyes, then you will see\nIt's just you and me\nOnly\nThrowing out the key\nJust living in a dream\nIt's just you and me\nOnly\nListen to you breathe\nJust living in a dream\nIt's just you and me\nMy disaster, you're my only answer\nYou got me thinking that I could be your master\nPretty baby, you're my heavy ocean\nWeigh me down and give me your devotion\nTell me the things that you want (you want)\nI give you all that I've got (I've got)\nOpen your eyes, then you will see\nIt's just you and me\nOnly\nThrowing out the key\nJust living in a dream\nIt's just you and me\nOnly\nListen to you breathe\nJust living in a dream\nIt's just you and me\nTake, take me over\nThey'll take me over\nAnd I don't wanna wake up\nIt's just you and me\nTake, take me over\nThey'll take me over\nAnd I don't wanna wake up\nIt's just you and me\nDream, dream, dream, dream world\nDream, dream, dream, dream world (take, take me over)\nThey'll take me over\nI don't wanna wake up, wake up, wake up, wake up\nListen to you breathe\nJust living in a dream\nIt's just you and me\nOnly\nThrowing out the key\nJust living in a dream\nIt's just you and me\nDream, dream, dream, dream world\nIt's just you and me\nDream, dream, dream, dream world\nOnly",
+      "syncedLyrics": "[00:09.36] Oh, pretty baby, you're my motivator\n[00:14.11] Got me changing my words and my behavior\n[00:18.65] Pretty lady, you're my operator\n[00:23.43] Got me dialing your number just to hear ya\n[00:27.88] Tell me the things that you want\n[00:29.87] I give you all that I've got\n[00:32.05] Open your eyes, then you will see\n[00:35.48] It's just you and me\n[00:38.53] Only\n[00:39.60] Throwing out the key\n[00:42.00] Just living in a dream\n[00:44.36] It's just you and me\n[00:47.71] Only\n[00:48.99] Listen to you breathe\n[00:51.15] Just living in a dream\n[00:53.49] It's just you and me\n[00:55.70] My disaster, you're my only answer\n[00:59.97] You got me thinking that I could be your master\n[01:04.40] Pretty baby, you're my heavy ocean\n[01:09.02] Weigh me down and give me your devotion\n[01:13.43] Tell me the things that you want (you want)\n[01:15.67] I give you all that I've got (I've got)\n[01:17.95] Open your eyes, then you will see\n[01:21.01] It's just you and me\n[01:23.80] Only\n[01:25.09] Throwing out the key\n[01:27.70] Just living in a dream\n[01:30.04] It's just you and me\n[01:33.01] Only\n[01:34.27] Listen to you breathe\n[01:36.93] Just living in a dream\n[01:39.04] It's just you and me\n[01:41.05] Take, take me over\n[01:43.10] They'll take me over\n[01:44.80] And I don't wanna wake up\n[01:47.16] It's just you and me\n[01:49.92] Take, take me over\n[01:52.35] They'll take me over\n[01:53.92] And I don't wanna wake up\n[01:56.73] It's just you and me\n[01:59.20] Dream, dream, dream, dream world\n[02:08.04] Dream, dream, dream, dream world (take, take me over)\n[02:10.59] They'll take me over\n[02:12.37] I don't wanna wake up, wake up, wake up, wake up\n[02:23.04] Listen to you breathe\n[02:24.92] Just living in a dream\n[02:27.14] It's just you and me\n[02:29.61] Only\n[02:31.42] Throwing out the key\n[02:33.81] Just living in a dream\n[02:36.02] It's just you and me\n[02:38.07] Dream, dream, dream, dream world\n[02:45.21] It's just you and me\n[02:47.10] Dream, dream, dream, dream world\n[02:55.57] Only",
+      "lyricsfile": null
+    },
+    "expiresAt": 1780329542144,
+    "key": "1uRBbjQ3uNFXCncWyNomHf",
+    "trackId": "1uRBbjQ3uNFXCncWyNomHf",
+    "title": "Only",
+    "artists": "Imagine Dragons",
+    "album": "Origins (Deluxe)",
+    "updatedAt": 1777737542144
+  },
+  "0vZCG0H9KhtU7K8MEUVAoV": {
+    "status": "ready",
+    "lyrics": "[01:15.02] Tsunami, drop!\n[01:17.14] \n[01:31.05] Drop!\n[01:32.41] \n[01:46.20] Drop!\n[01:46.79] \n[02:00.84] Drop!\n[02:01.92] Nami na nami na nami na nami\n[02:03.58] Nami na nami na nami na nami\n[02:05.21] Nami na nami na nami na nami\n[02:07.33] Nami na nami na nami na nami\n[02:09.22] Nami na nami na nami na nami\n[02:10.93] Nami na nami na nami na nami\n[02:13.01] Nami na nami na nami na nami\n[02:14.95] Nami na nami na nami na nami\n[02:16.59] Nami na nami na nami na nami\n[02:18.21] Nami na nami na nami na nami\n[02:20.38] Nami na nami na nami na nami\n[02:22.08] Nami na nami na nami na nami\n[02:24.16] Nami na nami na nami na nami\n[02:26.05] Nami na nami na nami na nami\n[02:31.70] Tsunami, drop!\n[02:33.87] \n[02:48.14] Drop!\n[02:49.22] Nami na nami na nami na nami\n[02:52.30] Nami na nami na nami na nami\n[02:56.05] Nami na nami na nami na nami\n[02:59.83] Nami na nami na nami na nami\n[03:02.93] Drop!\n[03:03.80] \n[03:18.14] Drop!\n[03:19.18] ",
+    "source": "/api/search fuzzy (score 236)",
+    "matched": {
+      "id": 2558364,
+      "name": "Tsunami",
+      "trackName": "Tsunami",
+      "artistName": "DVBBS feat. Borgeous",
+      "albumName": "Tsunami",
+      "duration": 237,
+      "instrumental": false,
+      "plainLyrics": "Tsunami, drop!\n\nDrop!\n\nDrop!\n\nDrop!\n\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\n\nTsunami, drop!\n\nDrop!\n\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\nNami na nami na nami na nami\n\nDrop!\n\nDrop!",
+      "syncedLyrics": "[01:15.02] Tsunami, drop!\n[01:17.14] \n[01:31.05] Drop!\n[01:32.41] \n[01:46.20] Drop!\n[01:46.79] \n[02:00.84] Drop!\n[02:01.92] Nami na nami na nami na nami\n[02:03.58] Nami na nami na nami na nami\n[02:05.21] Nami na nami na nami na nami\n[02:07.33] Nami na nami na nami na nami\n[02:09.22] Nami na nami na nami na nami\n[02:10.93] Nami na nami na nami na nami\n[02:13.01] Nami na nami na nami na nami\n[02:14.95] Nami na nami na nami na nami\n[02:16.59] Nami na nami na nami na nami\n[02:18.21] Nami na nami na nami na nami\n[02:20.38] Nami na nami na nami na nami\n[02:22.08] Nami na nami na nami na nami\n[02:24.16] Nami na nami na nami na nami\n[02:26.05] Nami na nami na nami na nami\n[02:31.70] Tsunami, drop!\n[02:33.87] \n[02:48.14] Drop!\n[02:49.22] Nami na nami na nami na nami\n[02:52.30] Nami na nami na nami na nami\n[02:56.05] Nami na nami na nami na nami\n[02:59.83] Nami na nami na nami na nami\n[03:02.93] Drop!\n[03:03.80] \n[03:18.14] Drop!\n[03:19.18] ",
+      "lyricsfile": null
+    },
+    "expiresAt": 1780329554812,
+    "key": "0vZCG0H9KhtU7K8MEUVAoV",
+    "trackId": "0vZCG0H9KhtU7K8MEUVAoV",
+    "title": "Tsunami",
+    "artists": "DVBBS, Borgeous",
+    "album": "Tsunami",
+    "updatedAt": 1777737554812
+  },
+  "156zRgKOtm3Q3e2XV6UYjy": {
+    "status": "ready",
+    "lyrics": "[00:54.83] Rising up\n[00:56.38] Back on the street\n[00:59.19] Did my time, took my chances\n[01:03.51] Went the distance, now I'm back on my feet\n[01:06.94] Just a man and his will to survive\n[01:12.00] So many times it happens too fast\n[01:16.48] You trade your passion for glory\n[01:20.97] Don't lose your grip on the dreams of the past\n[01:24.67] You must fight just to keep them alive\n[01:28.78] It's the eye of the tiger, it's the thrill of the fight\n[01:33.23] Rising up to the challenge of our rival\n[01:37.41] And the last known survivor stalks his prey in the night\n[01:41.83] And he's watching us all with the eye of the tiger\n[01:50.08] \n[01:52.10] Face to face\n[01:53.92] Out in the heat\n[01:56.23] Hanging tough, staying hungry\n[02:00.65] They stack the odds 'til we take to the street\n[02:04.34] For the kill with the skill to survive\n[02:08.02] It's the eye of the tiger, it's the thrill of the fight\n[02:12.76] Rising up to the challenge of our rival\n[02:17.29] And the last known survivor stalks his prey in the night\n[02:21.56] And he's watching us all with the eye of the tiger\n[02:29.83] \n[02:36.39] Rising up\n[02:37.67] Straight to the top\n[02:40.76] Had the guts, got the glory\n[02:45.09] Went the distance, now I'm not gonna stop\n[02:48.35] Just a man and his will to survive\n[02:52.03] It's the eye of the tiger, it's the thrill of the fight\n[02:56.92] Rising up to the challenge of our rival\n[03:01.19] And the last known survivor stalks his prey in the night\n[03:05.78] And he's watching us all with the eye of the tiger\n[03:16.84] \n[03:25.04] The eye of the tiger\n[03:29.89] \n[03:34.06] The eye of the tiger\n[03:39.24] \n[03:42.85] The eye of the tiger\n[03:47.49] \n[03:51.55] The eye of the tiger\n[03:56.67] \n[04:00.41] The eye of the tiger\n[04:03.22] ",
+    "source": "/api/get (exact original title + first artist)",
+    "matched": {
+      "id": 2039178,
+      "name": "Eye of the Tiger - 2006 Master",
+      "trackName": "Eye of the Tiger - 2006 Master",
+      "artistName": "Survivor",
+      "albumName": "Eye Of The Tiger 2006 Master",
+      "duration": 256,
+      "instrumental": false,
+      "plainLyrics": "Rising up\nBack on the street\nDid my time, took my chances\nWent the distance, now I'm back on my feet\nJust a man and his will to survive\nSo many times it happens too fast\nYou trade your passion for glory\nDon't lose your grip on the dreams of the past\nYou must fight just to keep them alive\n\nIt's the eye of the tiger, it's the thrill of the fight\nRising up to the challenge of our rival\nAnd the last known survivor stalks his prey in the night\nAnd he's watching us all with the eye of the tiger\n\nFace to face\nOut in the heat\nHanging tough, staying hungry\nThey stack the odds 'til we take to the street\nFor the kill with the skill to survive\n\nIt's the eye of the tiger, it's the thrill of the fight\nRising up to the challenge of our rival\nAnd the last known survivor stalks his prey in the night\nAnd he's watching us all with the eye of the tiger\n\nRising up\nStraight to the top\nHad the guts, got the glory\nWent the distance, now I'm not gonna stop\nJust a man and his will to survive\n\nIt's the eye of the tiger, it's the thrill of the fight\nRising up to the challenge of our rival\nAnd the last known survivor stalks his prey in the night\nAnd he's watching us all with the eye of the tiger\n\nThe eye of the tiger\nThe eye of the tiger\nThe eye of the tiger\nThe eye of the tiger\nThe eye of the tiger",
+      "syncedLyrics": "[00:54.83] Rising up\n[00:56.38] Back on the street\n[00:59.19] Did my time, took my chances\n[01:03.51] Went the distance, now I'm back on my feet\n[01:06.94] Just a man and his will to survive\n[01:12.00] So many times it happens too fast\n[01:16.48] You trade your passion for glory\n[01:20.97] Don't lose your grip on the dreams of the past\n[01:24.67] You must fight just to keep them alive\n[01:28.78] It's the eye of the tiger, it's the thrill of the fight\n[01:33.23] Rising up to the challenge of our rival\n[01:37.41] And the last known survivor stalks his prey in the night\n[01:41.83] And he's watching us all with the eye of the tiger\n[01:50.08] \n[01:52.10] Face to face\n[01:53.92] Out in the heat\n[01:56.23] Hanging tough, staying hungry\n[02:00.65] They stack the odds 'til we take to the street\n[02:04.34] For the kill with the skill to survive\n[02:08.02] It's the eye of the tiger, it's the thrill of the fight\n[02:12.76] Rising up to the challenge of our rival\n[02:17.29] And the last known survivor stalks his prey in the night\n[02:21.56] And he's watching us all with the eye of the tiger\n[02:29.83] \n[02:36.39] Rising up\n[02:37.67] Straight to the top\n[02:40.76] Had the guts, got the glory\n[02:45.09] Went the distance, now I'm not gonna stop\n[02:48.35] Just a man and his will to survive\n[02:52.03] It's the eye of the tiger, it's the thrill of the fight\n[02:56.92] Rising up to the challenge of our rival\n[03:01.19] And the last known survivor stalks his prey in the night\n[03:05.78] And he's watching us all with the eye of the tiger\n[03:16.84] \n[03:25.04] The eye of the tiger\n[03:29.89] \n[03:34.06] The eye of the tiger\n[03:39.24] \n[03:42.85] The eye of the tiger\n[03:47.49] \n[03:51.55] The eye of the tiger\n[03:56.67] \n[04:00.41] The eye of the tiger\n[04:03.22] ",
+      "lyricsfile": null
+    },
+    "expiresAt": 1780329779629,
+    "key": "156zRgKOtm3Q3e2XV6UYjy",
+    "trackId": "156zRgKOtm3Q3e2XV6UYjy",
+    "title": "Eye of the Tiger - 2006 Master",
+    "artists": "Survivor",
+    "album": "Eye Of The Tiger 2006 Master",
+    "updatedAt": 1777737779629
   }
 }
