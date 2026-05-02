@@ -7,7 +7,7 @@
 
   function activate(tabName){
     buttons.forEach(btn => btn.classList.toggle('isActive', btn.dataset.dashboardTab === tabName));
-    panes.forEach(pane => pane.classList.toggle('isActive', pane.datasetDashboardPane === tabName || pane.dataset.dashboardPane === tabName));
+    panes.forEach(pane => pane.classList.toggle('isActive', pane.dataset.dashboardPane === tabName));
     localStorage.setItem('obsHelperDashboardTab', tabName);
   }
 
@@ -87,9 +87,10 @@
     retryBtn.className = 'btnMini spotifyRetryButton';
     retryBtn.type = 'button';
     retryBtn.textContent = '手動重試 Spotify';
-    retryBtn.hidden = true;
     btnRow.prepend(retryBtn);
   }
+  retryBtn.hidden = false;
+  retryBtn.style.display = '';
 
   let timingBox = document.getElementById('spotifyTimingInfo');
   if (!timingBox) {
@@ -112,12 +113,9 @@
     timingBox.insertAdjacentElement('afterend', cacheBox);
   }
 
-  let manualRetryVisible = false;
-
-  function setRetryVisible(visible){
-    manualRetryVisible = Boolean(visible);
-    retryBtn.hidden = !manualRetryVisible;
-    retryBtn.style.display = manualRetryVisible ? '' : 'none';
+  function keepRetryVisible(){
+    retryBtn.hidden = false;
+    retryBtn.style.display = '';
   }
 
   function toast(message){
@@ -135,14 +133,7 @@
   }
 
   function renderTiming(st = {}){
-    const hasProblem = Boolean(
-      st.manual_retry_required ||
-      st.spotify_timeout ||
-      st.rate_limited ||
-      st.error === 'rate_limited' ||
-      st.error === 'failed_to_fetch_playback'
-    );
-    setRetryVisible(hasProblem);
+    keepRetryVisible();
 
     if (st.spotify_timeout) {
       const started = formatTime(st.spotify_request_started_at);
@@ -170,7 +161,7 @@
       return;
     }
 
-    timingBox.textContent = 'Spotify 回應時間：等待狀態更新...';
+    timingBox.textContent = 'Spotify 回應時間：等待狀態更新，可隨時手動重試 Spotify。';
   }
 
   function renderCacheStats(data = {}){
@@ -194,6 +185,7 @@
   }
 
   async function refreshTiming(){
+    keepRetryVisible();
     try {
       const response = await fetch('/api/spotify/status');
       const st = await response.json().catch(() => ({}));
@@ -202,7 +194,7 @@
       }
       renderTiming(st);
     } catch {
-      setRetryVisible(true);
+      keepRetryVisible();
       timingBox.textContent = 'Spotify 回應時間：狀態讀取失敗，可手動重試 Spotify。';
     }
   }
@@ -216,16 +208,16 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Spotify 手動重試失敗');
       toast('已手動重試 Spotify');
-      setRetryVisible(false);
       await refreshTiming();
       if (typeof window.loadStatus === 'function') window.loadStatus();
       if (typeof window.loadLog === 'function') window.loadLog();
     } catch (err) {
-      setRetryVisible(true);
+      keepRetryVisible();
       toast(err.message);
     } finally {
       retryBtn.disabled = false;
       retryBtn.textContent = original;
+      keepRetryVisible();
     }
   });
 
