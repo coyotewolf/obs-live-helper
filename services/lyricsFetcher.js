@@ -1,20 +1,21 @@
 /**
  * lyricsFetcher.js
  *  - Uses centralized Spotify playback cache to avoid API rate limits.
- *  - Polls Spotify at a low frequency only to detect track changes.
- *  - Fetches LRCLib only when the track changes, or when retrying the same track.
- *  - Same-track lyric retries reuse the cached track context and do NOT call Spotify again.
+ *  - Uses LRCLib cache + circuit breaker so the helper can run 24/7.
+ *  - Reduces fuzzy search attempts and stores not-found results to avoid repeated timeouts.
+ *  - Supports background prefetch for tracks already visible in Spotify queue.
  *  - Writes lyrics/current.lrc atomically for OBS overlays.
  */
 const fs = require('fs');
 const path = require('path');
-const { LYRICS_DIR, lyricsPath, storagePath } = require('./runtimePaths');
 const axios = require('axios');
+const { LYRICS_DIR, lyricsPath, storagePath } = require('./runtimePaths');
 const { getCurrentPlayback } = require('./spotifyPlayback');
 
 const LRC_DIR = LYRICS_DIR;
 const LRC_FILE = lyricsPath('current.lrc');
 const LOG_FILE = storagePath('lyrics.log');
+const CACHE_FILE = storagePath('lrclib-cache.json');
 
 if (!fs.existsSync(LRC_DIR)) fs.mkdirSync(LRC_DIR, { recursive: true });
 
@@ -27,7 +28,6 @@ let lastLoggedLrcNotFound = false;
 let lastLoggedFuzzySearchTrackId = null;
 let activeSyncPromise = null;
 let syncInterval = null;
-let lrclibBackoffUntil = 0;
 
 // Current track context is intentionally cached here.
 // Same-track LRCLib retries use this object directly, so they do not call Spotify again.
@@ -41,7 +41,26 @@ const LYRICS_LOOP_INTERVAL_MS = Number(process.env.LYRICS_LOOP_INTERVAL_MS || 50
 const SAME_TRACK_RETRY_MS = Number(process.env.LYRICS_SAME_TRACK_RETRY_MS || 8000);
 const MAX_SAME_TRACK_RETRIES = Number(process.env.LYRICS_MAX_SAME_TRACK_RETRIES || 3);
 const LRCLIB_TIMEOUT_MS = Number(process.env.LRCLIB_TIMEOUT_MS || 8000);
-const LRCLIB_MAX_BACKOFF_MS = Number(process.env.LRCLIB_MAX_BACKOFF_MS || 60000);
+const LRCLIB_MAX_BACKOFF_MS = Number(process.env.LRCLIB_MAX_BACKOFF_MS || 120000);
+const LRCLIB_CIRCUIT_FAILURE_THRESHOLD = Number(process.env.LRCLIB_CIRCUIT_FAILURE_THRESHOLD || 3);
+const LRCLIB_CIRCUIT_OPEN_MS = Number(process.env.LRCLIB_CIRCUIT_OPEN_MS || 120000);
+const LRCLIB_CACHE_READY_TTL_MS = Number(process.env.LRCLIB_CACHE_READY_TTL_MS || 30 * 24 * 60 * 60 * 1000);
+const LRCLIB_CACHE_NOT_FOUND_TTL_MS = Number(process.env.LRCLIB_CACHE_NOT_FOUND_TTL_MS || 6 * 60 * 60 * 1000);
+const LRCLIB_PREFETCH_LIMIT = Number(process.env.LRCLIB_PREFETCH_LIMIT || 5);
+const LRCLIB_MAX_FUZZY_SEARCHES = Number(process.env.LRCLIB_MAX_FUZZY_SEARCHES || 1);
+
+let lyricsCache = loadLyricsCache();
+let cacheDirty = false;
+const inFlightLookupMap = new Map();
+const prefetchingTrackIds = new Set();
+let prefetchQueuePromise = null;
+
+let lrclibCircuit = {
+  state: 'closed',
+  failures: 0,
+  openUntil: 0,
+  lastError: ''
+};
 
 function ensureLogDir() {
   const dir = path.dirname(LOG_FILE);
@@ -65,11 +84,87 @@ function buildMetadata(trackId, artists, album, obsStatus = 'searching') {
   return `[ti:${trackId || ''}]\n[ar:${artists || ''}]\n[al:${album || ''}]\n[obsstatus:${obsStatus}]\n`;
 }
 
+function loadLyricsCache() {
+  try {
+    if (!fs.existsSync(CACHE_FILE)) return {};
+    const parsed = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (err) {
+    console.warn('⚠️ LRCLib cache 解析失敗，重建空快取。', err.message);
+    return {};
+  }
+}
+
+function saveLyricsCacheNow() {
+  try {
+    fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
+    const temp = `${CACHE_FILE}.tmp`;
+    fs.writeFileSync(temp, JSON.stringify(lyricsCache, null, 2), 'utf8');
+    fs.renameSync(temp, CACHE_FILE);
+    cacheDirty = false;
+  } catch (err) {
+    console.warn('⚠️ LRCLib cache 寫入失敗：', err.message);
+  }
+}
+
+function scheduleCacheSave() {
+  if (cacheDirty) return;
+  cacheDirty = true;
+  setTimeout(() => {
+    if (cacheDirty) saveLyricsCacheNow();
+  }, 800);
+}
+
+function getCacheKey(context) {
+  return String(context.trackId || `${context.firstArtist || context.artists}|${context.cleanedTitle || context.title}|${context.durationSec || ''}`);
+}
+
+function getCachedLyrics(context) {
+  const key = getCacheKey(context);
+  const entry = lyricsCache[key];
+  if (!entry) return null;
+  if (entry.expiresAt && entry.expiresAt <= Date.now()) {
+    delete lyricsCache[key];
+    scheduleCacheSave();
+    return null;
+  }
+  return entry;
+}
+
+function setCachedLyrics(context, entry) {
+  const key = getCacheKey(context);
+  lyricsCache[key] = {
+    ...entry,
+    key,
+    trackId: context.trackId,
+    title: context.title,
+    artists: context.artists,
+    album: context.album || '',
+    updatedAt: Date.now()
+  };
+  scheduleCacheSave();
+}
+
+function clearLyricsCache() {
+  lyricsCache = {};
+  cacheDirty = false;
+  try {
+    if (fs.existsSync(CACHE_FILE)) fs.unlinkSync(CACHE_FILE);
+  } catch (err) {
+    console.warn('⚠️ LRCLib cache 刪除失敗：', err.message);
+  }
+  inFlightLookupMap.clear();
+  prefetchingTrackIds.clear();
+  lrclibCircuit = { state: 'closed', failures: 0, openUntil: 0, lastError: '' };
+  logLine('🧹 LRCLib lyrics cache cleared.');
+  return { ok: true, cleared: true };
+}
+
 function getRetryAfterMs(err) {
   const raw = err.response?.headers?.['retry-after'];
   if (!raw) return 8000;
 
-  const asSeconds = Number.parseInt(raw, 10);
+  const asSeconds = Number.parseFloat(raw);
   if (Number.isFinite(asSeconds) && asSeconds > 0) {
     return Math.min(asSeconds * 1000, LRCLIB_MAX_BACKOFF_MS);
   }
@@ -80,6 +175,61 @@ function getRetryAfterMs(err) {
   }
 
   return 8000;
+}
+
+function isTimeoutLikeError(err) {
+  return err?.code === 'ECONNABORTED' || /timeout|timed out/i.test(String(err?.message || ''));
+}
+
+function openCircuit(waitMs, reason) {
+  lrclibCircuit.state = 'open';
+  lrclibCircuit.openUntil = Date.now() + Math.min(waitMs, LRCLIB_MAX_BACKOFF_MS);
+  lrclibCircuit.lastError = reason;
+}
+
+function beforeLrclibRequest() {
+  const now = Date.now();
+  if (lrclibCircuit.state === 'open') {
+    if (lrclibCircuit.openUntil > now) {
+      const waitSeconds = Math.ceil((lrclibCircuit.openUntil - now) / 1000);
+      const err = new Error(`LRCLib circuit open, retry after ${waitSeconds}s: ${lrclibCircuit.lastError || 'temporary failure'}`);
+      err.isCircuitOpen = true;
+      throw err;
+    }
+    lrclibCircuit.state = 'half-open';
+  }
+}
+
+function recordLrclibSuccess() {
+  if (lrclibCircuit.state !== 'closed' || lrclibCircuit.failures > 0) {
+    lrclibCircuit = { state: 'closed', failures: 0, openUntil: 0, lastError: '' };
+  }
+}
+
+function recordLrclibFailure(err) {
+  const status = err.response?.status;
+  if (status === 404) return;
+
+  let waitMs = LRCLIB_CIRCUIT_OPEN_MS;
+  let reason = err.message || 'LRCLib request failed';
+
+  if (status === 429) {
+    waitMs = getRetryAfterMs(err);
+    reason = `LRCLib 429 rate limit`;
+    openCircuit(waitMs, reason);
+    return;
+  }
+
+  if (isTimeoutLikeError(err)) {
+    reason = `LRCLib timeout after ${LRCLIB_TIMEOUT_MS}ms`;
+  }
+
+  lrclibCircuit.failures += 1;
+  lrclibCircuit.lastError = reason;
+
+  if (lrclibCircuit.failures >= LRCLIB_CIRCUIT_FAILURE_THRESHOLD || lrclibCircuit.state === 'half-open') {
+    openCircuit(waitMs, reason);
+  }
 }
 
 function normalizeText(value = '') {
@@ -123,16 +273,14 @@ function uniqueObjects(items, keyFn) {
   return out;
 }
 
-function makeLrclibClient() {
-  return axios.create({
-    baseURL: 'https://lrclib.net',
-    timeout: LRCLIB_TIMEOUT_MS,
-    headers: {
-      'User-Agent': 'OBS-Live-Helper/1.0 (https://github.com/coyotewolf/obs-live-helper)'
-    },
-    validateStatus: status => (status >= 200 && status < 300) || status === 404
-  });
-}
+const lrclibClient = axios.create({
+  baseURL: 'https://lrclib.net',
+  timeout: LRCLIB_TIMEOUT_MS,
+  headers: {
+    'User-Agent': 'OBS-Live-Helper/1.0 (https://github.com/coyotewolf/obs-live-helper)'
+  },
+  validateStatus: status => (status >= 200 && status < 300) || status === 404
+});
 
 function hasSyncedLyrics(item) {
   return Boolean(item?.syncedLyrics || item?.lrc);
@@ -182,22 +330,21 @@ function scoreSearchResult(item, context) {
 }
 
 async function callLrclib(pathname, params) {
-  const now = Date.now();
-  if (lrclibBackoffUntil > now) {
-    throw new Error('LRCLib rate limited, retry later');
-  }
-
-  const client = makeLrclibClient();
+  beforeLrclibRequest();
 
   try {
-    const response = await client.get(pathname, { params });
+    const response = await lrclibClient.get(pathname, { params });
+    recordLrclibSuccess();
     if (response.status === 404) return null;
     return response.data;
   } catch (err) {
+    recordLrclibFailure(err);
     if (err.response?.status === 429) {
       const waitMs = getRetryAfterMs(err);
-      lrclibBackoffUntil = Date.now() + waitMs;
       throw new Error(`LRCLib too many requests, backing off ${Math.ceil(waitMs / 1000)}s`);
+    }
+    if (isTimeoutLikeError(err)) {
+      throw new Error(`LRCLib request timed out after ${LRCLIB_TIMEOUT_MS}ms`);
     }
     throw err;
   }
@@ -216,13 +363,6 @@ async function tryExactGet(context) {
       label: 'exact cleaned title + first artist',
       artist_name: context.firstArtist,
       track_name: context.cleanedTitle,
-      album_name: context.album,
-      duration: context.durationSec
-    },
-    {
-      label: 'exact original title + all artists',
-      artist_name: context.artists,
-      track_name: context.title,
       album_name: context.album,
       duration: context.durationSec
     }
@@ -251,10 +391,10 @@ async function tryExactGet(context) {
 }
 
 async function searchLrclib(context) {
-  const searchQueries = uniqueObjects([
+  const allSearchQueries = uniqueObjects([
     {
-      label: 'search by first artist + original title',
-      params: { artist_name: context.firstArtist, track_name: context.title }
+      label: 'search by q cleaned',
+      params: { q: `${context.firstArtist} ${context.cleanedTitle}` }
     },
     {
       label: 'search by first artist + cleaned title',
@@ -263,13 +403,10 @@ async function searchLrclib(context) {
     {
       label: 'search by q original',
       params: { q: `${context.firstArtist} ${context.title}` }
-    },
-    {
-      label: 'search by q cleaned',
-      params: { q: `${context.firstArtist} ${context.cleanedTitle}` }
     }
   ], item => JSON.stringify(item.params));
 
+  const searchQueries = allSearchQueries.slice(0, Math.max(0, LRCLIB_MAX_FUZZY_SEARCHES));
   let allResults = [];
   let plainOnlyCount = 0;
 
@@ -301,16 +438,16 @@ async function searchLrclib(context) {
     throw new Error(`LRCLib only plain lyrics found (${plainOnlyCount}), no synced lyrics`);
   }
 
-  throw new Error('LRCLib synced lyrics not found after exact + fuzzy search');
+  throw new Error('LRCLib synced lyrics not found after exact + limited fuzzy search');
 }
 
-async function fetchLyricsLRC({ trackId, artists, title, album, duration_ms }) {
+function buildLookupContext({ trackId, artists, title, album, duration_ms }) {
   const artistList = splitArtists(artists);
   const firstArtist = artistList[0] || artists;
   const cleanedTitle = cleanTrackTitle(title);
   const durationSec = duration_ms ? Math.round(duration_ms / 1000) : null;
 
-  const context = {
+  return {
     trackId,
     artists,
     firstArtist,
@@ -320,15 +457,65 @@ async function fetchLyricsLRC({ trackId, artists, title, album, duration_ms }) {
     duration_ms,
     durationSec
   };
+}
 
-  const exact = await tryExactGet(context);
-  if (exact?.lyrics) return exact;
+async function fetchLyricsLRC(input, options = {}) {
+  const context = buildLookupContext(input);
+  const cacheKey = getCacheKey(context);
+  const cached = getCachedLyrics(context);
 
-  if (lastLoggedFuzzySearchTrackId !== trackId) {
-    logLine(`ℹ️ LRCLib exact match not found, trying fuzzy search: ${firstArtist} - ${cleanedTitle}`);
-    lastLoggedFuzzySearchTrackId = trackId;
+  if (cached?.status === 'ready' && cached.lyrics) {
+    return {
+      lyrics: cached.lyrics,
+      source: `cache:${cached.source || 'lrclib'}`,
+      matched: cached.matched || null,
+      cached: true
+    };
   }
-  return searchLrclib(context);
+
+  if (cached?.status === 'not_found') {
+    const err = new Error(cached.reason || 'LRCLib synced lyrics not found (cached)');
+    err.isCachedNotFound = true;
+    throw err;
+  }
+
+  if (inFlightLookupMap.has(cacheKey)) return inFlightLookupMap.get(cacheKey);
+
+  const lookupPromise = (async () => {
+    try {
+      const exact = await tryExactGet(context);
+      const result = exact?.lyrics ? exact : await searchLrclib(context);
+      setCachedLyrics(context, {
+        status: 'ready',
+        lyrics: result.lyrics,
+        source: result.source,
+        matched: result.matched || null,
+        expiresAt: Date.now() + LRCLIB_CACHE_READY_TTL_MS
+      });
+      return result;
+    } catch (err) {
+      // Do not permanently cache network, timeout, 429, or circuit-breaker failures.
+      // Only cache real not-found / plain-only outcomes so 24/7 operation does not hammer LRCLib.
+      const message = err.message || 'LRCLib lookup failed';
+      const shouldCacheNotFound =
+        err.isCachedNotFound ||
+        /not found|no synced lyrics|only plain lyrics/i.test(message);
+
+      if (shouldCacheNotFound) {
+        setCachedLyrics(context, {
+          status: 'not_found',
+          reason: message,
+          expiresAt: Date.now() + LRCLIB_CACHE_NOT_FOUND_TTL_MS
+        });
+      }
+      throw err;
+    } finally {
+      inFlightLookupMap.delete(cacheKey);
+    }
+  })();
+
+  inFlightLookupMap.set(cacheKey, lookupPromise);
+  return lookupPromise;
 }
 
 function makeTrackContext(item) {
@@ -394,8 +581,11 @@ async function fetchLyricsForCurrentTrack(reason = 'track-change') {
   } catch (err) {
     if (!currentTrackContext || currentTrackContext.trackId !== trackId || lastTrackId !== trackId) return;
 
+    const transient = err.isCircuitOpen || /timeout|too many requests|circuit open|ECONNRESET|ENOTFOUND|EAI_AGAIN/i.test(String(err.message || ''));
     const reachedLimit = currentTrackAttemptCount >= MAX_SAME_TRACK_RETRIES;
-    writeCurrentLrc(buildMetadata(trackId, artists, album, reachedLimit ? 'not_found' : 'searching'));
+    const finalStatus = reachedLimit && !transient ? 'not_found' : 'searching';
+
+    writeCurrentLrc(buildMetadata(trackId, artists, album, finalStatus));
     lastSyncedObj = null;
     lyricRetryPending = !reachedLimit;
 
@@ -403,8 +593,6 @@ async function fetchLyricsForCurrentTrack(reason = 'track-change') {
       ? `，已達查找上限 ${MAX_SAME_TRACK_RETRIES}/${MAX_SAME_TRACK_RETRIES}`
       : `，將只重試 LRCLib ${currentTrackAttemptCount}/${MAX_SAME_TRACK_RETRIES}（不重新呼叫 Spotify API）`;
 
-    // Log every failed attempt so users can see whether retries are still happening.
-    // Avoid the old UI flicker by keeping obsstatus=searching until the final attempt fails.
     logLine(`❌ LRC not found: ${err.message}${retryNote}`);
     lastLoggedLrcNotFound = true;
   }
@@ -492,9 +680,66 @@ function isLyricsSynced(track) {
   return trackId === lastSyncedObj.id;
 }
 
+async function prefetchLyricsForTracks(tracks = []) {
+  const candidates = uniqueObjects(
+    (Array.isArray(tracks) ? tracks : [])
+      .filter(track => track?.id || track?.uri)
+      .filter(track => !currentTrackContext || (track.id || track.uri) !== currentTrackContext.trackId)
+      .slice(0, LRCLIB_PREFETCH_LIMIT),
+    track => track.id || track.uri
+  );
+
+  if (!candidates.length) return { ok: true, checked: 0 };
+  if (prefetchQueuePromise) return prefetchQueuePromise;
+
+  prefetchQueuePromise = (async () => {
+    let checked = 0;
+    for (const track of candidates) {
+      const context = makeTrackContext(track);
+      if (prefetchingTrackIds.has(context.trackId)) continue;
+
+      const lookupContext = buildLookupContext({
+        trackId: context.trackId,
+        artists: context.artists,
+        title: context.name,
+        album: context.album,
+        duration_ms: context.durationMs
+      });
+
+      if (getCachedLyrics(lookupContext)) continue;
+
+      prefetchingTrackIds.add(context.trackId);
+      try {
+        checked += 1;
+        await fetchLyricsLRC({
+          trackId: context.trackId,
+          artists: context.artists,
+          title: context.name,
+          album: context.album,
+          duration_ms: context.durationMs
+        }, { prefetch: true });
+        logLine(`📦 Prefetched LRC cache for queue track: ${context.artists} - ${context.name}`);
+      } catch (err) {
+        if (!/cached|not found|plain lyrics/i.test(String(err.message || ''))) {
+          logLine(`⚠️ Queue LRC prefetch skipped: ${context.artists} - ${context.name}: ${err.message}`);
+        }
+      } finally {
+        prefetchingTrackIds.delete(context.trackId);
+      }
+    }
+    return { ok: true, checked };
+  })().finally(() => {
+    prefetchQueuePromise = null;
+  });
+
+  return prefetchQueuePromise;
+}
+
 module.exports = {
   startLyricSync,
   isLyricsSynced,
   performLyricSync,
-  stopLyricSync
+  stopLyricSync,
+  prefetchLyricsForTracks,
+  clearLyricsCache
 };
