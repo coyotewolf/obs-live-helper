@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "updatedAt": 1777800653988,
+  "updatedAt": 1777804657103,
   "theme": "blue-night",
   "goal": {
     "layout": {
       "direction": "column",
       "gap": 10,
-      "widthMode": "manual",
-      "minWidthCol": 768,
-      "minWidthRow": 728,
+      "widthMode": "auto",
+      "minWidthCol": 520,
+      "minWidthRow": 220,
       "baseAlpha": 0.65,
       "completedAlpha": 0.65,
       "completeFlashMs": 3000
@@ -16,7 +16,7 @@
     "cards": [
       {
         "uid": "7cd2596c-3159-4ca0-8140-8a32d34c929f",
-        "text": "明日小目標 ：+dashboard tab, 重複port警告,build,test,test,test",
+        "text": "明日小目標 ：+dashboard tab, 重複port警告,build,test,test,testtest",
         "current": 1,
         "total": 4,
         "visible": true,
