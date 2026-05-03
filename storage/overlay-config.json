@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": 1777798563365,
+  "updatedAt": 1777799406048,
   "theme": "blue-night",
   "goal": {
     "layout": {
@@ -15,7 +15,7 @@
     },
     "cards": [
       {
-        "uid": "7cd2596c-3159-4ca0-8140-8a32d34c929f",
+        "uid": "488730bb-026b-4bf3-bfd5-1dc7aa3904e3",
         "text": "後天小目標：重複安裝處理, +icon,build,release 0.1.2",
         "current": 0,
         "total": 3,
@@ -23,7 +23,7 @@
         "completed": false
       },
       {
-        "uid": "488730bb-026b-4bf3-bfd5-1dc7aa3904e3",
+        "uid": "7cd2596c-3159-4ca0-8140-8a32d34c929f",
         "text": "明日小目標 ：+dashboard tab, 重複port警告,build,test,test,test",
         "current": 1,
         "total": 4,
