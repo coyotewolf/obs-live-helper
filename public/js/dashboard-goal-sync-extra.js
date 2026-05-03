@@ -19,7 +19,7 @@
   };
 
   let latestAutoWidth = null;
-  let serverSaveTimer = null;
+  let typingTimer = null;
 
   function clone(value){ return JSON.parse(JSON.stringify(value)); }
   function uid(){ return (crypto.randomUUID && crypto.randomUUID()) || `goal-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
@@ -124,28 +124,25 @@
   }
 
   async function persistGoalToServer(goal){
-    clearTimeout(serverSaveTimer);
-    serverSaveTimer = setTimeout(async () => {
-      try {
-        const shared = readJson(CONFIG_KEY, {});
-        const clock = readJson(CLOCK_KEY, fallbackClock);
-        const payload = {
-          theme: shared.theme || document.body.dataset.theme || localStorage.getItem('obsHelperTheme') || 'blue-night',
-          goal: normalizeGoal(goal),
-          clock: shared.clock || clock
-        };
-        const res = await fetch('/api/overlay-config', {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json().catch(() => null);
-        if (data?.ok && data.config) localStorage.setItem(CONFIG_KEY, JSON.stringify(data.config));
-      } catch (err) {
-        console.warn('goal sync save failed', err);
-        toast('小目標已更新，但同步到 server 失敗');
-      }
-    }, 160);
+    try {
+      const shared = readJson(CONFIG_KEY, {});
+      const clock = readJson(CLOCK_KEY, fallbackClock);
+      const payload = {
+        theme: shared.theme || document.body.dataset.theme || localStorage.getItem('obsHelperTheme') || 'blue-night',
+        goal: normalizeGoal(goal),
+        clock: shared.clock || clock
+      };
+      const res = await fetch('/api/overlay-config', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.ok && data.config) localStorage.setItem(CONFIG_KEY, JSON.stringify(data.config));
+    } catch (err) {
+      console.warn('goal sync save failed', err);
+      toast('小目標已更新，但同步到 server 失敗');
+    }
   }
 
   function broadcastGoal(goal){
@@ -242,7 +239,6 @@
     saveGoal(event.data.goal, { broadcast:false, server:false, render:true });
   });
 
-  let typingTimer = null;
   document.addEventListener('input', event => {
     if (!event.target?.closest?.('.goalSettingsPanel')) return;
     const field = event.target?.dataset?.goalField || '';
@@ -256,7 +252,7 @@
     typingTimer = setTimeout(() => {
       const goal = collectEditorGoal();
       saveGoal(goal, { broadcast:true, server:true, render:shouldRender });
-    }, 260);
+    }, 120);
   });
   document.addEventListener('change', event => {
     if (!event.target?.closest?.('.goalSettingsPanel')) return;
@@ -265,6 +261,7 @@
     // 任務名稱只在按下儲存時套用，blur/change 不更新 overlay，避免自動寬度縮放干擾編輯。
     if (field === 'text') return;
 
+    clearTimeout(typingTimer);
     const goal = collectEditorGoal();
     saveGoal(goal, { broadcast:true, server:true, render:true });
   });
@@ -272,5 +269,7 @@
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) fetchLatestGoal();
   });
-  setInterval(fetchLatestGoal, 2000);
+  // Do not poll every 2 seconds. Progress updates already use BroadcastChannel,
+  // and polling can read an old server value before the latest edit is persisted,
+  // causing 0 -> 1 / 1 -> 0 to appear to require a second click.
 })();
