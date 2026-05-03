@@ -53,17 +53,17 @@ html,body{margin:0;padding:0;background:transparent;width:100%;height:100%;overf
 .date{font-size:var(--date-size);font-weight:var(--date-weight);color:var(--subtext-color);letter-spacing:.8px;text-shadow:0 3px 12px rgba(0,0,0,.25);text-align:center;width:100%;display:block}
 
 body[data-theme="pink-cute"]{
-  --clock-bg-rgb:255,255,255;
-  --clock-alpha:.70;
-  --card-radius:14px;
+  --clock-bg-rgb:100,140,190;
+  --clock-alpha:.65;
+  --card-radius:22px;
   --card-padding:14px 18px;
-  --text-color:#432136;
-  --subtext-color:rgba(67,33,54,.68);
-  --accent-pink:#d9467f;
+  --text-color:#fff;
+  --subtext-color:#f0f0f0;
+  --accent-pink:#ff7fa9;
   --accent-2:#ff7fa9;
-  --accent-glow:rgba(255,160,200,.38);
-  --outline-blue:rgba(217,70,127,.20);
-  --outline-glow:rgba(255,160,200,.30);
+  --accent-glow:rgba(255,160,200,.65);
+  --outline-blue:#a8d8ff;
+  --outline-glow:rgba(160,220,255,.4);
   --label-radius:6px;
   --label-pad:2px 10px;
   --time-weight:600;
@@ -72,10 +72,10 @@ body[data-theme="pink-cute"]{
 body[data-theme="pink-cute"] .clock-card{
   background:var(--card-bg);
   border:0;
-  box-shadow:0 0 10px var(--outline-glow),0 0 0 1.5px var(--outline-blue),0 10px 28px rgba(217,70,127,.10);
-  backdrop-filter:blur(10px)
+  box-shadow:0 0 10px var(--outline-glow),0 0 0 2px var(--outline-blue),0 10px 26px rgba(20,30,50,.18);
+  backdrop-filter:none
 }
-body[data-theme="pink-cute"] .time{text-shadow:0 2px 10px rgba(255,255,255,.85),0 0 10px rgba(255,160,200,.22),0 0 20px rgba(255,160,200,.12)}
+body[data-theme="pink-cute"] .time{text-shadow:0 0 6px rgba(255,192,203,.5),0 0 12px rgba(255,192,203,.25),0 0 24px rgba(255,192,203,.15)}
 body[data-theme="pink-cute"] .divider{box-shadow:none;background:linear-gradient(90deg,transparent 0%,var(--accent-pink) 50%,transparent 100%);margin:8px 0 6px;opacity:.6}
 body[data-theme="blue-night"]{
   --clock-bg-rgb:8,13,28;
