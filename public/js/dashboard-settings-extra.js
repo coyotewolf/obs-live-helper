@@ -52,6 +52,7 @@
 
   let hasRenderedVerificationOnce = false;
   let refreshTimer = null;
+  let lastRenderedFileKeys = '';
 
   function toast(message){
     if (typeof window.showToast === 'function') window.showToast(message);
@@ -70,6 +71,12 @@
     let i = 0;
     while (value >= 1024 && i < units.length - 1) { value /= 1024; i += 1; }
     return `${value >= 10 || i === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[i]}`;
+  }
+
+  function escapeHtml(text){
+    return String(text || '').replace(/[&<>"']/g, ch => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'
+    }[ch]));
   }
 
   function waitForElement(selector, timeoutMs = 8000){
@@ -115,10 +122,17 @@
       .verificationBadge.off{color:rgba(255,255,255,.76);background:rgba(148,163,184,.28)}
       .backupSummaryStable{min-height:1.65em;display:block}
       .backupSummaryCodeStable{min-height:32px;display:inline-flex;align-items:center}
+      .backupFileList{display:grid;gap:8px;margin-top:10px;max-height:260px;overflow:auto;padding:10px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(2,8,23,.20)}
+      .backupFileItem{display:grid;grid-template-columns:88px minmax(0,1fr) 76px;gap:10px;align-items:center;min-height:32px;padding:7px 9px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.045)}
+      .backupFileArea{display:inline-flex;justify-content:center;align-items:center;min-height:24px;padding:0 8px;border-radius:999px;background:rgba(125,211,252,.12);color:var(--accent);font-size:.78rem;font-weight:900;white-space:nowrap}
+      .backupFilePath{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-family:"Cascadia Code",Consolas,monospace;font-size:.86rem}
+      .backupFileSize{text-align:right;color:var(--muted);font-size:.82rem;white-space:nowrap}
+      .backupFileEmpty{padding:12px;border-radius:12px;background:rgba(255,255,255,.05);color:var(--muted)}
       body[data-theme="pink-cute"] .backupOptionGrid label{background:rgba(255,255,255,.72);border-color:rgba(210,72,122,.18)}
       body[data-theme="pink-cute"] .settingsDangerBox{background:rgba(239,68,68,.06);border-color:rgba(217,45,98,.26)}
       body[data-theme="pink-cute"] .verificationBadge.off{color:rgba(67,33,54,.72);background:rgba(148,163,184,.22)}
-      @media(max-width:560px){.backupOptionGrid{grid-template-columns:1fr}.verificationItem{grid-template-columns:1fr!important}.verificationBadge{justify-self:start}}
+      body[data-theme="pink-cute"] .backupFileList,body[data-theme="pink-cute"] .backupFileItem{background:rgba(255,255,255,.70);border-color:rgba(210,72,122,.16)}
+      @media(max-width:560px){.backupOptionGrid{grid-template-columns:1fr}.verificationItem{grid-template-columns:1fr!important}.verificationBadge{justify-self:start}.backupFileItem{grid-template-columns:1fr}.backupFileSize{text-align:left}}
     `;
     document.head.appendChild(style);
   }
@@ -159,11 +173,48 @@
     }).join('');
   }
 
+  function ensureFileListContainer(){
+    let list = document.getElementById('backupSelectedFileList');
+    if (list) return list;
+
+    const grid = document.getElementById('backupVerificationGrid');
+    if (!grid) return null;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'backupSelectedFilesBlock';
+    wrapper.innerHTML = `
+      <div style="margin-top:18px"><span class="eyebrow">Selected Files</span><p class="introText" style="margin:6px 0 0">下方會列出目前勾選後實際會放進備份的檔案。</p></div>
+      <div id="backupSelectedFileList" class="backupFileList"><p class="backupFileEmpty">等待備份內容檢查...</p></div>
+    `;
+    grid.insertAdjacentElement('afterend', wrapper);
+    return document.getElementById('backupSelectedFileList');
+  }
+
   function setTextIfChanged(id, value){
     const el = document.getElementById(id);
     if (!el) return;
     const next = String(value ?? '');
     if (el.textContent !== next) el.textContent = next;
+  }
+
+  function renderSelectedFiles(files = []){
+    const list = ensureFileListContainer();
+    if (!list) return;
+    const normalized = Array.isArray(files) ? files : [];
+    const fileKeys = normalized.map(file => `${file.area}/${file.path}/${file.size || 0}`).join('|');
+    if (fileKeys === lastRenderedFileKeys) return;
+    lastRenderedFileKeys = fileKeys;
+
+    if (!normalized.length) {
+      list.innerHTML = '<p class="backupFileEmpty">目前沒有任何檔案會被放進備份。</p>';
+      return;
+    }
+
+    list.innerHTML = normalized.map(file => {
+      const area = escapeHtml(file.area || 'file');
+      const pathText = escapeHtml(file.path || 'unknown');
+      const size = formatBytes(file.size || 0);
+      return `<div class="backupFileItem"><span class="backupFileArea">${area}</span><span class="backupFilePath" title="${area}/${pathText}">${pathText}</span><span class="backupFileSize">${size}</span></div>`;
+    }).join('');
   }
 
   function renderVerification(summary, options){
@@ -176,6 +227,7 @@
     setTextIfChanged('backupSummaryCount', fileText);
     setTextIfChanged('backupSummarySize', sizeText);
     setTextIfChanged('backupSummaryDataDir', dataDirText);
+    renderSelectedFiles(summary?.files || []);
 
     for (const key of Object.keys(VERIFICATION_LABELS)) {
       const item = document.querySelector(`[data-verification-key="${key}"]`);
@@ -194,6 +246,7 @@
   async function refreshVerification({ silent = false } = {}){
     const grid = document.getElementById('backupVerificationGrid');
     ensureVerificationSkeleton();
+    ensureFileListContainer();
 
     if (!silent) toast('正在檢查備份內容...');
 
@@ -292,6 +345,7 @@
     document.getElementById('backupSummarySize')?.classList.add('backupSummaryStable');
     document.getElementById('backupSummaryDataDir')?.classList.add('backupSummaryCodeStable');
     ensureVerificationSkeleton();
+    ensureFileListContainer();
 
     const oldIntro = pane.querySelector('.introText');
     if (oldIntro) {
