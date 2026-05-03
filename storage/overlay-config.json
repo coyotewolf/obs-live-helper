@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": 1777799406048,
+  "updatedAt": 1777799567652,
   "theme": "blue-night",
   "goal": {
     "layout": {
@@ -15,15 +15,7 @@
     },
     "cards": [
       {
-        "uid": "488730bb-026b-4bf3-bfd5-1dc7aa3904e3",
-        "text": "後天小目標：重複安裝處理, +icon,build,release 0.1.2",
-        "current": 0,
-        "total": 3,
-        "visible": true,
-        "completed": false
-      },
-      {
-        "uid": "7cd2596c-3159-4ca0-8140-8a32d34c929f",
+        "uid": "goal-default",
         "text": "明日小目標 ：+dashboard tab, 重複port警告,build,test,test,test",
         "current": 1,
         "total": 4,
@@ -31,10 +23,18 @@
         "completed": false
       },
       {
-        "uid": "goal-default",
+        "uid": "488730bb-026b-4bf3-bfd5-1dc7aa3904e3",
         "text": "今日小目標：改好v0.1.2，不release",
         "current": 2,
         "total": 2,
+        "visible": true,
+        "completed": false
+      },
+      {
+        "uid": "7cd2596c-3159-4ca0-8140-8a32d34c929f",
+        "text": "後天小目標：重複安裝處理, +icon,build,release 0.1.2",
+        "current": 0,
+        "total": 3,
         "visible": true,
         "completed": false
       }
