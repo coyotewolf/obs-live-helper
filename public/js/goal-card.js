@@ -21,6 +21,7 @@
   let previousCards=new Map(config.cards.map(c=>[c.uid,{...c}]));
   let lastCompleted=new Set(config.cards.filter(c=>c.completed||c.current>=c.total).map(c=>c.uid));
   let isUserDragging=false;
+  let lastAutoWidthMessage='';
 
   function clone(v){return JSON.parse(JSON.stringify(v));}
   function uid(){return (crypto.randomUUID&&crypto.randomUUID())||`goal-${Date.now()}-${Math.random().toString(36).slice(2)}`;}
@@ -54,21 +55,68 @@
     return next;
   }
   function escapeHtml(text){return String(text||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));}
-  function applyCSS(){
-    const root=document.documentElement;
-    const colWidth=clamp(config.layout.minWidthCol,520,120,5000);
-    const rowWidth=clamp(config.layout.minWidthRow,220,120,5000);
-    root.style.setProperty('--cards-gap',`${config.layout.gap??30}px`);
-    root.style.setProperty('--base-alpha',config.layout.baseAlpha??.65);
-    root.style.setProperty('--completed-alpha',config.layout.completedAlpha??.65);
-    root.style.setProperty('--card-min-col',`${colWidth}px`);
-    root.style.setProperty('--card-min-row',`${rowWidth}px`);
-    root.style.setProperty('--card-width-col',`${colWidth}px`);
-    root.style.setProperty('--card-width-row',`${rowWidth}px`);
-  }
   function isCompleted(card){return Boolean(card.completed)||Number(card.current)>=Number(card.total);}
   function sortCards(cards){return [...cards.filter(c=>!isCompleted(c)),...cards.filter(c=>isCompleted(c))];}
   function visibleCards(){return sortCards(config.cards).filter(c=>c.visible!==false);}
+
+  function measureText(text,font){
+    const canvas=measureText.canvas||(measureText.canvas=document.createElement('canvas'));
+    const ctx=canvas.getContext('2d');
+    ctx.font=font;
+    return Math.ceil(ctx.measureText(String(text||'')).width);
+  }
+  function computeAutoWidths(colMin,rowMin){
+    const cards=visibleCards();
+    const textFont='850 26px Plus Jakarta Sans, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif';
+    const progressFont='850 16px Plus Jakarta Sans, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif';
+    let longest=0;
+    for(const card of cards){
+      const total=Math.max(1,Number(card.total)||1);
+      const current=Math.max(0,Math.min(total,Number(card.current)||0));
+      longest=Math.max(
+        longest,
+        measureText(card.text,textFont),
+        measureText(`${current} / ${total}`,progressFont)
+      );
+    }
+    // 40px horizontal padding + 38px badge + 14px gap + safety for borders/glow/font fallback.
+    const required=Math.ceil(longest+118);
+    return {
+      col:Math.max(colMin,required),
+      row:Math.max(rowMin,required),
+      required
+    };
+  }
+  function notifyAutoWidth(widths){
+    if(config.layout.widthMode!=='auto')return;
+    const payload={
+      type:'goal-auto-width-change',
+      direction:config.layout.direction,
+      colWidth:widths.col,
+      rowWidth:widths.row,
+      width:config.layout.direction==='row'?widths.row:widths.col
+    };
+    const key=JSON.stringify(payload);
+    if(key===lastAutoWidthMessage)return;
+    lastAutoWidthMessage=key;
+    channel.postMessage(payload);
+  }
+  function applyCSS(){
+    const root=document.documentElement;
+    const colMin=clamp(config.layout.minWidthCol,520,120,5000);
+    const rowMin=clamp(config.layout.minWidthRow,220,120,5000);
+    const autoWidths=computeAutoWidths(colMin,rowMin);
+    const colWidth=config.layout.widthMode==='auto'?autoWidths.col:colMin;
+    const rowWidth=config.layout.widthMode==='auto'?autoWidths.row:rowMin;
+    root.style.setProperty('--cards-gap',`${config.layout.gap??30}px`);
+    root.style.setProperty('--base-alpha',config.layout.baseAlpha??.65);
+    root.style.setProperty('--completed-alpha',config.layout.completedAlpha??.65);
+    root.style.setProperty('--card-min-col',`${colMin}px`);
+    root.style.setProperty('--card-min-row',`${rowMin}px`);
+    root.style.setProperty('--card-width-col',`${colWidth}px`);
+    root.style.setProperty('--card-width-row',`${rowWidth}px`);
+    notifyAutoWidth(autoWidths);
+  }
   function getPositions(){
     const map=new Map();
     cardsContainer.querySelectorAll('.goal-card:not(.leaving)').forEach(el=>map.set(el.dataset.uid,el.getBoundingClientRect()));
