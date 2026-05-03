@@ -22,11 +22,11 @@ body{font-family:var(--font);color:var(--text)}
 .hud-area{position:absolute;left:0;top:0;right:0;bottom:0;display:block;padding:0;box-sizing:border-box;overflow:visible}
 .cards{position:absolute;left:0;top:0;display:flex;gap:var(--cards-gap);align-items:flex-start;justify-content:flex-start;box-sizing:border-box;overflow:visible;transition:gap .42s cubic-bezier(.16,1,.3,1)}
 .cards[data-mode="column"]{flex-direction:column;flex-wrap:nowrap}
-.cards[data-mode="row"]{flex-direction:row;flex-wrap:wrap;max-width:100vw}
+.cards[data-mode="row"]{flex-direction:row;flex-wrap:wrap;max-width:none}
 .goal-card{
   min-width:var(--card-min-col);
   width:auto;
-  max-width:min(90vw,720px);
+  max-width:none;
   color:var(--text);
   display:flex;
   align-items:center;
@@ -44,20 +44,22 @@ body{font-family:var(--font);color:var(--text)}
   overflow:hidden;
   user-select:none;
   cursor:grab;
-  transition:opacity .34s ease,filter .34s ease,box-shadow .2s ease,scale .2s ease,min-width .42s cubic-bezier(.16,1,.3,1),width .42s cubic-bezier(.16,1,.3,1);
+  transition:opacity .34s ease,filter .34s ease,box-shadow .2s ease,scale .2s ease,min-width .42s cubic-bezier(.16,1,.3,1),width .42s cubic-bezier(.16,1,.3,1),max-width .42s cubic-bezier(.16,1,.3,1);
   will-change:transform,opacity
 }
 .cards[data-width-mode="manual"][data-mode="column"] .goal-card{width:var(--card-width-col);min-width:var(--card-width-col);max-width:min(96vw,var(--card-width-col));box-sizing:border-box}
 .cards[data-width-mode="manual"][data-mode="row"] .goal-card{width:var(--card-width-row);min-width:var(--card-width-row);max-width:min(96vw,var(--card-width-row));box-sizing:border-box;flex:0 0 var(--card-width-row)}
-.cards[data-width-mode="auto"][data-mode="column"] .goal-card{width:auto;min-width:var(--card-min-col);max-width:min(90vw,720px)}
-.cards[data-width-mode="auto"][data-mode="row"] .goal-card{width:auto;min-width:var(--card-min-row);max-width:min(96vw,560px);flex:0 1 auto}
-.cards[data-mode="row"] .goal-card{min-width:var(--card-min-row);max-width:min(96vw,560px);flex:0 1 auto}
+.cards[data-width-mode="auto"][data-mode="column"] .goal-card{width:max-content;min-width:var(--card-min-col);max-width:none;box-sizing:border-box}
+.cards[data-width-mode="auto"][data-mode="row"] .goal-card{width:max-content;min-width:var(--card-min-row);max-width:none;flex:0 0 max-content;box-sizing:border-box}
+.cards[data-width-mode="manual"] .text{overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cards[data-width-mode="auto"] .stack{max-width:none;flex:0 0 auto}
+.cards[data-width-mode="auto"] .text{overflow:visible;text-overflow:clip;max-width:none;white-space:nowrap}
 .goal-card:active{cursor:grabbing}
 .goal-card.entering{opacity:0;transform:translateY(-10px) scale(.96)}
 .goal-card.leaving{opacity:0;transform:translateY(-12px) scale(.94);pointer-events:none}
 .goal-card.dragging{position:fixed!important;z-index:99999!important;cursor:grabbing;opacity:.96;transform:rotate(-2deg) scale(1.035);box-shadow:0 28px 68px rgba(0,0,0,.5),0 0 0 2px rgba(125,211,252,.8)}
 .goal-card.placeholder{visibility:hidden;box-shadow:none!important;background:transparent!important;border:0!important}
-.cards.mode-switching .goal-card{transition:opacity .34s ease,filter .34s ease,box-shadow .2s ease,scale .2s ease,min-width .62s cubic-bezier(.16,1,.3,1),width .62s cubic-bezier(.16,1,.3,1)}
+.cards.mode-switching .goal-card{transition:opacity .34s ease,filter .34s ease,box-shadow .2s ease,scale .2s ease,min-width .62s cubic-bezier(.16,1,.3,1),width .62s cubic-bezier(.16,1,.3,1),max-width .62s cubic-bezier(.16,1,.3,1)}
 .fill-bg{position:absolute;inset:0;background:var(--progress-color);width:0%;z-index:0;transition:width .68s cubic-bezier(.16,1,.3,1);border-radius:inherit;opacity:.86}
 .shine{position:absolute;inset:0;z-index:1;opacity:0;pointer-events:none;background:linear-gradient(120deg,transparent 0%,rgba(255,255,255,.34) 42%,rgba(255,255,255,.7) 50%,rgba(255,255,255,.24) 58%,transparent 100%);transform:translateX(-120%)}
 .goal-card.progress-bump .shine{animation:shineSweep .72s cubic-bezier(.2,.7,.2,1)}
