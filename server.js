@@ -131,9 +131,6 @@ function buildLocalStreamKitProxyUrl(streamKitUrl) {
 }
 
 function hasFirstLaunchConfig() {
-  // App 本體不應被 Spotify / Discord 設定阻擋。
-  // Spotify Client ID 與 Discord StreamKit URL 改成「功能設定狀態」，
-  // 而不是「是否允許進入控制台」的條件。
   return true;
 }
 
@@ -230,7 +227,6 @@ function firstLaunchSetupGuard(req, res, next) {
 app.use(firstLaunchSetupGuard);
 
 // ---------- Dashboard extension injection ----------
-// Keep the original dashboard.html usable, but add scripts that insert / update small cards and onboarding text.
 app.get('/html/dashboard.html', (req, res, next) => {
   const dashboardPath = path.join(runtimePaths.PUBLIC_DIR, 'html', 'dashboard.html');
   fs.readFile(dashboardPath, 'utf8', (err, html) => {
@@ -240,6 +236,9 @@ app.get('/html/dashboard.html', (req, res, next) => {
     }
     if (!html.includes('dashboard-settings-extra.js')) {
       html = html.replace('</body>', '<script src="../js/dashboard-settings-extra.js"></script>\n</body>');
+    }
+    if (!html.includes('dashboard-goal-sync-extra.js')) {
+      html = html.replace('</body>', '<script src="../js/dashboard-goal-sync-extra.js"></script>\n</body>');
     }
     if (!html.includes('dashboard-goal-reorder-extra.js')) {
       html = html.replace('</body>', '<script src="../js/dashboard-goal-reorder-extra.js"></script>\n</body>');
@@ -254,12 +253,7 @@ app.get('/html/dashboard.html', (req, res, next) => {
 // ---------- Discord StreamKit local proxy ----------
 const discordProfileRouter = require('./routes/discordProfile');
 
-// StreamKit main overlay page and /overlay/token live here.
 app.use('/overlay', discordProfileRouter);
-
-// StreamKit's generated HTML references these as root-level paths.
-// They must be mounted BEFORE express.static(), otherwise the app returns local HTML
-// with wrong MIME type and StreamKit fails to boot.
 app.use('/static', discordProfileRouter.staticRouter);
 app.use('/cdn-cgi', discordProfileRouter.noOpScriptRouter);
 app.use('/asset-manifest.json', discordProfileRouter.proxyAsset('/asset-manifest.json'));
@@ -315,17 +309,6 @@ const server = app.listen(PORT, () => {
   tunnelManager.startIfEnabled(PORT);
 });
 
-// ---------- Discord local RPC WebSocket bridge ----------
-// StreamKit uses the Discord desktop RPC socket at ws://127.0.0.1:6463.
-// When proxied through localhost:5172, Discord may reject the page origin.
-// This bridge accepts StreamKit's local WebSocket first, then forwards it to
-// Discord desktop RPC with Origin: https://streamkit.discord.com.
-//
-// Important implementation detail:
-// Do NOT wait for the upstream Discord socket before handleUpgrade().
-// StreamKit expects the browser WebSocket to open quickly. If we delay the
-// upgrade until upstream opens, StreamKit can race its first handshake payload
-// and end up with repeated "WS Open -> WS Closed" loops.
 const discordRpcWss = new WebSocket.Server({ noServer: true });
 
 server.on('upgrade', (req, socket, head) => {
@@ -335,9 +318,7 @@ server.on('upgrade', (req, socket, head) => {
   discordRpcWss.handleUpgrade(req, socket, head, client => {
     const targetUrl = `ws://127.0.0.1:6463${url.search || ''}`;
     const upstream = new WebSocket(targetUrl, {
-      headers: {
-        Origin: 'https://streamkit.discord.com'
-      }
+      headers: { Origin: 'https://streamkit.discord.com' }
     });
 
     let closed = false;
@@ -377,15 +358,10 @@ server.on('upgrade', (req, socket, head) => {
     function sendToUpstream(data) {
       const payload = normalizeWsPayload(data);
       if (!payload) return;
-
-      // Discord RPC closes with 1003 "Payload not json" if it receives a binary
-      // frame or a non-JSON text frame. StreamKit sends JSON strings, but the ws
-      // server can surface them as Buffer, so force text before forwarding.
       if (!isJsonLike(payload)) {
         console.warn('Discord RPC bridge ignored non-JSON client payload:', payload.slice(0, 80));
         return;
       }
-
       if (upstream.readyState === WebSocket.OPEN) upstream.send(payload);
       else if (upstream.readyState === WebSocket.CONNECTING) clientQueue.push(payload);
     }
@@ -400,20 +376,13 @@ server.on('upgrade', (req, socket, head) => {
     client.on('message', sendToUpstream);
     client.on('close', (code, reason) => closeBoth('client', code, reason));
     client.on('error', err => closeBoth('client-error', 1011, err.message));
-
     upstream.on('open', () => {
-      while (clientQueue.length && upstream.readyState === WebSocket.OPEN) {
-        upstream.send(clientQueue.shift());
-      }
+      while (clientQueue.length && upstream.readyState === WebSocket.OPEN) upstream.send(clientQueue.shift());
     });
-
     upstream.on('message', sendToClient);
     upstream.on('close', (code, reason) => closeBoth('upstream', code, reason));
     upstream.on('error', err => closeBoth('upstream-error', 1011, err.message));
-
-    while (upstreamQueue.length && client.readyState === WebSocket.OPEN) {
-      client.send(upstreamQueue.shift());
-    }
+    while (upstreamQueue.length && client.readyState === WebSocket.OPEN) client.send(upstreamQueue.shift());
   });
 });
 
