@@ -68,7 +68,7 @@ body {
 }
 
 .now-playing-card.paused {
-  filter: saturate(0.72);
+  filter: saturate(0.78) brightness(0.92);
 }
 
 .cover-wrap {
@@ -114,12 +114,23 @@ body {
 }
 
 .play-state::before {
-  content: "";
-  width: 9px;
-  height: 9px;
+  content: "▶";
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 14px var(--accent);
+  color: #06111f;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 16px rgba(125, 211, 252, 0.55);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0;
+  padding-left: 1px;
+}
+
+.playing .play-state::before {
+  animation: playPulse 1.6s ease-in-out infinite;
 }
 
 .paused .play-state {
@@ -128,8 +139,18 @@ body {
 }
 
 .paused .play-state::before {
-  background: var(--text-sub);
+  content: "Ⅱ";
+  color: rgba(8, 13, 28, 0.86);
+  background: rgba(255, 255, 255, 0.72);
   box-shadow: none;
+  padding-left: 0;
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+@keyframes playPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 14px rgba(125, 211, 252, 0.42); }
+  50% { transform: scale(1.08); box-shadow: 0 0 22px rgba(125, 211, 252, 0.68); }
 }
 
 .song-name {
@@ -183,4 +204,9 @@ body {
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   box-shadow: 0 0 16px rgba(125, 211, 252, 0.55);
   transition: width 0.35s linear;
+}
+
+.paused .progress-fill {
+  box-shadow: none;
+  opacity: 0.72;
 }
