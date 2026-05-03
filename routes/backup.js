@@ -12,11 +12,9 @@ const INCLUDED_DIRS = [
   { key: 'fonts', dir: runtimePaths.FONTS_DIR }
 ];
 
-const SKIP_FILE_NAMES = new Set([
-  '.keep',
-  'lyrics.log',
-  'lrclib-cache.json'
-]);
+// Keep this empty on purpose: the user requested a complete runtime backup,
+// including lyrics.log, lrclib-cache.json, and .keep files.
+const SKIP_FILE_NAMES = new Set();
 
 function assertLocal(req, res) {
   if (isLocalRequest(req)) return true;
@@ -32,6 +30,15 @@ function readTextFileIfExists(filePath) {
   if (!fs.existsSync(filePath)) return null;
   try {
     return fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+function readJsonFileIfExists(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch {
     return null;
   }
@@ -80,19 +87,36 @@ function readRuntimeFiles() {
 
 function makeBackupPayload() {
   runtimePaths.ensureRuntimeDirs();
+  const overlayConfigPath = runtimePaths.storagePath('overlay-config.json');
+  const files = readRuntimeFiles();
+  const includedNames = new Set(files.map(file => `${file.area}/${file.path}`));
+
   return {
     app: 'OBS Live Helper',
     type: 'obs-live-helper-backup',
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     dataDir: runtimePaths.DATA_DIR,
     notes: [
       'This backup contains local OBS Live Helper settings and runtime files.',
-      'lyrics.log and lrclib-cache.json are excluded to keep the backup small.',
-      'Uploaded fonts are included as base64 files.'
+      'lyrics.log, lrclib-cache.json, and .keep files are included.',
+      'Small goal and live clock settings are stored in storage/overlay-config.json and are included in this backup.',
+      'Uploaded fonts are included as base64 files.',
+      `Files larger than ${MAX_BACKUP_FILE_BYTES} bytes are skipped to avoid accidental huge backups.`
     ],
     env: readTextFileIfExists(runtimePaths.ENV_PATH),
-    files: readRuntimeFiles()
+    overlayConfig: readJsonFileIfExists(overlayConfigPath),
+    verification: {
+      includesLyricsLog: includedNames.has('storage/lyrics.log'),
+      includesLrclibCache: includedNames.has('storage/lrclib-cache.json'),
+      includesStorageKeep: includedNames.has('storage/.keep'),
+      includesLyricsKeep: includedNames.has('lyrics/.keep'),
+      includesFontsKeep: includedNames.has('fonts/.keep'),
+      includesOverlayConfigFile: includedNames.has('storage/overlay-config.json'),
+      includesGoalSettings: Boolean(readJsonFileIfExists(overlayConfigPath)?.goal),
+      includesClockSettings: Boolean(readJsonFileIfExists(overlayConfigPath)?.clock)
+    },
+    files
   };
 }
 
@@ -127,6 +151,7 @@ router.get('/summary', (req, res) => {
       approxBytes: totalBytes,
       includesEnv: Boolean(payload.env),
       excluded: Array.from(SKIP_FILE_NAMES),
+      verification: payload.verification,
       dataDir: runtimePaths.DATA_DIR
     });
   } catch (err) {
