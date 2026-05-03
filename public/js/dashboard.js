@@ -2,7 +2,7 @@
 const bcStyle = new BroadcastChannel('obs-style-sync');
 const $ = id => document.getElementById(id);
 
-/* ---------- UI dialog replacement for old toast messages ---------- */
+/* ---------- UI dialog + toast ---------- */
 function ensureDialogStyles(){
   if (document.getElementById('obsHelperDialogStyles')) return;
   const style = document.createElement('style');
@@ -51,7 +51,14 @@ function showDialog(message, { title = '提示', confirm = false, okText = '確�
     ok.focus();
   });
 }
-function showToast(message){ showDialog(message); }
+function showToast(message){
+  const toastEl = document.getElementById('toast');
+  if (!toastEl) return;
+  toastEl.textContent = message;
+  toastEl.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+}
 window.showToast = showToast;
 window.showDialog = showDialog;
 window.showConfirmDialog = (message, options={}) => showDialog(message, { ...options, confirm:true });
@@ -148,6 +155,41 @@ function hydrateOverlayUrls(){
 }
 document.querySelectorAll('[data-copy]').forEach(btn=>btn.addEventListener('click',async()=>{ const text=document.querySelector(btn.dataset.copy)?.textContent?.trim(); if(!text) return; try{ await navigator.clipboard.writeText(text); showToast('已複製 Overlay URL'); }catch{ showToast('無法自動複製，請手動選取 URL'); }}));
 hydrateOverlayUrls();
+
+/* ---------- backup ---------- */
+async function downloadBackup(){
+  const ok = await showDialog('確定要建立備份嗎？\n\n備份會下載 JSON 檔，包含本機設定、Overlay 設定、點歌設定、自訂文字樣式與上傳字型。歌詞 log 與 LRCLib 快取不會包含在內。', { title:'建立備份', confirm:true, okText:'建立備份' });
+  if (!ok) return;
+
+  const buttons = [document.getElementById('backupBtn'), document.getElementById('backupSettingsBtn')].filter(Boolean);
+  buttons.forEach(btn => { btn.disabled = true; btn.dataset.originalText = btn.textContent; btn.textContent = '備份中...'; });
+  try {
+    const res = await fetch('/api/backup/export', { cache:'no-store' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || '備份建立失敗');
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get('content-disposition') || '';
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const filename = match?.[1] || `obs-live-helper-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('備份檔已開始下載');
+  } catch (err) {
+    showToast(err.message || '備份建立失敗');
+  } finally {
+    buttons.forEach(btn => { btn.disabled = false; btn.textContent = btn.dataset.originalText || '備份設定'; delete btn.dataset.originalText; });
+  }
+}
+document.getElementById('backupBtn')?.addEventListener('click', downloadBackup);
+document.getElementById('backupSettingsBtn')?.addEventListener('click', downloadBackup);
 
 /* ---------- Spotify status / log ---------- */
 const loginBtn=$('loginBtn'), trackInfo=$('trackInfo'), logView=$('logView'), spotifyStatusPill=$('spotifyStatusPill'), trackSubInfo=$('trackSubInfo'), trackCover=$('trackCover'), clearLogViewBtn=$('clearLogViewBtn'), clearLyricsCacheBtn=$('clearLyricsCacheBtn');
