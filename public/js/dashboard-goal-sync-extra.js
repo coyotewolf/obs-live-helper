@@ -19,6 +19,7 @@
   };
 
   let latestAutoWidth = null;
+  let serverSaveTimer = null;
 
   function clone(value){ return JSON.parse(JSON.stringify(value)); }
   function uid(){ return (crypto.randomUUID && crypto.randomUUID()) || `goal-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
@@ -122,33 +123,43 @@
     requestHandlePatch();
   }
 
-  async function saveGoal(goalInput, { broadcast = true, server = true } = {}){
+  async function persistGoalToServer(goal){
+    clearTimeout(serverSaveTimer);
+    serverSaveTimer = setTimeout(async () => {
+      try {
+        const shared = readJson(CONFIG_KEY, {});
+        const clock = readJson(CLOCK_KEY, fallbackClock);
+        const payload = {
+          theme: shared.theme || document.body.dataset.theme || localStorage.getItem('obsHelperTheme') || 'blue-night',
+          goal: normalizeGoal(goal),
+          clock: shared.clock || clock
+        };
+        const res = await fetch('/api/overlay-config', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => null);
+        if (data?.ok && data.config) localStorage.setItem(CONFIG_KEY, JSON.stringify(data.config));
+      } catch (err) {
+        console.warn('goal sync save failed', err);
+        toast('小目標已更新，但同步到 server 失敗');
+      }
+    }, 160);
+  }
+
+  function broadcastGoal(goal){
+    const clock = readJson(CLOCK_KEY, fallbackClock);
+    channel.postMessage({ type:'overlay-config-change', goal: normalizeGoal(goal), clock });
+  }
+
+  async function saveGoal(goalInput, { broadcast = true, server = true, render = true } = {}){
     const goal = normalizeGoal(goalInput);
     writeJson(GOAL_KEY, goal);
-    renderGoalEditor(goal);
-
-    const clock = readJson(CLOCK_KEY, fallbackClock);
-    if (broadcast) channel.postMessage({ type:'overlay-config-change', goal, clock });
-
-    if (!server) return goal;
-    try {
-      const shared = readJson(CONFIG_KEY, {});
-      const payload = {
-        theme: shared.theme || document.body.dataset.theme || localStorage.getItem('obsHelperTheme') || 'blue-night',
-        goal,
-        clock: shared.clock || clock
-      };
-      const res = await fetch('/api/overlay-config', {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json().catch(() => null);
-      if (data?.ok && data.config) localStorage.setItem(CONFIG_KEY, JSON.stringify(data.config));
-    } catch (err) {
-      console.warn('goal sync save failed', err);
-      toast('小目標已更新，但同步到 server 失敗');
-    }
+    if (render) renderGoalEditor(goal);
+    else syncAutoWidthToInput(goal);
+    if (broadcast) broadcastGoal(goal);
+    if (server) persistGoalToServer(goal);
     return goal;
   }
 
@@ -198,6 +209,8 @@
   }
 
   async function fetchLatestGoal(){
+    const active = document.activeElement;
+    if (active?.closest?.('#goalCardsEditor')) return;
     try {
       const res = await fetch('/api/overlay-config?_t=' + Date.now(), { cache:'no-store' });
       const data = await res.json().catch(() => null);
@@ -225,22 +238,25 @@
       return;
     }
     if (event.data?.type !== 'overlay-config-change' || !event.data.goal) return;
-    saveGoal(event.data.goal, { broadcast:false, server:false });
+    if (document.activeElement?.closest?.('#goalCardsEditor')) return;
+    saveGoal(event.data.goal, { broadcast:false, server:false, render:true });
   });
 
   let typingTimer = null;
   document.addEventListener('input', event => {
     if (!event.target?.closest?.('.goalSettingsPanel')) return;
+    const field = event.target?.dataset?.goalField || '';
+    const shouldRender = field && field !== 'text';
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => {
       const goal = collectEditorGoal();
-      saveGoal(goal, { broadcast:true, server:true });
-    }, 260);
+      saveGoal(goal, { broadcast:true, server:true, render:shouldRender });
+    }, field === 'text' ? 120 : 260);
   });
   document.addEventListener('change', event => {
     if (!event.target?.closest?.('.goalSettingsPanel')) return;
     const goal = collectEditorGoal();
-    saveGoal(goal, { broadcast:true, server:true });
+    saveGoal(goal, { broadcast:true, server:true, render:true });
   });
 
   document.addEventListener('visibilitychange', () => {
