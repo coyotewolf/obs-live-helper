@@ -131,7 +131,18 @@ function readRuntimeFiles(options) {
       });
     }
   }
-  return files;
+  return files.sort((a, b) => `${a.area}/${a.path}`.localeCompare(`${b.area}/${b.path}`));
+}
+
+function makeSummaryFiles(payload) {
+  const out = [];
+  if (payload.env) {
+    out.push({ area: 'config', path: '.env', size: Buffer.byteLength(payload.env, 'utf8'), virtual: true });
+  }
+  for (const file of payload.files) {
+    out.push({ area: file.area, path: file.path, size: file.size, mtimeMs: file.mtimeMs, virtual: false });
+  }
+  return out.sort((a, b) => `${a.area}/${a.path}`.localeCompare(`${b.area}/${b.path}`));
 }
 
 function makeBackupPayload(options = getBackupOptions()) {
@@ -236,14 +247,17 @@ router.get('/summary', (req, res) => {
   try {
     const options = getBackupOptions(req.query);
     const payload = makeBackupPayload(options);
+    const summaryFiles = makeSummaryFiles(payload);
     const totalBytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
     res.json({
       ok: true,
-      fileCount: payload.files.length,
+      fileCount: summaryFiles.length,
+      runtimeFileCount: payload.files.length,
       approxBytes: totalBytes,
       includesEnv: Boolean(payload.env),
       backupOptions: options,
       verification: payload.verification,
+      files: summaryFiles,
       dataDir: runtimePaths.DATA_DIR
     });
   } catch (err) {
