@@ -149,8 +149,67 @@
     const el=document.createElement('div');
     el.className=`goal-card ${completed?'completed':''}`;
     el.dataset.uid=card.uid;
-    el.innerHTML=`<div class="fill-bg" style="width:${pct}%"></div><div class="shine"></div><div class="badge ${completed?'is-heart is-heart-small':''}">${completed?'❤':'💖'}</div><div class="stack"><div class="text ${completed?'is-done':''}">${escapeHtml(card.text)}</div><div class="progressText">${current} / ${total}</div></div>`;
+    el.innerHTML=`<div class="fill-bg" style="width:${pct}%"></div><div class="progress-edge"></div><div class="shine"></div><div class="badge ${completed?'is-heart is-heart-small':''}">${completed?'❤':'💖'}</div><div class="stack"><div class="text ${completed?'is-done':''}">${escapeHtml(card.text)}</div><div class="progressText">${current} / ${total}</div></div>`;
     return el;
+  }
+  function animateProgressIncrease(el, prevCurrent, current, total, prevTotal){
+    const fill=el.querySelector('.fill-bg');
+    const edge=el.querySelector('.progress-edge');
+    const progressText=el.querySelector('.progressText');
+    if(!fill||!progressText)return;
+    const oldTotal=Math.max(1,Number(prevTotal)||total||1);
+    const nextTotal=Math.max(1,Number(total)||1);
+    const fromPct=Math.max(0,Math.min(100,(Number(prevCurrent)||0)/oldTotal*100));
+    const toPct=Math.max(0,Math.min(100,(Number(current)||0)/nextTotal*100));
+
+    fill.getAnimations?.().forEach(animation=>animation.cancel());
+    edge?.getAnimations?.().forEach(animation=>animation.cancel());
+    progressText.getAnimations?.().forEach(animation=>animation.cancel());
+
+    fill.style.width=`${fromPct}%`;
+    requestAnimationFrame(()=>{
+      fill.style.width=`${toPct}%`;
+      fill.animate(
+        [
+          {width:`${fromPct}%`, filter:'brightness(1)', opacity:.78},
+          {width:`${Math.min(100, fromPct + Math.max(6,(toPct-fromPct)*.45))}%`, filter:'brightness(1.22)', opacity:.93, offset:.55},
+          {width:`${toPct}%`, filter:'brightness(1)', opacity:.86}
+        ],
+        {duration:1100,easing:'cubic-bezier(.18,.82,.18,1)',fill:'both'}
+      );
+      if(edge){
+        edge.style.left=`${toPct}%`;
+        edge.animate(
+          [
+            {left:`${fromPct}%`,opacity:0,transform:'translateX(-12px) scaleY(.72)'},
+            {left:`${toPct}%`,opacity:.95,transform:'translateX(-2px) scaleY(1)',offset:.72},
+            {left:`${toPct}%`,opacity:0,transform:'translateX(10px) scaleY(.86)'}
+          ],
+          {duration:1150,easing:'cubic-bezier(.18,.82,.18,1)',fill:'both'}
+        );
+      }
+    });
+
+    el.classList.remove('progress-bump','progress-rise');
+    void el.offsetWidth;
+    el.classList.add('progress-rise');
+    setTimeout(()=>el.classList.remove('progress-rise'),1300);
+
+    const delta=Math.max(1,current-prevCurrent);
+    const float=document.createElement('span');
+    float.className='progressFloat';
+    float.textContent=`+${delta}`;
+    el.appendChild(float);
+    setTimeout(()=>float.remove(),1250);
+
+    progressText.animate(
+      [
+        {transform:'translateY(0)',opacity:.78,filter:'brightness(1)'},
+        {transform:'translateY(-2px)',opacity:1,filter:'brightness(1.28)'},
+        {transform:'translateY(0)',opacity:1,filter:'brightness(1)'}
+      ],
+      {duration:760,easing:'cubic-bezier(.16,1,.3,1)'}
+    );
   }
   function updateCardElement(el,card){
     const total=Math.max(1,Number(card.total)||1);
@@ -158,9 +217,12 @@
     const pct=Math.max(0,Math.min(100,current/total*100));
     const completed=isCompleted(card);
     const prev=previousCards.get(card.uid);
+    const prevCurrent=Number(prev?.current||0);
+    const increased=Boolean(prev)&&current>prevCurrent;
     el.classList.toggle('completed',completed);
     el.dataset.uid=card.uid;
-    el.querySelector('.fill-bg').style.width=pct+'%';
+    const fill=el.querySelector('.fill-bg');
+    if(!increased && fill) fill.style.width=pct+'%';
     const badge=el.querySelector('.badge');
     badge.textContent=completed?'❤':'💖';
     badge.classList.toggle('is-heart',completed);
@@ -169,11 +231,8 @@
     text.textContent=card.text;
     text.classList.toggle('is-done',completed);
     el.querySelector('.progressText').textContent=`${current} / ${total}`;
-    if(prev&&current>Number(prev.current||0)){
-      el.classList.remove('progress-bump');
-      void el.offsetWidth;
-      el.classList.add('progress-bump');
-      setTimeout(()=>el.classList.remove('progress-bump'),720);
+    if(increased){
+      animateProgressIncrease(el,prevCurrent,current,total,prev?.total);
     }
     if(completed&&!lastCompleted.has(card.uid)){
       spawnGoldFX(el,config.layout.completeFlashMs??3000);
