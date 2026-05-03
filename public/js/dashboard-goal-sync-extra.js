@@ -18,6 +18,8 @@
     timeSize:'56px', dateSize:'18px', backgroundAlpha:0.72
   };
 
+  let latestAutoWidth = null;
+
   function clone(value){ return JSON.parse(JSON.stringify(value)); }
   function uid(){ return (crypto.randomUUID && crypto.randomUUID()) || `goal-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
   function readJson(key, fallback){
@@ -79,6 +81,17 @@
     return next;
   }
 
+  function syncAutoWidthToInput(goal){
+    if (!latestAutoWidth) return;
+    if ((goal?.layout?.widthMode || 'auto') !== 'auto') return;
+    const widthInput = document.getElementById('goalCardWidth');
+    if (!widthInput) return;
+    const displayWidth = Math.round(goal.layout.direction === 'row' ? latestAutoWidth.rowWidth : latestAutoWidth.colWidth);
+    if (Number(widthInput.value) !== displayWidth) widthInput.value = displayWidth;
+    widthInput.disabled = true;
+    widthInput.title = '自動模式：此數值由最長小目標文字自動計算。';
+  }
+
   function renderGoalEditor(goalInput){
     const root = document.getElementById('goalCardsEditor');
     if (!root) return;
@@ -99,6 +112,8 @@
       const widthInput = document.getElementById('goalCardWidth');
       widthInput.value = Math.round(goal.layout.direction === 'row' ? goal.layout.minWidthRow : goal.layout.minWidthCol);
       widthInput.disabled = (goal.layout.widthMode || 'auto') === 'auto';
+      widthInput.title = (goal.layout.widthMode || 'auto') === 'auto' ? '自動模式：此數值由最長小目標文字自動計算。' : '手動模式：可自行輸入固定卡片長度。';
+      syncAutoWidthToInput(goal);
     }
     if (document.getElementById('goalGap')) document.getElementById('goalGap').value = goal.layout.gap ?? 30;
     if (document.getElementById('goalAlpha')) document.getElementById('goalAlpha').value = Number(goal.layout.baseAlpha ?? 0.65).toFixed(2);
@@ -162,7 +177,8 @@
 
     const direction = document.getElementById('goalDirection')?.value || old.layout.direction || 'column';
     const widthMode = document.getElementById('goalWidthMode')?.value || old.layout.widthMode || 'auto';
-    const widthValue = Math.max(120, Math.min(5000, Number(document.getElementById('goalCardWidth')?.value || (direction === 'row' ? old.layout.minWidthRow : old.layout.minWidthCol))));
+    const fallbackWidth = direction === 'row' ? old.layout.minWidthRow : old.layout.minWidthCol;
+    const manualWidth = Math.max(120, Math.min(5000, Number(document.getElementById('goalCardWidth')?.value || fallbackWidth)));
     const alpha = Math.max(0, Math.min(1, Number(document.getElementById('goalAlpha')?.value || old.layout.baseAlpha || 0.65)));
     const layout = {
       ...old.layout,
@@ -173,8 +189,10 @@
       completedAlpha: alpha,
       completeFlashMs: Math.round(Math.max(0, Math.min(30, Number(document.getElementById('goalFlashSec')?.value || 3))) * 1000)
     };
-    if (direction === 'row') layout.minWidthRow = widthValue;
-    else layout.minWidthCol = widthValue;
+    if (widthMode === 'manual') {
+      if (direction === 'row') layout.minWidthRow = manualWidth;
+      else layout.minWidthCol = manualWidth;
+    }
 
     return normalizeGoal({ layout, cards });
   }
@@ -190,6 +208,8 @@
       if (JSON.stringify(nextGoal) !== currentText) {
         writeJson(GOAL_KEY, nextGoal);
         renderGoalEditor(nextGoal);
+      } else {
+        syncAutoWidthToInput(nextGoal);
       }
     } catch {}
   }
@@ -199,6 +219,11 @@
   window.sortDashboardGoalCards = sortCards;
 
   channel.addEventListener('message', event => {
+    if (event.data?.type === 'goal-auto-width-change') {
+      latestAutoWidth = event.data;
+      syncAutoWidthToInput(normalizeGoal(readJson(GOAL_KEY, fallbackGoal)));
+      return;
+    }
     if (event.data?.type !== 'overlay-config-change' || !event.data.goal) return;
     saveGoal(event.data.goal, { broadcast:false, server:false });
   });
