@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "updatedAt": 1777795539153,
+  "updatedAt": 1777798563365,
   "theme": "blue-night",
   "goal": {
     "layout": {
       "direction": "column",
       "gap": 10,
-      "widthMode": "auto",
+      "widthMode": "manual",
       "minWidthCol": 768,
       "minWidthRow": 728,
       "baseAlpha": 0.65,
@@ -15,10 +15,10 @@
     },
     "cards": [
       {
-        "uid": "goal-default",
-        "text": "今日小目標：改好v0.1.2，不release",
-        "current": 2,
-        "total": 2,
+        "uid": "7cd2596c-3159-4ca0-8140-8a32d34c929f",
+        "text": "後天小目標：重複安裝處理, +icon,build,release 0.1.2",
+        "current": 0,
+        "total": 3,
         "visible": true,
         "completed": false
       },
@@ -31,10 +31,10 @@
         "completed": false
       },
       {
-        "uid": "7cd2596c-3159-4ca0-8140-8a32d34c929f",
-        "text": "後天小目標：重複安裝處理, +icon,build,release 0.1.2",
-        "current": 0,
-        "total": 3,
+        "uid": "goal-default",
+        "text": "今日小目標：改好v0.1.2，不release",
+        "current": 2,
+        "total": 2,
         "visible": true,
         "completed": false
       }
