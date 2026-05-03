@@ -36,6 +36,20 @@
     includesClockSettings: '包含時鐘設定'
   };
 
+  const VERIFICATION_OPTION_MAP = {
+    includesEnv: ['env'],
+    includesClientId: ['env'],
+    includesStreamKit: ['env'],
+    includesLyricsLog: ['lyricsLog'],
+    includesLrclibCache: ['lrclibCache'],
+    includesStorageKeep: ['keepFiles'],
+    includesLyricsKeep: ['keepFiles'],
+    includesFontsKeep: ['keepFiles'],
+    includesOverlayConfigFile: ['overlayConfig'],
+    includesGoalSettings: ['overlayConfig'],
+    includesClockSettings: ['overlayConfig']
+  };
+
   function toast(message){
     if (typeof window.showToast === 'function') window.showToast(message);
   }
@@ -84,13 +98,22 @@
     const style = document.createElement('style');
     style.id = 'settingsExtraStyle';
     style.textContent = `
-      .backupOptionGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:14px 0}
-      .backupOptionGrid label{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 12px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(255,255,255,.045);color:var(--muted);font-weight:800}
-      .backupOptionGrid input{width:16px;height:16px;accent-color:var(--accent)}
+      .backupSelectToolbar{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 8px}
+      .backupOptionGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px;margin:10px 0 16px}
+      .backupOptionGrid label{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:10px;min-height:50px;padding:11px 13px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(255,255,255,.045);color:var(--muted);font-weight:800;line-height:1.35}
+      .backupOptionGrid input{width:18px;height:18px;accent-color:var(--accent);margin:0}
+      .backupOptionGrid span{display:block;min-width:0}
       .settingsDangerBox{margin-top:18px;padding:16px;border:1px solid rgba(239,68,68,.32);border-radius:18px;background:rgba(239,68,68,.08)}
       .settingsDangerBox p{margin-top:6px}
+      .verificationGrid{align-items:stretch}
+      .verificationItem{display:grid!important;grid-template-columns:minmax(0,1fr) 86px!important;align-items:center!important;min-height:54px!important;gap:12px!important}
+      .verificationItem strong{display:block;min-width:0;line-height:1.35}
+      .verificationBadge{justify-content:center;white-space:nowrap;text-align:center;min-width:74px}
+      .verificationBadge.off{color:rgba(255,255,255,.76);background:rgba(148,163,184,.28)}
       body[data-theme="pink-cute"] .backupOptionGrid label{background:rgba(255,255,255,.72);border-color:rgba(210,72,122,.18)}
       body[data-theme="pink-cute"] .settingsDangerBox{background:rgba(239,68,68,.06);border-color:rgba(217,45,98,.26)}
+      body[data-theme="pink-cute"] .verificationBadge.off{color:rgba(67,33,54,.72);background:rgba(148,163,184,.22)}
+      @media(max-width:560px){.backupOptionGrid{grid-template-columns:1fr}.verificationItem{grid-template-columns:1fr!important}.verificationBadge{justify-self:start}}
     `;
     document.head.appendChild(style);
   }
@@ -110,11 +133,24 @@
     return params.toString();
   }
 
+  function verificationIsSelected(key, options = selectedOptions()){
+    const requiredOptions = VERIFICATION_OPTION_MAP[key] || [];
+    return requiredOptions.length ? requiredOptions.every(optionKey => Boolean(options[optionKey])) : true;
+  }
+
+  function verificationBadgeHtml(key, verification, options){
+    const selected = verificationIsSelected(key, options);
+    if (!selected) return '<span class="verificationBadge off">未勾選</span>';
+    const ok = Boolean(verification[key]);
+    return `<span class="verificationBadge ${ok ? 'ok' : 'fail'}">${ok ? '已包含' : '未包含'}</span>`;
+  }
+
   async function refreshVerification(){
     const grid = document.getElementById('backupVerificationGrid');
     if (grid) grid.innerHTML = '<p class="emptyText">檢查中...</p>';
     try {
-      const res = await fetch(`/api/backup/summary?${optionsToQuery()}`, { cache: 'no-store' });
+      const options = selectedOptions();
+      const res = await fetch(`/api/backup/summary?${optionsToQuery(options)}`, { cache: 'no-store' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) throw new Error(data.message || '備份資訊讀取失敗');
 
@@ -124,8 +160,7 @@
 
       const verification = data.verification || {};
       grid.innerHTML = Object.entries(VERIFICATION_LABELS).map(([key, label]) => {
-        const ok = Boolean(verification[key]);
-        return `<div class="verificationItem"><strong>${label}</strong><span class="verificationBadge ${ok ? 'ok' : 'fail'}">${ok ? '已包含' : '未找到'}</span></div>`;
+        return `<div class="verificationItem"><strong>${label}</strong>${verificationBadgeHtml(key, verification, options)}</div>`;
       }).join('');
     } catch (err) {
       if (grid) grid.innerHTML = `<p class="emptyText">${err.message || '備份資訊讀取失敗'}</p>`;
@@ -187,6 +222,11 @@
     }
   }
 
+  function setAllBackupOptions(checked){
+    document.querySelectorAll('[data-backup-option]').forEach(el => { el.checked = checked; });
+    refreshVerification();
+  }
+
   function installSettingsUI(){
     removeStartBackupContent();
     ensureSettingsStyle();
@@ -202,6 +242,10 @@
 
     const options = document.createElement('div');
     options.innerHTML = `
+      <div class="backupSelectToolbar">
+        <button id="selectAllBackupOptionsBtn" class="btnGhost small" type="button">全選</button>
+        <button id="clearAllBackupOptionsBtn" class="btnGhost small" type="button">全部取消</button>
+      </div>
       <div class="backupOptionGrid">
         ${Object.entries(OPTION_LABELS).map(([key, label]) => `<label><input type="checkbox" data-backup-option="${key}" ${BACKUP_DEFAULTS[key] ? 'checked' : ''}> <span>${label}</span></label>`).join('')}
       </div>
@@ -218,6 +262,9 @@
       btnRow.appendChild(resetBtn);
       resetBtn.addEventListener('click', resetAll);
     }
+
+    document.getElementById('selectAllBackupOptionsBtn')?.addEventListener('click', () => setAllBackupOptions(true));
+    document.getElementById('clearAllBackupOptionsBtn')?.addEventListener('click', () => setAllBackupOptions(false));
 
     document.querySelectorAll('[data-backup-option]').forEach(el => {
       el.addEventListener('change', refreshVerification);
