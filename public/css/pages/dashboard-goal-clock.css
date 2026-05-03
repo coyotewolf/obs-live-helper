@@ -264,3 +264,25 @@ body[data-theme="pink-cute"] .dashboardAccordion.goalSettingsPanel[open] > summa
 body[data-theme="pink-cute"] .dashboardAccordion.clockSettingsPanel[open] > summary{
   border-bottom-color:rgba(210,72,122,.14) !important;
 }
+
+/* v11: pink theme tab colors */
+body[data-theme="pink-cute"] .dashboardTabs{
+  border-color:rgba(210,72,122,.22);
+  background:rgba(255,248,252,.86);
+  box-shadow:0 14px 36px rgba(210,72,122,.12),0 0 0 1px rgba(255,255,255,.55) inset;
+}
+body[data-theme="pink-cute"] .dashboardTabButton{
+  color:rgba(67,33,54,.78);
+  border-color:rgba(210,72,122,.18);
+  background:rgba(255,255,255,.72);
+}
+body[data-theme="pink-cute"] .dashboardTabButton:hover{
+  border-color:rgba(210,72,122,.38);
+  background:rgba(255,240,249,.90);
+}
+body[data-theme="pink-cute"] .dashboardTabButton.isActive{
+  color:#fff;
+  border-color:transparent;
+  background:linear-gradient(135deg,#df4b86,#6ab4e5);
+  box-shadow:0 10px 24px rgba(217,70,127,.22);
+}
