@@ -246,6 +246,9 @@ app.get('/html/dashboard.html', (req, res, next) => {
     if (!html.includes('dashboard-play-state-extra.js')) {
       html = html.replace('</body>', '<script src="../js/dashboard-play-state-extra.js"></script>\n</body>');
     }
+    if (!html.includes('dashboard-tunnel-auto-open-extra.js')) {
+      html = html.replace('</body>', '<script src="../js/dashboard-tunnel-auto-open-extra.js"></script>\n</body>');
+    }
     if (!html.includes('dashboard-onboarding-extra.js')) {
       html = html.replace('</body>', '<script src="../js/dashboard-onboarding-extra.js"></script>\n</body>');
     }
