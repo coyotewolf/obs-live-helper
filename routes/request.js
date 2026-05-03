@@ -4,7 +4,8 @@
  * Safer model for livestream use:
  * - Audience only gets request.html?pin=XXXXXX.
  * - Dashboard/admin APIs require x-admin-token.
- * - Song requests can be auto-approved or held for review.
+ * - Queue requests can be auto-approved or held for review.
+ * - Interruption requests are request-only: the host decides in Dashboard and plays manually in Spotify.
  * - Playback controls are controlled by Dashboard settings and blocked server-side.
  */
 const router = require('express').Router();
@@ -33,7 +34,7 @@ const REQUESTS_FILE = storagePath('song-requests.json');
 const DEFAULT_SETTINGS = {
   requestsEnabled: true,
   autoApproveQueue: false,
-  allowPlayNow: false,
+  allowPlayNow: false, // legacy only; UI/API no longer exposes audience play-now.
   allowPlaybackControl: false,
   allowSkipControl: false,
   blockExplicit: false,
@@ -69,10 +70,11 @@ function writeJson(file, data) {
 
 function getSettings() {
   const stored = readJson(SETTINGS_FILE, {}) || {};
-  const { duplicateWindowMinutes, ...rest } = stored;
+  const { duplicateWindowMinutes, allowPlayNow, ...rest } = stored;
   return {
     ...DEFAULT_SETTINGS,
-    ...rest
+    ...rest,
+    allowPlayNow: false
   };
 }
 
@@ -82,7 +84,7 @@ function saveSettings(patch = {}) {
     ...current,
     requestsEnabled: Boolean(patch.requestsEnabled ?? current.requestsEnabled),
     autoApproveQueue: Boolean(patch.autoApproveQueue ?? current.autoApproveQueue),
-    allowPlayNow: Boolean(patch.allowPlayNow ?? current.allowPlayNow),
+    allowPlayNow: false,
     allowPlaybackControl: Boolean(patch.allowPlaybackControl ?? current.allowPlaybackControl),
     allowSkipControl: Boolean(patch.allowSkipControl ?? current.allowSkipControl),
     blockExplicit: Boolean(patch.blockExplicit ?? current.blockExplicit),
@@ -102,7 +104,7 @@ function readRequests() {
 }
 
 function saveRequests(list) {
-  writeJson(REQUESTS_FILE, list);
+  writeJson(REQUESTS_FILE, Array.isArray(list) ? list : []);
 }
 
 function getPendingRequests() {
@@ -113,6 +115,20 @@ function cleanupFinishedRequests() {
   const pending = getPendingRequests();
   saveRequests(pending);
   return pending;
+}
+
+function appendRequest(item, maxItems = 300) {
+  const list = readRequests();
+  list.push(item);
+  saveRequests(list.slice(-maxItems));
+  return item;
+}
+
+function updateRequestList(mutator) {
+  const list = readRequests();
+  const result = mutator(list);
+  saveRequests(list);
+  return result;
 }
 
 function clampInt(value, min, max) {
@@ -194,6 +210,10 @@ function getClientIp(req) {
   return String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
 }
 
+function normalizeRequesterId(value = '') {
+  return String(value || '').trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+}
+
 function requirePin(req, res, next) {
   const provided = String(req.query.pin || req.body?.pin || '').toUpperCase();
   const expected = String(getRequestPin() || '').toUpperCase();
@@ -230,7 +250,7 @@ function spotifyErrorResponse(res, err, fallback = 'Spotify 操作失敗') {
     return res.status(403).json({
       ok: false,
       error: 'forbidden_or_missing_scope',
-      message: 'Spotify 權限不足。請回 Dashboard 重新授權；播放控制需要 user-modify-playback-state，且通常需要 Premium。'
+      message: 'Spotify 權限不足。請回 Dashboard 重新授權；加入佇列需要 user-modify-playback-state，且通常需要 Premium。'
     });
   }
   if (status === 404) {
@@ -274,13 +294,6 @@ async function addToQueue(uri, access_token) {
   scheduleQueueRefresh();
 }
 
-async function playNow(uri, access_token) {
-  await axios.put('https://api.spotify.com/v1/me/player/play', { uris: [uri] }, {
-    headers: { Authorization: `Bearer ${access_token}` }
-  });
-  scheduleAllSpotifyRefresh('play-now');
-}
-
 function cooldownCheck(map, key, seconds) {
   if (!seconds || seconds <= 0) return { ok: true };
   const now = Date.now();
@@ -307,13 +320,14 @@ function duplicateCheck(track, settings) {
   return { ok: true };
 }
 
-function makeRequest({ track, mode, nickname, ip }) {
+function makeRequest({ track, mode, nickname, ip, requesterId }) {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     status: 'pending',
     mode,
     track,
     nickname: String(nickname || '匿名觀眾').slice(0, 40),
+    requesterId: normalizeRequesterId(requesterId),
     ip,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -324,7 +338,6 @@ function publicSettings(settings = getSettings()) {
   return {
     requestsEnabled: settings.requestsEnabled,
     autoApproveQueue: settings.autoApproveQueue,
-    allowPlayNow: settings.allowPlayNow,
     allowPlaybackControl: settings.allowPlaybackControl,
     allowSkipControl: settings.allowSkipControl,
     blockExplicit: settings.blockExplicit,
@@ -412,6 +425,16 @@ router.get('/public-info', requirePin, (req, res) => {
   res.json({ ok: true, settings: publicSettings() });
 });
 
+router.get('/history', requirePin, (req, res) => {
+  const requesterId = normalizeRequesterId(req.query.requesterId || req.headers['x-requester-id'] || '');
+  if (!requesterId) return res.json({ ok: true, requests: [] });
+  const requests = readRequests()
+    .filter(item => item.requesterId && item.requesterId === requesterId)
+    .slice(-50)
+    .reverse();
+  res.json({ ok: true, requests });
+});
+
 router.get('/info', requireAdmin, async (req, res) => {
   await tunnelManager.ensureTunnelAlive(PORT);
   const security = getSecurity();
@@ -437,8 +460,7 @@ router.post('/settings', requireAdmin, (req, res) => {
 });
 
 router.get('/list', requireAdmin, (req, res) => {
-  const pending = cleanupFinishedRequests();
-  res.json({ ok: true, requests: pending.slice(-100).reverse() });
+  res.json({ ok: true, requests: getPendingRequests().slice(-100).reverse() });
 });
 
 router.post('/clear-finished', requireAdmin, (req, res) => {
@@ -514,6 +536,7 @@ router.post('/submit', requirePin, async (req, res) => {
   const track = normalizeClientTrack(req.body?.track || req.body || {});
   const mode = String(req.body?.mode || 'queue') === 'play-now' ? 'play-now' : 'queue';
   const nickname = req.body?.nickname;
+  const requesterId = normalizeRequesterId(req.body?.requesterId || '');
 
   if (!track) return res.status(400).json({ ok: false, error: 'invalid_track', message: '歌曲資料不正確，請重新搜尋後再送出。' });
   if (settings.blockExplicit && track.explicit) return res.status(403).json({ ok: false, error: 'explicit_blocked', message: '目前不接受 Explicit 歌曲。' });
@@ -521,28 +544,31 @@ router.post('/submit', requirePin, async (req, res) => {
   const dup = duplicateCheck(track, settings);
   if (!dup.ok) return res.status(409).json({ ok: false, error: 'duplicate_track', message: `這首歌剛剛有人點過，請 ${dup.waitSeconds} 秒後再點。` });
 
-  const shouldAutoQueue = mode === 'queue' && settings.autoApproveQueue;
-  const shouldPlayNow = mode === 'play-now' && settings.allowPlayNow;
+  const item = makeRequest({ track, mode, nickname, ip, requesterId });
 
-  if (shouldAutoQueue || shouldPlayNow) {
+  if (mode === 'queue' && settings.autoApproveQueue) {
     const access_token = await getAuthorizedToken(res);
     if (!access_token) return;
     try {
-      if (shouldPlayNow) await playNow(track.uri, access_token);
-      else await addToQueue(track.uri, access_token);
-
-      cleanupFinishedRequests();
-      return res.json({ ok: true, status: shouldPlayNow ? 'played' : 'approved', message: shouldPlayNow ? '已立即插播。' : '已自動加入佇列。' });
+      await addToQueue(track.uri, access_token);
+      item.status = 'approved';
+      item.updatedAt = new Date().toISOString();
+      appendRequest(item);
+      return res.json({ ok: true, status: 'approved', request: item, message: '已自動加入佇列。' });
     } catch (err) {
-      return spotifyErrorResponse(res, err, shouldPlayNow ? '立即插播失敗' : '加入佇列失敗');
+      return spotifyErrorResponse(res, err, '加入佇列失敗');
     }
   }
 
-  const list = getPendingRequests();
-  const item = makeRequest({ track, mode, nickname, ip });
-  list.push(item);
-  saveRequests(list.slice(-settings.maxPending));
-  return res.json({ ok: true, status: 'pending', message: mode === 'play-now' ? '已送出插播請求，等待管理員審核。' : '已送出點歌請求，等待管理員審核。' });
+  appendRequest(item, Math.max(300, settings.maxPending * 3));
+  return res.json({
+    ok: true,
+    status: 'pending',
+    request: item,
+    message: mode === 'play-now'
+      ? '已送出插播請求，等待主播同意；請由主播自行在 Spotify 播放。'
+      : '已送出點歌請求，等待管理員審核。'
+  });
 });
 
 router.post('/approve', requireAdmin, async (req, res) => {
@@ -551,20 +577,31 @@ router.post('/approve', requireAdmin, async (req, res) => {
   const item = list.find(r => r.id === id);
   if (!item) return res.status(404).json({ ok: false, error: 'not_found', message: '找不到這筆點歌請求。' });
 
+  const mode = resolveApprovalMode(req.body?.mode, item.mode);
+
+  if (mode === 'play-now') {
+    item.status = 'interruption_approved';
+    item.mode = 'play-now';
+    item.updatedAt = new Date().toISOString();
+    saveRequests(list);
+    return res.json({
+      ok: true,
+      request: item,
+      requests: getPendingRequests().slice(-100).reverse(),
+      message: '已同意插播請求；請主播自行在 Spotify 播放這首歌。'
+    });
+  }
+
   const access_token = await getAuthorizedToken(res);
   if (!access_token) return;
 
-  const mode = resolveApprovalMode(req.body?.mode, item.mode);
   try {
-    if (mode === 'play-now') await playNow(item.track.uri, access_token);
-    else await addToQueue(item.track.uri, access_token);
-
-    item.status = mode === 'play-now' ? 'played' : 'approved';
-    item.mode = mode;
+    await addToQueue(item.track.uri, access_token);
+    item.status = 'approved';
+    item.mode = 'queue';
     item.updatedAt = new Date().toISOString();
-    const pending = list.filter(r => r.id !== id && r.status === 'pending');
-    saveRequests(pending);
-    res.json({ ok: true, request: item, requests: pending.slice(-100).reverse(), message: mode === 'play-now' ? '已立即插播。' : '已加入佇列。' });
+    saveRequests(list);
+    res.json({ ok: true, request: item, requests: getPendingRequests().slice(-100).reverse(), message: '已加入佇列。' });
   } catch (err) {
     spotifyErrorResponse(res, err, '審核點歌失敗');
   }
@@ -577,9 +614,8 @@ router.post('/reject', requireAdmin, (req, res) => {
   if (!item) return res.status(404).json({ ok: false, error: 'not_found', message: '找不到這筆點歌請求。' });
   item.status = 'rejected';
   item.updatedAt = new Date().toISOString();
-  const pending = list.filter(r => r.id !== id && r.status === 'pending');
-  saveRequests(pending);
-  res.json({ ok: true, request: item, requests: pending.slice(-100).reverse(), message: '已拒絕這筆點歌。' });
+  saveRequests(list);
+  res.json({ ok: true, request: item, requests: getPendingRequests().slice(-100).reverse(), message: '已拒絕這筆點歌。' });
 });
 
 router.post('/control', requirePin, async (req, res) => {
