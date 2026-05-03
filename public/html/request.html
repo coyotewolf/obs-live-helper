@@ -11,7 +11,7 @@
     <header class="hero">
       <span class="eyebrow">OBS Live Helper</span>
       <h1>觀眾點歌</h1>
-      <p id="pageSubtitle">搜尋 Spotify 歌曲，送出後會依主播設定加入佇列或等待審核。</p>
+      <p id="pageSubtitle">搜尋 Spotify 歌曲，送出後會依主播設定加入佇列或等待審核。插播只會送出請求，需由主播同意後自行播放。</p>
     </header>
 
     <section class="panel statusPanel">
@@ -47,6 +47,17 @@
 
       <div id="resultList" class="resultList">
         <p class="emptyText">輸入關鍵字後開始搜尋。</p>
+      </div>
+    </section>
+
+    <section class="panel historyPanel">
+      <div class="historyTitleRow">
+        <h2>我的點歌紀錄</h2>
+        <button id="refreshHistoryBtn" type="button">重新整理</button>
+      </div>
+      <p class="hint">此區會顯示你在這台裝置送出的請求，以及是否已加入佇列、插播是否被主播同意或拒絕。</p>
+      <div id="historyList" class="historyList">
+        <p class="emptyText">尚未送出點歌。</p>
       </div>
     </section>
 
