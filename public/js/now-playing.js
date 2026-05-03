@@ -26,13 +26,17 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function isTrackPlaying(track) {
+  return Boolean(track?.is_playing);
+}
+
 function getDisplayProgress(track) {
   if (!track) return 0;
 
   const baseProgress = track.progress_ms || 0;
   const duration = track.duration_ms || 0;
 
-  if (!track.is_playing) return baseProgress;
+  if (!isTrackPlaying(track)) return baseProgress;
 
   const elapsedSinceFetch = Date.now() - latestFetchTime;
   return clamp(baseProgress + elapsedSinceFetch, 0, duration);
@@ -44,7 +48,10 @@ function renderTrack(track) {
     return;
   }
 
+  const playing = isTrackPlaying(track);
   card.classList.remove('hidden');
+  card.classList.toggle('paused', !playing);
+  card.classList.toggle('playing', playing);
 
   songName.textContent = track.name || '未知歌曲';
   artistName.textContent = track.artists || '未知歌手';
@@ -57,8 +64,8 @@ function renderTrack(track) {
     cover.style.visibility = 'hidden';
   }
 
-  playState.textContent = track.is_playing ? 'NOW PLAYING' : 'PAUSED';
-  card.classList.toggle('paused', !track.is_playing);
+  playState.dataset.state = playing ? 'playing' : 'paused';
+  playState.textContent = playing ? 'PLAYING' : 'PAUSED';
 
   updateProgress();
 }
@@ -80,13 +87,16 @@ async function fetchStatus() {
     const res = await fetch(`${STATUS_URL}?_t=${Date.now()}`);
     const data = await res.json();
 
-    if (!data.authorized || !data.playing || !data.track) {
+    if (!data.authorized || !data.track) {
       latestTrack = null;
       renderTrack(null);
       return;
     }
 
-    latestTrack = data.track;
+    latestTrack = {
+      ...data.track,
+      is_playing: Boolean(data.playing || data.track?.is_playing)
+    };
     latestFetchTime = Date.now();
     renderTrack(latestTrack);
   } catch (err) {
