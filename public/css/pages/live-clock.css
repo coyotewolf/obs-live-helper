@@ -55,28 +55,40 @@ html,body{margin:0;padding:0;background:transparent;width:100%;height:100%;overf
 body[data-theme="pink-cute"]{
   --clock-bg-rgb:100,140,190;
   --clock-alpha:.65;
-  --card-radius:22px;
-  --card-padding:14px 18px;
+  --card-radius:28px;
+  --card-padding:18px 24px;
   --text-color:#fff;
-  --subtext-color:#f0f0f0;
+  --subtext-color:rgba(255,255,255,.86);
   --accent-pink:#ff7fa9;
-  --accent-2:#ff7fa9;
-  --accent-glow:rgba(255,160,200,.65);
-  --outline-blue:#a8d8ff;
+  --accent-2:#a8d8ff;
+  --accent-glow:rgba(255,160,200,.58);
+  --outline-blue:rgba(168,216,255,.72);
   --outline-glow:rgba(160,220,255,.4);
-  --label-radius:6px;
-  --label-pad:2px 10px;
-  --time-weight:600;
-  --divider-thickness:2px
+  --label-radius:999px;
+  --label-pad:4px 12px;
+  --time-weight:800;
+  --divider-thickness:3px
 }
 body[data-theme="pink-cute"] .clock-card{
-  background:var(--card-bg);
-  border:0;
-  box-shadow:0 0 10px var(--outline-glow),0 0 0 2px var(--outline-blue),0 10px 26px rgba(20,30,50,.18);
+  background:
+    radial-gradient(circle at 18% 0%,rgba(255,255,255,.18),transparent 38%),
+    radial-gradient(circle at 92% 12%,rgba(255,169,201,.20),transparent 38%),
+    rgba(100,140,190,var(--clock-alpha,.65));
+  border:1px solid rgba(168,216,255,.72);
+  box-shadow:
+    0 0 10px rgba(160,220,255,.4),
+    0 0 0 2px rgba(168,216,255,.92),
+    0 10px 26px rgba(20,30,50,.18);
   backdrop-filter:none
 }
-body[data-theme="pink-cute"] .time{text-shadow:0 0 6px rgba(255,192,203,.5),0 0 12px rgba(255,192,203,.25),0 0 24px rgba(255,192,203,.15)}
-body[data-theme="pink-cute"] .divider{box-shadow:none;background:linear-gradient(90deg,transparent 0%,var(--accent-pink) 50%,transparent 100%);margin:8px 0 6px;opacity:.6}
+body[data-theme="pink-cute"] .live-tag{
+  color:#fff;
+  border-color:rgba(255,255,255,.72);
+  text-shadow:0 0 16px rgba(255,160,200,.65)
+}
+body[data-theme="pink-cute"] .time{text-shadow:0 4px 18px rgba(80,28,55,.38),0 0 18px rgba(255,160,200,.28)}
+body[data-theme="pink-cute"] .date{text-shadow:0 3px 12px rgba(80,28,55,.30)}
+body[data-theme="pink-cute"] .divider{background:linear-gradient(90deg,transparent 0%,#a8d8ff 35%,#ff7fa9 65%,transparent 100%);box-shadow:0 0 16px rgba(255,160,200,.58);margin:10px 0 7px;opacity:.72}
 body[data-theme="blue-night"]{
   --clock-bg-rgb:8,13,28;
   --clock-alpha:.72;
