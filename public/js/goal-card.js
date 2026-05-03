@@ -56,11 +56,15 @@
   function escapeHtml(text){return String(text||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));}
   function applyCSS(){
     const root=document.documentElement;
+    const colWidth=clamp(config.layout.minWidthCol,520,120,5000);
+    const rowWidth=clamp(config.layout.minWidthRow,220,120,5000);
     root.style.setProperty('--cards-gap',`${config.layout.gap??30}px`);
     root.style.setProperty('--base-alpha',config.layout.baseAlpha??.65);
     root.style.setProperty('--completed-alpha',config.layout.completedAlpha??.65);
-    root.style.setProperty('--card-min-col',`${config.layout.minWidthCol||520}px`);
-    root.style.setProperty('--card-min-row',`${config.layout.minWidthRow||220}px`);
+    root.style.setProperty('--card-min-col',`${colWidth}px`);
+    root.style.setProperty('--card-min-row',`${rowWidth}px`);
+    root.style.setProperty('--card-width-col',`${colWidth}px`);
+    root.style.setProperty('--card-width-row',`${rowWidth}px`);
   }
   function isCompleted(card){return Boolean(card.completed)||Number(card.current)>=Number(card.total);}
   function sortCards(cards){return [...cards.filter(c=>!isCompleted(c)),...cards.filter(c=>isCompleted(c))];}
@@ -134,9 +138,12 @@
     const before=options.beforePositions || getPositions();
     applyCSS();
     const oldMode=cardsContainer.dataset.mode;
+    const oldWidthMode=cardsContainer.dataset.widthMode;
     const nextMode=config.layout.direction||'column';
+    const nextWidthMode=config.layout.widthMode==='manual'?'manual':'auto';
     cardsContainer.dataset.mode=nextMode;
-    if(oldMode && oldMode!==nextMode){
+    cardsContainer.dataset.widthMode=nextWidthMode;
+    if((oldMode && oldMode!==nextMode) || (oldWidthMode && oldWidthMode!==nextWidthMode)){
       cardsContainer.classList.remove('mode-switching');
       void cardsContainer.offsetWidth;
       cardsContainer.classList.add('mode-switching');
