@@ -50,6 +50,9 @@
     includesClockSettings: ['overlayConfig']
   };
 
+  let hasRenderedVerificationOnce = false;
+  let refreshTimer = null;
+
   function toast(message){
     if (typeof window.showToast === 'function') window.showToast(message);
   }
@@ -105,11 +108,13 @@
       .backupOptionGrid span{display:block;min-width:0}
       .settingsDangerBox{margin-top:18px;padding:16px;border:1px solid rgba(239,68,68,.32);border-radius:18px;background:rgba(239,68,68,.08)}
       .settingsDangerBox p{margin-top:6px}
-      .verificationGrid{align-items:stretch}
+      .verificationGrid{align-items:stretch;min-height:186px}
       .verificationItem{display:grid!important;grid-template-columns:minmax(0,1fr) 86px!important;align-items:center!important;min-height:54px!important;gap:12px!important}
       .verificationItem strong{display:block;min-width:0;line-height:1.35}
       .verificationBadge{justify-content:center;white-space:nowrap;text-align:center;min-width:74px}
       .verificationBadge.off{color:rgba(255,255,255,.76);background:rgba(148,163,184,.28)}
+      .backupSummaryStable{min-height:1.65em;display:block}
+      .backupSummaryCodeStable{min-height:32px;display:inline-flex;align-items:center}
       body[data-theme="pink-cute"] .backupOptionGrid label{background:rgba(255,255,255,.72);border-color:rgba(210,72,122,.18)}
       body[data-theme="pink-cute"] .settingsDangerBox{background:rgba(239,68,68,.06);border-color:rgba(217,45,98,.26)}
       body[data-theme="pink-cute"] .verificationBadge.off{color:rgba(67,33,54,.72);background:rgba(148,163,184,.22)}
@@ -145,27 +150,75 @@
     return `<span class="verificationBadge ${ok ? 'ok' : 'fail'}">${ok ? '已包含' : '未包含'}</span>`;
   }
 
-  async function refreshVerification(){
+  function ensureVerificationSkeleton(){
     const grid = document.getElementById('backupVerificationGrid');
-    if (grid) grid.innerHTML = '<p class="emptyText">檢查中...</p>';
+    if (!grid || grid.dataset.skeletonReady === 'true') return;
+    grid.dataset.skeletonReady = 'true';
+    grid.innerHTML = Object.entries(VERIFICATION_LABELS).map(([key, label]) => {
+      return `<div class="verificationItem" data-verification-key="${key}"><strong>${label}</strong><span class="verificationBadge off">待檢查</span></div>`;
+    }).join('');
+  }
+
+  function setTextIfChanged(id, value){
+    const el = document.getElementById(id);
+    if (!el) return;
+    const next = String(value ?? '');
+    if (el.textContent !== next) el.textContent = next;
+  }
+
+  function renderVerification(summary, options){
+    ensureVerificationSkeleton();
+    const verification = summary?.verification || {};
+    const fileText = `${summary?.fileCount ?? 0} 個檔案${summary?.includesEnv ? '，包含 .env' : '，未包含 .env'}`;
+    const sizeText = formatBytes(summary?.approxBytes || 0);
+    const dataDirText = summary?.dataDir || '-';
+
+    setTextIfChanged('backupSummaryCount', fileText);
+    setTextIfChanged('backupSummarySize', sizeText);
+    setTextIfChanged('backupSummaryDataDir', dataDirText);
+
+    for (const key of Object.keys(VERIFICATION_LABELS)) {
+      const item = document.querySelector(`[data-verification-key="${key}"]`);
+      if (!item) continue;
+      const nextBadge = verificationBadgeHtml(key, verification, options);
+      const badge = item.querySelector('.verificationBadge');
+      if (!badge || badge.outerHTML !== nextBadge) {
+        const temp = document.createElement('div');
+        temp.innerHTML = nextBadge;
+        badge?.replaceWith(temp.firstElementChild);
+      }
+    }
+    hasRenderedVerificationOnce = true;
+  }
+
+  async function refreshVerification({ silent = false } = {}){
+    const grid = document.getElementById('backupVerificationGrid');
+    ensureVerificationSkeleton();
+
+    if (!silent) toast('正在檢查備份內容...');
+
     try {
       const options = selectedOptions();
       const res = await fetch(`/api/backup/summary?${optionsToQuery(options)}`, { cache: 'no-store' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) throw new Error(data.message || '備份資訊讀取失敗');
-
-      document.getElementById('backupSummaryCount').textContent = `${data.fileCount ?? 0} 個檔案${data.includesEnv ? '，包含 .env' : '，未包含 .env'}`;
-      document.getElementById('backupSummarySize').textContent = formatBytes(data.approxBytes || 0);
-      document.getElementById('backupSummaryDataDir').textContent = data.dataDir || '-';
-
-      const verification = data.verification || {};
-      grid.innerHTML = Object.entries(VERIFICATION_LABELS).map(([key, label]) => {
-        return `<div class="verificationItem"><strong>${label}</strong>${verificationBadgeHtml(key, verification, options)}</div>`;
-      }).join('');
+      renderVerification(data, options);
+      if (!silent && hasRenderedVerificationOnce) toast('備份內容檢查完成');
     } catch (err) {
-      if (grid) grid.innerHTML = `<p class="emptyText">${err.message || '備份資訊讀取失敗'}</p>`;
+      // Do not replace the whole verification area here. Keep the old layout stable.
+      if (!hasRenderedVerificationOnce && grid) {
+        grid.dataset.skeletonReady = 'true';
+        grid.innerHTML = Object.entries(VERIFICATION_LABELS).map(([key, label]) => {
+          return `<div class="verificationItem" data-verification-key="${key}"><strong>${label}</strong><span class="verificationBadge fail">讀取失敗</span></div>`;
+        }).join('');
+      }
       toast(err.message || '備份資訊讀取失敗');
     }
+  }
+
+  function scheduleRefreshVerification(){
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => refreshVerification({ silent: true }), 120);
   }
 
   async function downloadSelectedBackup(){
@@ -224,7 +277,7 @@
 
   function setAllBackupOptions(checked){
     document.querySelectorAll('[data-backup-option]').forEach(el => { el.checked = checked; });
-    refreshVerification();
+    scheduleRefreshVerification();
   }
 
   function installSettingsUI(){
@@ -234,6 +287,11 @@
     const pane = document.querySelector('[data-dashboard-pane="settings"] .dashboardAccordionBody');
     if (!pane || pane.dataset.settingsExtraReady === 'true') return;
     pane.dataset.settingsExtraReady = 'true';
+
+    document.getElementById('backupSummaryCount')?.classList.add('backupSummaryStable');
+    document.getElementById('backupSummarySize')?.classList.add('backupSummaryStable');
+    document.getElementById('backupSummaryDataDir')?.classList.add('backupSummaryCodeStable');
+    ensureVerificationSkeleton();
 
     const oldIntro = pane.querySelector('.introText');
     if (oldIntro) {
@@ -267,14 +325,14 @@
     document.getElementById('clearAllBackupOptionsBtn')?.addEventListener('click', () => setAllBackupOptions(false));
 
     document.querySelectorAll('[data-backup-option]').forEach(el => {
-      el.addEventListener('change', refreshVerification);
+      el.addEventListener('change', scheduleRefreshVerification);
     });
 
     const refreshBtn = document.getElementById('refreshBackupVerificationBtn');
     refreshBtn?.addEventListener('click', event => {
       event.preventDefault();
       event.stopImmediatePropagation();
-      refreshVerification();
+      refreshVerification({ silent: false });
     }, true);
 
     const backupBtn = document.getElementById('settingsTabBackupBtn');
@@ -284,7 +342,7 @@
       downloadSelectedBackup();
     }, true);
 
-    refreshVerification();
+    refreshVerification({ silent: true });
   }
 
   waitForElement('[data-dashboard-pane="settings"]').then(installSettingsUI);
@@ -293,7 +351,7 @@
     if (event.target?.matches?.('[data-dashboard-tab="settings"]')) {
       setTimeout(() => {
         installSettingsUI();
-        refreshVerification();
+        refreshVerification({ silent: true });
       }, 60);
     }
   });
