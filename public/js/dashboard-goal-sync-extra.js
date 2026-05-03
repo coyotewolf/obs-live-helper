@@ -31,6 +31,12 @@
     }[ch]));
   }
   function toast(message){ if (typeof window.showToast === 'function') window.showToast(message); }
+  function requestHandlePatch(){
+    requestAnimationFrame(() => {
+      if (typeof window.patchDashboardGoalDragHandles === 'function') window.patchDashboardGoalDragHandles();
+      document.dispatchEvent(new CustomEvent('dashboard-goal-editor-rendered'));
+    });
+  }
 
   function isCompleted(card){
     return Boolean(card.completed) || Number(card.current || 0) >= Number(card.total || 1);
@@ -78,7 +84,8 @@
     if (!root) return;
     const goal = normalizeGoal(goalInput);
     root.innerHTML = goal.cards.map((card, index) => `
-      <article class="goalEditItem" data-goal-index="${index}" data-goal-uid="${escapeHtml(card.uid)}">
+      <article class="goalEditItem hasDragHandle" data-goal-index="${index}" data-goal-uid="${escapeHtml(card.uid)}">
+        <button class="goalDragHandle" type="button" aria-label="拖曳調整小目標順序" title="拖曳調整順序：第 ${index + 1} 個小目標"></button>
         <label><span>任務名稱</span><input type="text" data-goal-field="text" value="${escapeHtml(card.text)}"></label>
         <label><span>目前</span><input type="number" min="0" data-goal-field="current" value="${card.current}"></label>
         <label><span>總數</span><input type="number" min="1" data-goal-field="total" value="${card.total}"></label>
@@ -97,6 +104,7 @@
     if (document.getElementById('goalAlpha')) document.getElementById('goalAlpha').value = Number(goal.layout.baseAlpha ?? 0.65).toFixed(2);
     if (document.getElementById('goalAlphaRange')) document.getElementById('goalAlphaRange').value = Math.round(Number(goal.layout.baseAlpha ?? 0.65) * 100);
     if (document.getElementById('goalFlashSec')) document.getElementById('goalFlashSec').value = (goal.layout.completeFlashMs ?? 3000) / 1000;
+    requestHandlePatch();
   }
 
   async function saveGoal(goalInput, { broadcast = true, server = true } = {}){
@@ -192,7 +200,6 @@
 
   channel.addEventListener('message', event => {
     if (event.data?.type !== 'overlay-config-change' || !event.data.goal) return;
-    // Goal overlay drag/reorder sends this message. Dashboard should update immediately.
     saveGoal(event.data.goal, { broadcast:false, server:false });
   });
 
@@ -202,7 +209,6 @@
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => {
       const goal = collectEditorGoal();
-      // When an item becomes completed / incomplete, re-render to put it in the correct group.
       saveGoal(goal, { broadcast:true, server:true });
     }, 260);
   });
