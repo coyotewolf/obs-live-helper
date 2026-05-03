@@ -19,6 +19,7 @@
     </div>
     <div class="heroActions">
       <button id="loginBtn" class="btnPrimary">登入 / 重新授權 Spotify</button>
+      <button id="backupBtn" class="btnGhost" type="button">備份設定</button>
       <a class="btnGhost" href="/html/display.html" target="_blank">預覽歌詞頁</a>
     </div>
   </header>
@@ -41,6 +42,19 @@
           <article><strong>02 登入 Spotify</strong><p>按上方登入按鈕。若改過 scope、token 過期或 queue 抓不到，就重新授權一次。</p></article>
           <article><strong>03 加入 OBS</strong><p>在 OBS 新增 Browser Source，貼上下方需要的 Overlay URL。</p></article>
           <article><strong>04 開放點歌</strong><p>安裝 cloudflared 後可開外網 Tunnel，讓直播觀眾掃 QR Code 點歌。</p></article>
+        </div>
+      </div>
+    </details>
+
+    <details class="dashboardAccordion panel" open>
+      <summary>
+        <span><span class="eyebrow">Backup</span><strong>備份與資料保護</strong></span>
+        <span class="accordionHint">展開 / 收合</span>
+      </summary>
+      <div class="dashboardAccordionBody">
+        <p class="introText">匯出目前 OBS Live Helper 的本機設定與 runtime 資料，包含 Spotify / Discord 設定、自訂文字樣式、Overlay 設定、觀眾點歌設定與上傳字型。備份檔會下載成 JSON；歌詞 log 與 LRCLib 快取不會放進備份，避免檔案過大。</p>
+        <div class="btnRow">
+          <button id="backupSettingsBtn" class="btnPrimary" type="button">建立並下載備份</button>
         </div>
       </div>
     </details>
