@@ -12,7 +12,7 @@
 - [x] Edit toast to 彈窗。
 - [x] Add 備份 button behavior.
 - [x] Fix manual / automatic card length 目前無法實際改變長度 bug.
-- [ ] Add song pause display behavior.
+- [x] Add song pause display behavior.
 - [ ] Discuss 觀眾要求插播後的queue function.
 - [ ] Add icons.
 - [ ] Add tunnel auto-open option.
