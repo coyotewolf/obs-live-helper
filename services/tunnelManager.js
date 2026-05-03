@@ -14,10 +14,35 @@ const TUNNEL_START_GRACE_MS = Number(process.env.TUNNEL_START_GRACE_MS || 20000)
 const TUNNEL_RESTART_COOLDOWN_MS = Number(process.env.TUNNEL_RESTART_COOLDOWN_MS || 15000);
 const TUNNEL_HEALTH_TIMEOUT_MS = Number(process.env.TUNNEL_HEALTH_TIMEOUT_MS || 6000);
 
+function ensureStorageDir() {
+  if (!fs.existsSync(STORAGE_DIR)) fs.mkdirSync(STORAGE_DIR, { recursive: true });
+}
+
+function readPublicUrlFile() {
+  if (!fs.existsSync(PUBLIC_URL_FILE)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(PUBLIC_URL_FILE, 'utf8')) || {};
+  } catch {
+    return {};
+  }
+}
+
+function envAutoOpenEnabled() {
+  return String(process.env.ENABLE_PUBLIC_TUNNEL || '').toLowerCase() === 'true';
+}
+
+function getInitialAutoOpen() {
+  const persisted = readPublicUrlFile();
+  if (typeof persisted.autoOpenTunnel === 'boolean') return persisted.autoOpenTunnel;
+  return envAutoOpenEnabled();
+}
+
 let child = null;
 let healthCheckPromise = null;
+const initialAutoOpen = getInitialAutoOpen();
 let state = {
-  enabled: String(process.env.ENABLE_PUBLIC_TUNNEL || '').toLowerCase() === 'true',
+  enabled: initialAutoOpen,
+  autoOpenTunnel: initialAutoOpen,
   running: false,
   provider: 'cloudflare-quick-tunnel',
   publicUrl: '',
@@ -32,10 +57,6 @@ let state = {
   restartCount: 0,
   executable: ''
 };
-
-function ensureStorageDir() {
-  if (!fs.existsSync(STORAGE_DIR)) fs.mkdirSync(STORAGE_DIR, { recursive: true });
-}
 
 function pushLog(line) {
   const text = String(line || '').trim();
@@ -53,15 +74,6 @@ function normalizeBaseUrl(url) {
     return parsed.origin + parsed.pathname.replace(/\/+$/, '');
   } catch {
     return '';
-  }
-}
-
-function readPublicUrlFile() {
-  if (!fs.existsSync(PUBLIC_URL_FILE)) return {};
-  try {
-    return JSON.parse(fs.readFileSync(PUBLIC_URL_FILE, 'utf8')) || {};
-  } catch {
-    return {};
   }
 }
 
@@ -139,6 +151,7 @@ function resolveExecutable() {
 function getStatus() {
   const persisted = readPublicUrlFile();
   const manual = state.manualPublicUrl || persisted.manualPublicUrl || '';
+  const autoOpenTunnel = typeof persisted.autoOpenTunnel === 'boolean' ? persisted.autoOpenTunnel : state.autoOpenTunnel;
 
   // Quick Tunnel URLs are temporary. Do not reuse the persisted publicUrl after restart,
   // otherwise QR Code may keep showing an expired trycloudflare URL.
@@ -146,6 +159,7 @@ function getStatus() {
 
   return {
     ...state,
+    autoOpenTunnel,
     manualPublicUrl: manual,
     publicUrl: tunnelUrl || manual,
     tunnelUrl,
@@ -154,18 +168,28 @@ function getStatus() {
   };
 }
 
-function stopTunnel() {
+function stopTunnel(options = {}) {
+  const { disableAutoOpen = true } = options;
   if (child) {
     try { child.kill(); } catch {}
   }
   child = null;
   state.running = false;
   state.updatedAt = new Date().toISOString();
+
+  if (disableAutoOpen) {
+    state.enabled = false;
+    state.autoOpenTunnel = false;
+    persistPublicUrl({ autoOpenTunnel: false, publicUrl: '' });
+    pushLog('Tunnel stopped and auto-open disabled.');
+  }
 }
 
 function startTunnel(port = process.env.PORT || 5172) {
   if (child && state.running) return getStatus();
 
+  // Manual start keeps health checks enabled for the current session. It does not
+  // persist auto-open unless setAutoOpenTunnel(true) is called.
   state.enabled = true;
   state.running = false;
   state.lastError = '';
@@ -230,7 +254,25 @@ function startTunnel(port = process.env.PORT || 5172) {
   return getStatus();
 }
 
+function setAutoOpenTunnel(enabled, port = process.env.PORT || 5172) {
+  const autoOpenTunnel = Boolean(enabled);
+  state.autoOpenTunnel = autoOpenTunnel;
+  state.enabled = autoOpenTunnel;
+  persistPublicUrl({ autoOpenTunnel });
+
+  if (autoOpenTunnel) {
+    pushLog('Tunnel auto-open enabled.');
+    startTunnel(port);
+  } else {
+    pushLog('Tunnel auto-open disabled. Current tunnel process is unchanged until Stop is pressed.');
+  }
+
+  return getStatus();
+}
+
 function startIfEnabled(port) {
+  state.autoOpenTunnel = getInitialAutoOpen();
+  state.enabled = state.autoOpenTunnel;
   if (state.enabled) startTunnel(port);
 }
 
@@ -240,7 +282,7 @@ function restartTunnel(port) {
   state.lastRestartAt = now;
   state.restartCount += 1;
   pushLog(`Restarting Cloudflare Quick Tunnel automatically (#${state.restartCount}).`);
-  stopTunnel();
+  stopTunnel({ disableAutoOpen: false });
   return startTunnel(port);
 }
 
@@ -311,6 +353,7 @@ module.exports = {
   startIfEnabled,
   ensureTunnelAlive,
   setManualPublicUrl,
+  setAutoOpenTunnel,
   normalizeBaseUrl,
   resolveExecutable
 };
