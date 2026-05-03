@@ -241,6 +241,9 @@ app.get('/html/dashboard.html', (req, res, next) => {
     if (!html.includes('dashboard-settings-extra.js')) {
       html = html.replace('</body>', '<script src="../js/dashboard-settings-extra.js"></script>\n</body>');
     }
+    if (!html.includes('dashboard-goal-reorder-extra.js')) {
+      html = html.replace('</body>', '<script src="../js/dashboard-goal-reorder-extra.js"></script>\n</body>');
+    }
     if (!html.includes('dashboard-onboarding-extra.js')) {
       html = html.replace('</body>', '<script src="../js/dashboard-onboarding-extra.js"></script>\n</body>');
     }
