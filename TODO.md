@@ -10,14 +10,14 @@
 - [x] Fix Spotify playback manual retry required bottom 消失 bug.
 - [x] Fix spotify 頁面清除畫面無效bug.
 - [x] Edit toast to 彈窗。
-- [ ] Add 啟動時重複(已有同樣的軟體啟動or使用同樣port) port warnings.
-- [ ] Add 備份 button behavior.
+- [x] Add 備份 button behavior.
 - [ ] Fix manual / automatic card length 目前無法實際改變長度 bug.
 - [ ] Add song pause display behavior.
 - [ ] Discuss 觀眾要求插播後的queue function.
 - [ ] Add icons.
 - [ ] Add tunnel auto-open option.
 - [ ] Change clock background behavior from `black` to `white`.
+- [ ] Add 啟動時重複(已有同樣的軟體啟動or使用同樣port) port warnings.
 - [ ] Add 軟體更新直接安裝 option.
 - [ ] Prepare and release v0.1.2.
 
