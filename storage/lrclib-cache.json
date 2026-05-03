@@ -482,17 +482,6 @@
     "album": "The Hobbit: An Unexpected Journey Original Motion Picture Soundtrack (International Version)",
     "updatedAt": 1777741051776
   },
-  "3H81oJuTCtddG32tEptTbs": {
-    "status": "not_found",
-    "reason": "LRCLib synced lyrics not found after exact + limited fuzzy search",
-    "expiresAt": 1777762894470,
-    "key": "3H81oJuTCtddG32tEptTbs",
-    "trackId": "3H81oJuTCtddG32tEptTbs",
-    "title": "Yeah Right",
-    "artists": "M.I.M.E, Born I",
-    "album": "Yeah Right",
-    "updatedAt": 1777741294470
-  },
   "6gbEcamWx8gVcbL8vTHfEi": {
     "status": "ready",
     "lyrics": "[00:12.57] Every time I wake up I be feeling down\n[00:15.54] Waiting for a better day to come around, yeah\n[00:18.57] Lately I been losing my patience\n[00:21.55] Thought I knew myself but I'm changing, yeah\n[00:24.74] I been holding it down\n[00:26.30] I gotta let it come out\n[00:27.86] 'Cause I don't wanna go drown in it, nah\n[00:30.51] Now I'm working it out\n[00:32.47] And I be talking about\n[00:33.53] The life I gotta be down to live, yeah\n[00:36.48] Anxiety been dancing on my brain\n[00:38.51] If I keep thinking 'bout it I might really go insane\n[00:41.54] You finally making money now so how can you complain\n[00:44.52] It's deeper than the money man this life is all a game\n[00:47.61] I been playing with my thoughts\n[00:49.16] I been tryna work it out\n[00:50.66] But it keeps on adding up\n[00:52.05] While I'm slowly breaking down\n[00:53.51] Always thinking bout the future, I can't even see the present\n[00:56.57] My grandma lost her life\n[00:58.32] Know she watching me from heaven\n[00:59.99] And I'ma make you proud\n[01:01.03] Sometimes I see you in the clouds\n[01:02.82] I promise I'ma make it, you ain't gotta worry now\n[01:05.87] My family going through some shit that I can't speak about\n[01:08.89] Feel like I'm the only one who can really help 'em out, damn\n[01:12.50] Every time I wake up I be feeling down\n[01:15.72] Waiting for a better day to come around, yeah\n[01:18.52] Lately I been losing my patience\n[01:21.52] Thought I knew myself but I'm changing, yeah\n[01:24.70] I been holding it down\n[01:26.59] I gotta let it come out\n[01:28.06] 'Cause I don't wanna go drown in it, nah\n[01:30.66] Now I'm working it out\n[01:32.44] And I be talking about\n[01:34.01] The life I gotta be down to live, yeah\n[01:36.57] They wonder how I put in so much work\n[01:38.61] It's better staying busy when you always feeling hurt\n[01:41.82] I gotta get my family everything that they deserve\n[01:44.84] And you only get one shot 'cause tomorrow ain't for sure\n[01:47.84] I been meditating\n[01:49.11] I don't need medication\n[01:50.45] And when I'm falling down I'll always be staying patient\n[01:53.58] I been locked up in the studio, I'm separated\n[01:56.33] From all the negativity that people spreading daily\n[01:59.16] This life is temporary\n[02:00.85] I know it's kinda scary\n[02:02.29] But either you gon' face it or you gonna end up buried\n[02:05.42] The truth ain't always nice but you gotta get it while you can\n[02:08.67] And I hate to break it to ya I just hope you understand, yeah\n[02:12.57] Every time I wake up I be feeling down\n[02:15.45] Waiting for a better day to come around, yeah\n[02:18.46] Lately I been losing my patience\n[02:21.40] Thought I knew myself but I'm changing, yeah\n[02:24.67] I been holding it down\n[02:26.53] I gotta let it come out\n[02:28.10] 'Cause I don't wanna go drown in it, nah\n[02:30.67] Now I'm working it out\n[02:32.65] And I be talking about\n[02:34.12] The life I gotta be down to live, yeah\n[02:37.60] ",
@@ -564,5 +553,16 @@
     "artists": "Guns N' Roses",
     "album": "Appetite For Destruction",
     "updatedAt": 1777741890136
+  },
+  "3H81oJuTCtddG32tEptTbs": {
+    "status": "not_found",
+    "reason": "LRCLib synced lyrics not found after exact + limited fuzzy search",
+    "expiresAt": 1777834582387,
+    "key": "3H81oJuTCtddG32tEptTbs",
+    "trackId": "3H81oJuTCtddG32tEptTbs",
+    "title": "Yeah Right",
+    "artists": "M.I.M.E, Born I",
+    "album": "Yeah Right",
+    "updatedAt": 1777812982388
   }
 }

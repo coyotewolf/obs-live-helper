@@ -11,7 +11,7 @@
 - [x] Fix spotify 頁面清除畫面無效bug.
 - [x] Edit toast to 彈窗。
 - [x] Add 備份 button behavior.
-- [ ] Fix manual / automatic card length 目前無法實際改變長度 bug.
+- [x] Fix manual / automatic card length 目前無法實際改變長度 bug.
 - [ ] Add song pause display behavior.
 - [ ] Discuss 觀眾要求插播後的queue function.
 - [ ] Add icons.
