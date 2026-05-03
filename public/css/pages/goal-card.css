@@ -49,8 +49,8 @@ body{font-family:var(--font);color:var(--text)}
 }
 .cards[data-width-mode="manual"][data-mode="column"] .goal-card{width:var(--card-width-col);min-width:var(--card-width-col);max-width:min(96vw,var(--card-width-col));box-sizing:border-box}
 .cards[data-width-mode="manual"][data-mode="row"] .goal-card{width:var(--card-width-row);min-width:var(--card-width-row);max-width:min(96vw,var(--card-width-row));box-sizing:border-box;flex:0 0 var(--card-width-row)}
-.cards[data-width-mode="auto"][data-mode="column"] .goal-card{width:max-content;min-width:var(--card-min-col);max-width:none;box-sizing:border-box}
-.cards[data-width-mode="auto"][data-mode="row"] .goal-card{width:max-content;min-width:var(--card-min-row);max-width:none;flex:0 0 max-content;box-sizing:border-box}
+.cards[data-width-mode="auto"][data-mode="column"] .goal-card{width:var(--card-width-col);min-width:var(--card-width-col);max-width:none;box-sizing:border-box}
+.cards[data-width-mode="auto"][data-mode="row"] .goal-card{width:var(--card-width-row);min-width:var(--card-width-row);max-width:none;flex:0 0 var(--card-width-row);box-sizing:border-box}
 .cards[data-width-mode="manual"] .text{overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .cards[data-width-mode="auto"] .stack{max-width:none;flex:0 0 auto}
 .cards[data-width-mode="auto"] .text{overflow:visible;text-overflow:clip;max-width:none;white-space:nowrap}
