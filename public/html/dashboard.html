@@ -212,16 +212,16 @@
       </summary>
       <div class="dashboardAccordionBody requestPanelBody">
         <div class="requestInfo">
-          <p>觀眾掃描後可以搜尋 Spotify 歌曲並送出請求。你可以決定是否自動允許加入佇列、是否允許立即插播、是否開放播放 / 暫停與切歌。</p>
+          <p>觀眾掃描後可以搜尋 Spotify 歌曲並送出請求。你可以決定是否自動允許加入佇列、是否開放播放 / 暫停與切歌。插播會以「請求插播」進入待審清單，由主播同意後自行在 Spotify 播放。</p>
           <div class="requestUrlBox publicUrlBox"><span>外網網址</span><code id="audienceRequestUrl">產生中...</code><button class="btnMini" data-copy="#audienceRequestUrl">複製</button></div>
           <div class="requestUrlBox mutedBox"><span>區網網址</span><code id="audienceLanUrl">產生中...</code><button class="btnMini" data-copy="#audienceLanUrl">複製</button></div>
           <div class="requestUrlBox mutedBox"><span>本機預覽</span><code id="audienceLocalUrl">產生中...</code><button class="btnMini" data-copy="#audienceLocalUrl">複製</button></div>
           <div class="tunnelBox"><div><strong id="tunnelState">Tunnel 檢查中</strong><p id="tunnelHint">外網觀眾需要 Cloudflare Tunnel 或其他公開網址；192.168 只適合同一個 Wi‑Fi。</p></div><div class="tunnelActions"><button id="startTunnelBtn" class="btnGhost" type="button">啟動 Tunnel</button><button id="restartTunnelBtn" class="btnGhost" type="button">重啟 Tunnel</button><button id="stopTunnelBtn" class="btnDanger" type="button">停止</button></div></div>
           <div class="settingsGrid">
-            <label><input type="checkbox" id="requestsEnabled"> <span>開放觀眾點歌</span></label><label><input type="checkbox" id="autoApproveQueue"> <span>自動允許加入佇列</span></label><label><input type="checkbox" id="allowPlayNow"> <span>允許立即插播</span></label><label><input type="checkbox" id="allowPlaybackControl"> <span>允許播放 / 暫停</span></label><label><input type="checkbox" id="allowSkipControl"> <span>允許上一首 / 下一首</span></label><label><input type="checkbox" id="blockExplicit"> <span>禁止 Explicit 歌曲</span></label><label><span>點歌冷卻秒數</span><input type="number" id="cooldownSeconds" min="0" max="3600"></label><label><span>控制冷卻秒數</span><input type="number" id="controlCooldownSeconds" min="0" max="3600"></label>
+            <label><input type="checkbox" id="requestsEnabled"> <span>開放觀眾點歌</span></label><label><input type="checkbox" id="autoApproveQueue"> <span>自動允許加入佇列</span></label><label><input type="checkbox" id="allowPlaybackControl"> <span>允許播放 / 暫停</span></label><label><input type="checkbox" id="allowSkipControl"> <span>允許上一首 / 下一首</span></label><label><input type="checkbox" id="blockExplicit"> <span>禁止 Explicit 歌曲</span></label><label><span>點歌冷卻秒數</span><input type="number" id="cooldownSeconds" min="0" max="3600"></label><label><span>控制冷卻秒數</span><input type="number" id="controlCooldownSeconds" min="0" max="3600"></label>
           </div>
           <div class="btnRow"><button id="saveRequestSettingsBtn" class="btnPrimary" type="button">儲存觀眾權限設定</button><button id="rotateRequestPinBtn" class="btnGhost" type="button">重新產生 QR Code 權限碼</button></div>
-          <div class="infoBox warningBox"><strong>安全提醒</strong><ul><li>Dashboard 請盡量只從 <code>127.0.0.1</code> 本機開啟；觀眾只需要掃 request.html 的 QR Code。</li><li>外網 Tunnel 會把本機服務公開出去，請保留冷卻時間，並謹慎開放插播與切歌。</li><li>給別人使用時，請讓對方用自己的 Spotify Developer App 與 Spotify 帳號登入。</li></ul></div>
+          <div class="infoBox warningBox"><strong>安全提醒</strong><ul><li>Dashboard 請盡量只從 <code>127.0.0.1</code> 本機開啟；觀眾只需要掃 request.html 的 QR Code。</li><li>外網 Tunnel 會把本機服務公開出去，請保留冷卻時間，並謹慎開放播放控制與切歌。</li><li>請求插播不會自動操作 Spotify；主播同意後需自行在 Spotify 播放。</li><li>給別人使用時，請讓對方用自己的 Spotify Developer App 與 Spotify 帳號登入。</li></ul></div>
         </div>
         <div class="qrCard"><div class="qrFrame"><img id="requestQrImg" alt="Audience request QR Code"></div><div class="qrMeta"><span>QR Code 權限碼</span><strong id="requestPin">------</strong></div><a id="requestPreviewLink" class="btnPrimary fullWidth" href="/html/request.html" target="_blank">開啟點歌頁預覽</a></div>
       </div>
@@ -233,7 +233,7 @@
         <span class="accordionHint">展開 / 收合</span>
       </summary>
       <div class="dashboardAccordionBody">
-        <div class="titleRow compactTitleRow"><p class="introText">管理觀眾送出的點歌請求，可加入佇列、立即插播或拒絕。</p><div class="btnRow compact"><button id="reloadRequestsBtn" class="btnGhost" type="button">重新整理</button><button id="clearFinishedRequestsBtn" class="btnGhost" type="button">清除已處理</button></div></div><div id="requestList" class="requestList"><p class="emptyText">讀取中...</p></div>
+        <div class="titleRow compactTitleRow"><p class="introText">管理觀眾送出的點歌與插播請求。點歌可加入 Spotify 佇列；插播只標記為主播同意，請主播自行在 Spotify 播放。</p><div class="btnRow compact"><button id="reloadRequestsBtn" class="btnGhost" type="button">重新整理</button><button id="clearFinishedRequestsBtn" class="btnGhost" type="button">清除已處理</button></div></div><div id="requestList" class="requestList"><p class="emptyText">讀取中...</p></div>
       </div>
     </details>
   </section>
