@@ -246,15 +246,25 @@
   document.addEventListener('input', event => {
     if (!event.target?.closest?.('.goalSettingsPanel')) return;
     const field = event.target?.dataset?.goalField || '';
-    const shouldRender = field && field !== 'text';
+
+    // 任務名稱不即時同步 overlay / server，避免每次刪字都重算自動卡片長度。
+    // 使用者按「儲存小目標設定」後才會更新實際卡片長度。
+    if (field === 'text') return;
+
+    const shouldRender = Boolean(field);
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => {
       const goal = collectEditorGoal();
       saveGoal(goal, { broadcast:true, server:true, render:shouldRender });
-    }, field === 'text' ? 120 : 260);
+    }, 260);
   });
   document.addEventListener('change', event => {
     if (!event.target?.closest?.('.goalSettingsPanel')) return;
+    const field = event.target?.dataset?.goalField || '';
+
+    // 任務名稱只在按下儲存時套用，blur/change 不更新 overlay，避免自動寬度縮放干擾編輯。
+    if (field === 'text') return;
+
     const goal = collectEditorGoal();
     saveGoal(goal, { broadcast:true, server:true, render:true });
   });
