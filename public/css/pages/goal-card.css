@@ -60,19 +60,23 @@ body{font-family:var(--font);color:var(--text)}
 .goal-card.dragging{position:fixed!important;z-index:99999!important;cursor:grabbing;opacity:.96;transform:rotate(-2deg) scale(1.035);box-shadow:0 28px 68px rgba(0,0,0,.5),0 0 0 2px rgba(125,211,252,.8)}
 .goal-card.placeholder{visibility:hidden;box-shadow:none!important;background:transparent!important;border:0!important}
 .cards.mode-switching .goal-card{transition:opacity .34s ease,filter .34s ease,box-shadow .2s ease,scale .2s ease,min-width .62s cubic-bezier(.16,1,.3,1),width .62s cubic-bezier(.16,1,.3,1),max-width .62s cubic-bezier(.16,1,.3,1)}
-.fill-bg{position:absolute;inset:0;background:var(--progress-color);width:0%;z-index:0;transition:width .68s cubic-bezier(.16,1,.3,1);border-radius:inherit;opacity:.86}
-.shine{position:absolute;inset:0;z-index:1;opacity:0;pointer-events:none;background:linear-gradient(120deg,transparent 0%,rgba(255,255,255,.34) 42%,rgba(255,255,255,.7) 50%,rgba(255,255,255,.24) 58%,transparent 100%);transform:translateX(-120%)}
-.goal-card.progress-bump .shine{animation:shineSweep .72s cubic-bezier(.2,.7,.2,1)}
-.goal-card.progress-bump .badge{animation:pulsePop .72s cubic-bezier(.2,.7,.2,1)}
-@keyframes shineSweep{0%{opacity:0;transform:translateX(-120%)}18%{opacity:1}100%{opacity:0;transform:translateX(120%)}}
-@keyframes pulsePop{0%{transform:scale(1)}35%{transform:scale(1.28)}100%{transform:scale(1)}}
+.fill-bg{position:absolute;inset:0;background:var(--progress-color);width:0%;z-index:0;transition:width 1.05s cubic-bezier(.18,.82,.18,1),opacity .36s ease,filter .36s ease;border-radius:inherit;opacity:.86;box-shadow:inset -18px 0 24px rgba(255,255,255,.12)}
+.progress-edge{position:absolute;z-index:1;top:8px;bottom:8px;width:32px;border-radius:999px;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.85),rgba(255,255,255,0));filter:blur(1px);opacity:0;pointer-events:none;transform:translateX(-50%)}
+.shine{position:absolute;inset:0;z-index:1;opacity:0;pointer-events:none;background:linear-gradient(120deg,transparent 0%,rgba(255,255,255,.22) 42%,rgba(255,255,255,.52) 50%,rgba(255,255,255,.18) 58%,transparent 100%);transform:translateX(-120%)}
+.goal-card.progress-rise .shine{animation:shineSweep 1.05s cubic-bezier(.16,1,.3,1)}
+.goal-card.progress-rise .badge{animation:gentlePop 1.05s cubic-bezier(.16,1,.3,1)}
+.goal-card.progress-rise{box-shadow:0 22px 64px rgba(0,0,0,.34),0 0 28px rgba(125,211,252,.34),inset 0 1px 0 rgba(255,255,255,.18)}
+@keyframes shineSweep{0%{opacity:0;transform:translateX(-120%)}22%{opacity:.72}100%{opacity:0;transform:translateX(120%)}}
+@keyframes gentlePop{0%{transform:scale(1)}42%{transform:scale(1.12)}72%{transform:scale(.99)}100%{transform:scale(1)}}
 .badge{z-index:2;width:38px;height:38px;flex:0 0 38px;border-radius:999px;display:grid;place-items:center;background:linear-gradient(180deg,rgba(125,211,252,.95),rgba(192,132,252,.95));box-shadow:0 0 18px var(--pink-glow);font-size:20px;color:#fff;line-height:1;user-select:none;animation:pulse 1.8s ease-in-out infinite}
 @keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 14px var(--pink-glow)}50%{transform:scale(1.15);box-shadow:0 0 26px var(--pink-glow)}}
 .badge.is-heart{background:transparent!important;box-shadow:none!important;border-radius:0;color:#ffd27d;text-shadow:0 0 8px rgba(255,220,140,.95),0 0 16px rgba(255,220,140,.4);font-size:26px;animation:heartbeat 2.4s ease-in-out infinite}
 @keyframes heartbeat{0%{transform:scale(1)}18%{transform:scale(1.08)}32%{transform:scale(.96)}48%{transform:scale(1.03)}100%{transform:scale(1)}}
 .stack{z-index:2;display:flex;flex-direction:column;gap:4px;min-width:0;max-width:100%}
 .text{font-size:var(--hud-font);font-weight:850;letter-spacing:.3px;text-shadow:0 4px 18px rgba(0,0,0,.32);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.progressText{font-size:16px;color:var(--muted);font-weight:850}
+.progressText{font-size:16px;color:var(--muted);font-weight:850;position:relative;display:inline-block;width:max-content}
+.progressFloat{position:absolute;z-index:5;right:26px;top:8px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.92);color:#0f172a;font-size:14px;font-weight:950;letter-spacing:.2px;box-shadow:0 8px 24px rgba(0,0,0,.22),0 0 20px rgba(125,211,252,.32);pointer-events:none;animation:progressFloatUp 1.15s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes progressFloatUp{0%{opacity:0;transform:translateY(8px) scale(.92)}20%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-22px) scale(.96)}}
 .goal-card.completed{background:radial-gradient(circle at 15% 20%,rgba(255,210,125,.22),transparent 38%),radial-gradient(circle at 85% 15%,rgba(192,132,252,.20),transparent 36%),rgba(var(--base-rgb),var(--completed-alpha))!important;filter:saturate(.92);opacity:.98}
 .goal-card.completed .fill-bg{opacity:.2}
 .text.is-done{text-decoration:line-through;text-decoration-thickness:3px;text-decoration-color:rgba(245,245,245,.95)}
@@ -85,4 +89,5 @@ body{font-family:var(--font);color:var(--text)}
 body[data-theme="pink-cute"]{--base-rgb:100,140,190;--base-alpha:.65;--completed-alpha:.65;--progress-color:linear-gradient(90deg,#8ec8ff,#ffa9c9,#ff7fa9);--outline:#a8d8ff;--outline-glow:rgba(160,220,255,.4);--pink-glow:rgba(255,160,200,.65);--radius:22px}
 body[data-theme="pink-cute"] .goal-card{background:rgba(var(--base-rgb),var(--base-alpha));box-shadow:0 0 10px var(--outline-glow),0 0 0 2px var(--outline),0 10px 26px rgba(20,30,50,.18);border:0;backdrop-filter:none}
 body[data-theme="pink-cute"] .badge{background:linear-gradient(180deg,rgba(255,170,195,.96),rgba(255,120,165,.96));box-shadow:0 0 18px var(--pink-glow)}
+body[data-theme="pink-cute"] .progressFloat{color:#6b143f;background:rgba(255,255,255,.95);box-shadow:0 8px 24px rgba(217,70,127,.18),0 0 20px rgba(255,160,200,.32)}
 body[data-theme="blue-night"]{--base-rgb:8,13,28;--base-alpha:.72;--progress-color:linear-gradient(90deg,#7dd3fc,#c084fc);--outline:rgba(255,255,255,.16);--outline-glow:rgba(125,211,252,.28);--pink-glow:rgba(125,211,252,.48)}
