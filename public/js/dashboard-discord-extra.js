@@ -105,17 +105,11 @@
 
   function renderTiming(st = {}){
     keepRetryVisible();
-    if (st.spotify_timeout) {
-      timingBox.textContent = `Spotify timeout：請求 ${formatTime(st.spotify_request_started_at) || '-'}，逾時 ${formatTime(st.spotify_timeout_at || st.spotify_response_at) || '-'}，等待 ${st.spotify_response_elapsed_ms || st.spotify_timeout_ms || 0} ms。`;
-    } else if (st.rate_limited || st.error === 'rate_limited') {
-      timingBox.textContent = `Spotify rate limit：時間 ${formatTime(st.rate_limited_at) || '-'}，建議等待 ${Math.ceil(Number(st.retry_after_ms || 0) / 1000) || '?'} 秒後重試。`;
-    } else if (st.manual_retry_required) {
-      timingBox.textContent = 'Spotify 需要手動重試：請按「手動重試 Spotify」。';
-    } else if (st.spotify_response_elapsed_ms || st.spotify_response_at) {
-      timingBox.textContent = `Spotify 回應時間：${formatTime(st.spotify_response_at) || '-'}，耗時 ${st.spotify_response_elapsed_ms || 0} ms。`;
-    } else {
-      timingBox.textContent = 'Spotify 回應時間：等待狀態更新，可隨時手動重試 Spotify。';
-    }
+    if (st.spotify_timeout) timingBox.textContent = `Spotify timeout：請求 ${formatTime(st.spotify_request_started_at) || '-'}，逾時 ${formatTime(st.spotify_timeout_at || st.spotify_response_at) || '-'}，等待 ${st.spotify_response_elapsed_ms || st.spotify_timeout_ms || 0} ms。`;
+    else if (st.rate_limited || st.error === 'rate_limited') timingBox.textContent = `Spotify rate limit：時間 ${formatTime(st.rate_limited_at) || '-'}，建議等待 ${Math.ceil(Number(st.retry_after_ms || 0) / 1000) || '?'} 秒後重試。`;
+    else if (st.manual_retry_required) timingBox.textContent = 'Spotify 需要手動重試：請按「手動重試 Spotify」。';
+    else if (st.spotify_response_elapsed_ms || st.spotify_response_at) timingBox.textContent = `Spotify 回應時間：${formatTime(st.spotify_response_at) || '-'}，耗時 ${st.spotify_response_elapsed_ms || 0} ms。`;
+    else timingBox.textContent = 'Spotify 回應時間：等待狀態更新，可隨時手動重試 Spotify。';
   }
 
   function renderCacheStats(data = {}){
@@ -199,19 +193,10 @@
   if (typeof window.loadRequestList === 'function') window.loadRequestList().catch(()=>{});
 })();
 
-(function addSettingsTabAndBackupVerification(){
+(function createSettingsTabOnly(){
   const nav = document.querySelector('.dashboardTabs');
   const wrapper = document.querySelector('.wrapper');
   if (!nav || !wrapper || document.querySelector('[data-dashboard-tab="settings"]')) return;
-
-  const style = document.createElement('style');
-  style.textContent = `
-    .verificationGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:14px}
-    .verificationItem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(255,255,255,.045)}
-    .verificationItem strong{font-size:.92rem}.verificationBadge{display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;font-size:.82rem;font-weight:900}.verificationBadge.ok{color:#052e14;background:var(--good)}.verificationBadge.fail{color:#fff;background:#fb7185}.verificationMeta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}.verificationMeta code{width:100%}
-    body[data-theme="pink-cute"] .verificationItem{background:rgba(255,255,255,.72);border-color:rgba(210,72,122,.18)}
-  `;
-  document.head.appendChild(style);
 
   const tabButton = document.createElement('button');
   tabButton.className = 'dashboardTabButton';
@@ -230,15 +215,15 @@
         <span class="accordionHint">展開 / 收合</span>
       </summary>
       <div class="dashboardAccordionBody">
-        <p class="introText">這裡會直接讀取 <code>/api/backup/summary</code>，確認目前備份是否包含重要 runtime 檔案、小目標設定與時鐘設定。</p>
+        <p class="introText">在這裡選擇要備份的內容，並檢查備份是否包含重要設定。</p>
         <div class="btnRow">
           <button id="refreshBackupVerificationBtn" class="btnGhost" type="button">重新檢查備份內容</button>
           <button id="settingsTabBackupBtn" class="btnPrimary" type="button">建立並下載備份</button>
         </div>
         <div class="verificationMeta">
-          <div><span class="eyebrow">Files</span><p id="backupSummaryCount">讀取中...</p></div>
-          <div><span class="eyebrow">Size</span><p id="backupSummarySize">讀取中...</p></div>
-          <div><span class="eyebrow">Data Dir</span><code id="backupSummaryDataDir">讀取中...</code></div>
+          <div><span class="eyebrow">Files</span><p id="backupSummaryCount">等待檢查</p></div>
+          <div><span class="eyebrow">Size</span><p id="backupSummarySize">等待檢查</p></div>
+          <div><span class="eyebrow">Data Dir</span><code id="backupSummaryDataDir">等待檢查</code></div>
         </div>
         <div id="backupVerificationGrid" class="verificationGrid"></div>
       </div>
@@ -251,83 +236,8 @@
     document.querySelectorAll('[data-dashboard-pane]').forEach(tabPane => tabPane.classList.toggle('isActive', tabPane.dataset.dashboardPane === tabName));
     localStorage.setItem('obsHelperDashboardTab', tabName);
   }
-
-  tabButton.addEventListener('click', () => {
-    activate('settings');
-    refreshBackupVerification();
-  });
-
-  function formatBytes(bytes = 0){
-    const n = Number(bytes || 0);
-    if (!Number.isFinite(n) || n <= 0) return '0 B';
-    const units = ['B','KB','MB','GB'];
-    let value = n;
-    let i = 0;
-    while (value >= 1024 && i < units.length - 1) { value /= 1024; i += 1; }
-    return `${value >= 10 || i === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[i]}`;
-  }
-
-  const labels = {
-    includesLyricsLog: '包含 lyrics.log',
-    includesLrclibCache: '包含 lrclib-cache.json',
-    includesStorageKeep: '包含 storage/.keep',
-    includesLyricsKeep: '包含 lyrics/.keep',
-    includesFontsKeep: '包含 fonts/.keep',
-    includesOverlayConfigFile: '包含 overlay-config.json',
-    includesGoalSettings: '包含小目標設定',
-    includesClockSettings: '包含時鐘設定'
-  };
-
-  function renderVerification(summary){
-    const grid = document.getElementById('backupVerificationGrid');
-    const verification = summary?.verification || {};
-    document.getElementById('backupSummaryCount').textContent = `${summary?.fileCount ?? 0} 個檔案${summary?.includesEnv ? '，包含 .env' : '，未包含 .env'}`;
-    document.getElementById('backupSummarySize').textContent = formatBytes(summary?.approxBytes || 0);
-    document.getElementById('backupSummaryDataDir').textContent = summary?.dataDir || '-';
-
-    grid.innerHTML = Object.entries(labels).map(([key, label]) => {
-      const ok = Boolean(verification[key]);
-      return `<div class="verificationItem"><strong>${label}</strong><span class="verificationBadge ${ok ? 'ok' : 'fail'}">${ok ? '已包含' : '未找到'}</span></div>`;
-    }).join('');
-  }
-
-  async function refreshBackupVerification(){
-    const grid = document.getElementById('backupVerificationGrid');
-    if (grid) grid.innerHTML = '<p class="emptyText">檢查中...</p>';
-    try {
-      const data = await fetch('/api/backup/summary', { cache: 'no-store' }).then(r => r.json());
-      if (!data.ok) throw new Error(data.message || '備份資訊讀取失敗');
-      renderVerification(data);
-    } catch (err) {
-      if (grid) grid.innerHTML = `<p class="emptyText">${err.message || '備份資訊讀取失敗'}</p>`;
-      window.showToast?.(err.message || '備份資訊讀取失敗');
-    }
-  }
-
-  document.getElementById('refreshBackupVerificationBtn')?.addEventListener('click', refreshBackupVerification);
-  document.getElementById('settingsTabBackupBtn')?.addEventListener('click', event => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    document.getElementById('backupBtn')?.click();
-  });
-
-  pane.querySelectorAll('.dashboardAccordion').forEach((details, index) => {
-    const title = details.querySelector('summary strong')?.textContent?.trim() || `settings-${index}`;
-    const key = `obsHelperAccordion:${title}`;
-    const saved = localStorage.getItem(key);
-    if (saved === 'open') details.open = true;
-    if (saved === 'closed') details.open = false;
-    details.addEventListener('toggle', () => localStorage.setItem(key, details.open ? 'open' : 'closed'));
-  });
-
-  const backupIntro = Array.from(document.querySelectorAll('.dashboardAccordion .introText')).find(el => el.textContent.includes('匯出目前 OBS Live Helper'));
-  if (backupIntro) {
-    backupIntro.textContent = '匯出目前 OBS Live Helper 的本機設定與 runtime 資料，包含 Spotify / Discord 設定、自訂文字樣式、Overlay 設定、觀眾點歌設定、上傳字型、lyrics.log、LRCLib 快取與 .keep 檔。備份檔會下載成 JSON。';
-  }
+  tabButton.addEventListener('click', () => activate('settings'));
 
   const savedTab = localStorage.getItem('obsHelperDashboardTab');
-  if (savedTab === 'settings') {
-    activate('settings');
-    refreshBackupVerification();
-  }
+  if (savedTab === 'settings') activate('settings');
 })();
