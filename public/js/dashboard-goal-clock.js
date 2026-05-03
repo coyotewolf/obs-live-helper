@@ -181,7 +181,7 @@
     const root=$('goalCardsEditor');
     if(!root) return;
     root.innerHTML = config.cards.map((card,index)=>`
-      <article class="goalEditItem" data-goal-index="${index}">
+      <article class="goalEditItem" data-goal-index="${index}" data-goal-uid="${escapeHtml(card.uid)}">
         <label><span>任務名稱</span><input type="text" data-goal-field="text" value="${escapeHtml(card.text)}"></label>
         <label><span>目前</span><input type="number" min="0" data-goal-field="current" value="${card.current}"></label>
         <label><span>總數</span><input type="number" min="1" data-goal-field="total" value="${card.total}"></label>
@@ -304,8 +304,15 @@
       completedAlpha: alpha,
       completeFlashMs: Math.round(Math.max(0, Math.min(30, Number($('goalFlashSec')?.value || 3))) * 1000)
     };
-    if(direction === 'row') layout.minWidthRow = widthValue;
-    else layout.minWidthCol = widthValue;
+    if(widthMode === 'manual') {
+      if(direction === 'row') layout.minWidthRow = widthValue;
+      else layout.minWidthCol = widthValue;
+    } else {
+      // Auto width should be calculated from current text by goal-card.js.
+      // Do not preserve the disabled dashboard width value, otherwise cards can only grow and will not shrink after text is shortened.
+      layout.minWidthCol = defaultGoalConfig.layout.minWidthCol;
+      layout.minWidthRow = defaultGoalConfig.layout.minWidthRow;
+    }
 
     if($('goalAlphaRange')) $('goalAlphaRange').value = Math.round(alpha * 100);
     return normalizeGoalConfig({ layout, cards: nextCards });
@@ -420,6 +427,10 @@
     if(event.target?.id === 'clockAlpha') syncClockAlphaFromNumber();
 
     if(event.target?.closest?.('.goalSettingsPanel')){
+      const field = event.target?.dataset?.goalField || '';
+      // Task name edits are applied only when the user clicks Save.
+      // This prevents auto-width recalculation from interfering while editing text.
+      if(field === 'text') return;
       const goal = collectGoalConfig();
       const clock = normalizeClockConfig(readJson(CLOCK_KEY, defaultClockConfig));
       writeJson(GOAL_KEY, goal);
@@ -443,6 +454,8 @@
     }
 
     if(event.target?.closest?.('.goalSettingsPanel')){
+      const field = event.target?.dataset?.goalField || '';
+      if(field === 'text') return;
       const goal = collectGoalConfig();
       const clock = normalizeClockConfig(readJson(CLOCK_KEY, defaultClockConfig));
       writeJson(GOAL_KEY, goal);
