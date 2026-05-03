@@ -459,6 +459,11 @@ router.post('/tunnel/stop', requireAdmin, (req, res) => {
   res.json({ ok: true, tunnel: tunnelManager.getStatus() });
 });
 
+router.post('/tunnel/auto-open', requireAdmin, (req, res) => {
+  const enabled = Boolean(req.body?.enabled);
+  res.json({ ok: true, tunnel: tunnelManager.setAutoOpenTunnel(enabled, PORT) });
+});
+
 router.get('/tunnel/status', requireAdmin, async (req, res) => {
   const tunnel = await tunnelManager.ensureTunnelAlive(PORT);
   res.json({ ok: true, tunnel });
