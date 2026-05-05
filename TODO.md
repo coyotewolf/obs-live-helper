@@ -13,10 +13,10 @@
 - [x] Add 備份 button behavior.
 - [x] Fix manual / automatic card length 目前無法實際改變長度 bug.
 - [x] Add song pause display behavior.
-- [ ] Discuss 觀眾要求插播後的queue function.
+- [x] Discuss 觀眾要求插播後的queue function.
 - [ ] Add icons.
-- [ ] Add tunnel auto-open option.
-- [ ] Change clock background behavior from `black` to `white`.
+- [x] Add tunnel auto-open option.
+- [x] Change 粉色主題 clock background behavior from `black` to `white`.
 - [ ] Add 啟動時重複(已有同樣的軟體啟動or使用同樣port) port warnings.
 - [ ] Add 軟體更新直接安裝 option.
 - [ ] Prepare and release v0.1.2.
