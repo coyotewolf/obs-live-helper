@@ -8,19 +8,33 @@
 .marquee-inner {
   display: inline-block;
   min-width: max-content;
-  padding-right: 34px;
 }
 
-.is-marquee .marquee-inner {
-  animation-name: obsMarqueeLeft;
-  animation-duration: var(--marquee-duration, 14s);
+.marquee-track {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: max-content;
+  will-change: transform;
+}
+
+.marquee-copy {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.marquee-copy + .marquee-copy::before {
+  content: "\0009\0009";
+  white-space: pre;
+}
+
+.is-marquee .marquee-track {
+  animation-name: obsMarqueeSeamlessLeft;
+  animation-duration: var(--marquee-duration, 16s);
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
 
-@keyframes obsMarqueeLeft {
-  0% { transform: translateX(0); }
-  14% { transform: translateX(0); }
-  86% { transform: translateX(var(--marquee-end, -80px)); }
-  100% { transform: translateX(var(--marquee-end, -80px)); }
+@keyframes obsMarqueeSeamlessLeft {
+  from { transform: translateX(0); }
+  to { transform: translateX(var(--marquee-end, -120px)); }
 }
