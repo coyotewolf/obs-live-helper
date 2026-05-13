@@ -17,6 +17,34 @@ function formatDuration(ms) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+function isPodcastItem(track) {
+  return track?.media_type === 'episode';
+}
+
+function setMarqueeText(el, text) {
+  if (!el) return;
+  el.classList.remove('is-marquee');
+  el.style.removeProperty('--marquee-end');
+  el.style.removeProperty('--marquee-duration');
+  el.innerHTML = '';
+
+  const inner = document.createElement('span');
+  inner.className = 'marquee-inner';
+  inner.textContent = text;
+  el.appendChild(inner);
+
+  requestAnimationFrame(() => {
+    const overflow = inner.scrollWidth - el.clientWidth;
+    if (overflow <= 2) return;
+
+    const distance = overflow + 34;
+    const duration = Math.min(34, Math.max(10, distance / 24));
+    el.style.setProperty('--marquee-end', `${-distance}px`);
+    el.style.setProperty('--marquee-duration', `${duration}s`);
+    el.classList.add('is-marquee');
+  });
+}
+
 function setMessage(message) {
   queueList.innerHTML = '';
   queueMessage.textContent = message;
@@ -27,7 +55,7 @@ function setMessage(message) {
 
 function createQueueItem(track, index) {
   const item = document.createElement('article');
-  item.className = 'queue-item';
+  item.className = `queue-item ${isPodcastItem(track) ? 'is-podcast' : ''}`;
   item.style.setProperty('--delay', `${index * 70}ms`);
 
   const number = document.createElement('div');
@@ -39,7 +67,7 @@ function createQueueItem(track, index) {
 
   const cover = document.createElement('img');
   cover.className = 'queue-cover';
-  cover.alt = `${track.name || '歌曲'} cover`;
+  cover.alt = `${track.name || (isPodcastItem(track) ? 'Podcast' : '歌曲')} cover`;
 
   if (track.cover_url) {
     cover.src = track.cover_url;
@@ -54,17 +82,17 @@ function createQueueItem(track, index) {
 
   const title = document.createElement('div');
   title.className = 'queue-title';
-  title.textContent = track.name || '未知歌曲';
+  setMarqueeText(title, track.name || (isPodcastItem(track) ? '未知 Podcast' : '未知歌曲'));
 
   const artist = document.createElement('div');
   artist.className = 'queue-artist';
-  artist.textContent = track.artists || '未知歌手';
+  setMarqueeText(artist, track.artists || (isPodcastItem(track) ? 'Podcast' : '未知歌手'));
 
   meta.append(title, artist);
 
   const duration = document.createElement('div');
   duration.className = 'queue-duration';
-  duration.textContent = formatDuration(track.duration_ms);
+  duration.textContent = isPodcastItem(track) ? `POD ${formatDuration(track.duration_ms)}`.trim() : formatDuration(track.duration_ms);
 
   item.append(number, coverWrap, meta, duration);
   return item;
@@ -72,7 +100,7 @@ function createQueueItem(track, index) {
 
 function renderQueue(queue) {
   const visibleQueue = (queue || []).slice(0, MAX_VISIBLE_ITEMS);
-  const signature = visibleQueue.map(track => track.id || `${track.name}-${track.artists}`).join('|');
+  const signature = visibleQueue.map(track => track.id || track.uri || `${track.name}-${track.artists}`).join('|');
 
   card.classList.remove('hidden');
 
