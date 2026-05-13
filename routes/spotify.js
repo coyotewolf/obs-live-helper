@@ -197,20 +197,31 @@ router.get('/status', async (req, res) => {
     const playback = await getCurrentPlayback();
 
     if (!playback.authorized) return res.json({ authorized: false });
-    if (!playback.track) {
+
+    const media = playback.track || playback.episode || null;
+    const playbackType = playback.playback_type || media?.media_type || 'none';
+    const isPodcast = playbackType === 'episode' || media?.media_type === 'episode';
+
+    if (!media) {
       return res.json({
         authorized: true,
         playing: false,
+        playback_type: playbackType,
+        isPodcast: false,
         ...spotifyTimingFields(playback)
       });
     }
 
-    const lyricsSynced = isLyricsSynced(playback.track);
+    const lyricsSynced = playback.track ? isLyricsSynced(playback.track) : false;
     res.json({
       authorized: true,
-      playing: Boolean(playback.playing),
-      track: playback.track,
+      playing: Boolean(playback.playing || (isPodcast && media.is_playing)),
+      track: media,
+      episode: playback.episode || null,
+      playback_type: playbackType,
+      isPodcast,
       lyricsSynced,
+      lyricsAvailable: Boolean(playback.track),
       ...spotifyTimingFields(playback)
     });
   } catch (err) {
