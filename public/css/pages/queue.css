@@ -115,6 +115,10 @@ body {
   animation-delay: var(--delay, 0ms);
 }
 
+.queue-item.is-podcast {
+  background: linear-gradient(135deg, rgba(196, 181, 253, 0.14), rgba(125, 211, 252, 0.08));
+}
+
 @keyframes queueItemIn {
   to {
     opacity: 1;
@@ -187,6 +191,7 @@ body {
   font-size: 14px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .queue-message {
