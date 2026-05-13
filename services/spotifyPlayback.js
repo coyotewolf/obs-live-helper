@@ -150,6 +150,7 @@ function normalizeTrack(item) {
   return {
     id: item.id,
     uri: item.uri,
+    media_type: 'track',
     name: item.name || '未知歌曲',
     artists: item.artists?.map(a => a.name).join(', ') || '未知歌手',
     album: item.album?.name || '',
@@ -163,19 +164,64 @@ function normalizeTrack(item) {
   };
 }
 
+function normalizeEpisode(item) {
+  if (!item || item.type !== 'episode') return null;
+
+  const images = item.images || item.show?.images || [];
+  const largestImage = images[0]?.url || '';
+  const mediumImage = images[1]?.url || largestImage;
+  const smallImage = images[2]?.url || mediumImage;
+  const showName = item.show?.name || item.publisher || '';
+
+  return {
+    id: item.id,
+    uri: item.uri,
+    media_type: 'episode',
+    name: item.name || '未知 Podcast',
+    artists: showName || 'Podcast',
+    album: showName,
+    album_images: images,
+    cover_url: mediumImage,
+    cover_large_url: largestImage,
+    cover_small_url: smallImage,
+    duration_ms: item.duration_ms || 0,
+    explicit: Boolean(item.explicit),
+    external_url: item.external_urls?.spotify || '',
+    description: item.description || '',
+    release_date: item.release_date || ''
+  };
+}
+
+function attachPlaybackFields(item, data) {
+  if (!item) return null;
+
+  item.progress_ms = data.progress_ms || 0;
+  item.is_playing = Boolean(data.is_playing);
+  item.device = data.device ? {
+    id: data.device.id,
+    name: data.device.name,
+    type: data.device.type,
+    volume_percent: data.device.volume_percent
+  } : null;
+  item.fetched_at = Date.now();
+  return item;
+}
+
 function withLiveProgress(payload) {
-  if (!payload || !payload.track) return payload;
+  if (!payload) return payload;
+  const media = payload.track || payload.episode;
+  if (!media) return payload;
 
   const cloned = JSON.parse(JSON.stringify(payload));
-  const track = cloned.track;
-  const fetchedAt = track.fetched_at || cloned.fetched_at || Date.now();
+  const clonedMedia = cloned.track || cloned.episode;
+  const fetchedAt = clonedMedia.fetched_at || cloned.fetched_at || Date.now();
 
-  if (track.is_playing && track.duration_ms) {
+  if (clonedMedia.is_playing && clonedMedia.duration_ms) {
     const elapsed = Date.now() - fetchedAt;
-    track.progress_ms = Math.min(track.duration_ms, Math.max(0, (track.progress_ms || 0) + elapsed));
+    clonedMedia.progress_ms = Math.min(clonedMedia.duration_ms, Math.max(0, (clonedMedia.progress_ms || 0) + elapsed));
   }
 
-  track.fetched_at = Date.now();
+  clonedMedia.fetched_at = Date.now();
   cloned.fetched_at = Date.now();
   return cloned;
 }
@@ -186,27 +232,23 @@ function buildPlaybackPayload(data) {
       authorized: true,
       playing: false,
       track: null,
+      episode: null,
+      playback_type: data?.currently_playing_type || 'none',
       fetched_at: Date.now()
     };
   }
 
-  const track = normalizeTrack(data.item);
-  if (track) {
-    track.progress_ms = data.progress_ms || 0;
-    track.is_playing = Boolean(data.is_playing);
-    track.device = data.device ? {
-      id: data.device.id,
-      name: data.device.name,
-      type: data.device.type,
-      volume_percent: data.device.volume_percent
-    } : null;
-    track.fetched_at = Date.now();
-  }
+  const playbackType = data.currently_playing_type || data.item?.type || 'unknown';
+  const track = attachPlaybackFields(normalizeTrack(data.item), data);
+  const episode = attachPlaybackFields(normalizeEpisode(data.item), data);
+  const media = track || episode;
 
   return {
     authorized: true,
-    playing: Boolean(data.is_playing && track),
+    playing: Boolean(media && (data.is_playing || episode)),
     track,
+    episode,
+    playback_type: playbackType,
     fetched_at: Date.now()
   };
 }
@@ -218,6 +260,8 @@ async function fetchPlaybackFromSpotify() {
       authorized: false,
       playing: false,
       track: null,
+      episode: null,
+      playback_type: 'none',
       fetched_at: Date.now()
     };
   }
@@ -252,7 +296,7 @@ async function getCurrentPlayback(options = {}) {
   if (!options.force && playbackManualRetryRequired) {
     const manual = playbackTimeoutInfo ? buildManualTimeoutPayload('playback', now) : buildManualRateLimitPayload('playback', now);
     if (playbackCache) return { ...withLiveProgress(playbackCache), ...manual };
-    return { authorized: true, playing: false, track: null, ...manual, fetched_at: now };
+    return { authorized: true, playing: false, track: null, episode: null, playback_type: 'none', ...manual, fetched_at: now };
   }
 
   if (!options.force && playbackCache && now - playbackFetchedAt < ttlMs) {
@@ -262,7 +306,7 @@ async function getCurrentPlayback(options = {}) {
   if (!options.force && playbackBackoffUntil > now) {
     const waitMs = playbackBackoffUntil - now;
     if (playbackCache) return { ...withLiveProgress(playbackCache), rate_limited: true, retry_after_ms: waitMs };
-    return { authorized: true, playing: false, track: null, rate_limited: true, retry_after_ms: waitMs, fetched_at: now };
+    return { authorized: true, playing: false, track: null, episode: null, playback_type: 'none', rate_limited: true, retry_after_ms: waitMs, fetched_at: now };
   }
 
   if (playbackPromise) return withLiveProgress(await playbackPromise);
@@ -288,7 +332,7 @@ async function getCurrentPlayback(options = {}) {
         warnAndLogRateLimit('playback', rawRetryAfter, waitMs);
         const manual = buildManualRateLimitPayload('playback');
         if (playbackCache) return { ...withLiveProgress(playbackCache), ...manual };
-        return { authorized: true, playing: false, track: null, ...manual, fetched_at: Date.now() };
+        return { authorized: true, playing: false, track: null, episode: null, playback_type: 'none', ...manual, fetched_at: Date.now() };
       }
       if (isTimeoutError(err)) {
         const timing = err.spotifyTiming || { request_started_at: Date.now(), timed_out_at: Date.now(), elapsed_ms: SPOTIFY_PLAYBACK_TIMEOUT_MS, timeout_ms: SPOTIFY_PLAYBACK_TIMEOUT_MS };
@@ -299,7 +343,7 @@ async function getCurrentPlayback(options = {}) {
         warnAndLogTimeout('playback', playbackTimeoutInfo);
         const manual = buildManualTimeoutPayload('playback');
         if (playbackCache) return { ...withLiveProgress(playbackCache), ...manual };
-        return { authorized: true, playing: false, track: null, ...manual, fetched_at: Date.now() };
+        return { authorized: true, playing: false, track: null, episode: null, playback_type: 'none', ...manual, fetched_at: Date.now() };
       }
       throw err;
     })
@@ -442,6 +486,7 @@ module.exports = {
   getCurrentPlayback,
   getQueue,
   normalizeTrack,
+  normalizeEpisode,
   clearPlaybackCache,
   clearQueueCache,
   clearAllSpotifyCache,
