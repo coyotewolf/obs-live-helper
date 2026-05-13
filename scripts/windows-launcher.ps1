@@ -106,6 +106,33 @@ function Get-EnvValue($key) {
   return ($line -replace "^\s*$key\s*=\s*", "").Trim().Trim('"')
 }
 
+function Get-ServerPort {
+  $port = Get-EnvValue "PORT"
+  if ($port -match "^\d+$") { return [int]$port }
+  return 5172
+}
+
+function Test-PortInUse($port) {
+  $client = New-Object System.Net.Sockets.TcpClient
+  try {
+    $async = $client.BeginConnect("127.0.0.1", $port, $null, $null)
+    $connected = $async.AsyncWaitHandle.WaitOne(300, $false)
+    if ($connected) {
+      $client.EndConnect($async)
+      return $true
+    }
+    return $false
+  } catch {
+    return $false
+  } finally {
+    $client.Close()
+  }
+}
+
+function Open-Dashboard($port) {
+  Start-Process "http://127.0.0.1:$port/html/dashboard.html"
+}
+
 function Ensure-SpotifyClientId {
   Ensure-EnvFile
   $clientId = Get-EnvValue "CLIENT_ID"
@@ -157,11 +184,11 @@ function Run-Setup($node) {
   }
 }
 
-function Open-Dashboard-Later {
+function Open-Dashboard-Later($port) {
   Start-Process powershell -WindowStyle Hidden -ArgumentList @(
     "-NoProfile",
     "-Command",
-    "Start-Sleep -Seconds 4; Start-Process 'http://127.0.0.1:5172/html/dashboard.html'"
+    "Start-Sleep -Seconds 4; Start-Process 'http://127.0.0.1:$port/html/dashboard.html'"
   ) | Out-Null
 }
 
@@ -179,10 +206,24 @@ try {
   Install-Dependencies $npm
   Run-Setup $node
 
+  $port = Get-ServerPort
+  $dashboardUrl = "http://127.0.0.1:$port/html/dashboard.html"
+
   Write-Title "Starting OBS Live Helper"
-  Write-Host "Dashboard will open automatically: http://127.0.0.1:5172/html/dashboard.html" -ForegroundColor Cyan
+
+  if (Test-PortInUse $port) {
+    Write-Host "Port $port is already in use." -ForegroundColor Yellow
+    Write-Host "OBS Live Helper may already be running in another window." -ForegroundColor Yellow
+    Write-Host "Opening existing Dashboard: $dashboardUrl" -ForegroundColor Cyan
+    Open-Dashboard $port
+    Write-Host ""
+    Write-Host "If this is not OBS Live Helper, close the program using port $port or change PORT in .env." -ForegroundColor Yellow
+    return
+  }
+
+  Write-Host "Dashboard will open automatically: $dashboardUrl" -ForegroundColor Cyan
   Write-Host "Keep this window open while using OBS Live Helper." -ForegroundColor Yellow
-  Open-Dashboard-Later
+  Open-Dashboard-Later $port
   & $node (Join-Path $Root "server.js")
 } catch {
   Write-Host ""
@@ -193,5 +234,6 @@ try {
   Write-Host "1. Make sure the internet is connected."
   Write-Host "2. If antivirus blocks tools\node or tools\cloudflared.exe, allow this folder."
   Write-Host "3. You can install Node.js LTS manually from https://nodejs.org/ and run again."
+  Write-Host "4. If port 5172 is occupied, close the old OBS Live Helper window or run: netstat -ano | findstr :5172"
   exit 1
 }
