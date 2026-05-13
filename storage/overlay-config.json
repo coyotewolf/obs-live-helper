@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": 1777812894823,
+  "updatedAt": 1778214039850,
   "theme": "blue-night",
   "goal": {
     "layout": {
@@ -16,7 +16,7 @@
     "cards": [
       {
         "uid": "7cd2596c-3159-4ca0-8140-8a32d34c929f",
-        "text": "明日小目標 ：+dashboard tab, 重複port警告,build,test,test,testtest",
+        "text": "明日小目標 ：+dashboard tab, 重複port警告,build",
         "current": 0,
         "total": 4,
         "visible": true,
