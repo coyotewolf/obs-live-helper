@@ -192,6 +192,10 @@ function normalizeEpisode(item) {
   };
 }
 
+function normalizePlayableItem(item) {
+  return normalizeTrack(item) || normalizeEpisode(item);
+}
+
 function attachPlaybackFields(item, data) {
   if (!item) return null;
 
@@ -368,8 +372,8 @@ async function fetchQueueFromSpotify() {
 
     return {
       authorized: true,
-      currently_playing: normalizeTrack(data.currently_playing),
-      queue: (data.queue || []).map(normalizeTrack).filter(Boolean).slice(0, 8),
+      currently_playing: normalizePlayableItem(data.currently_playing),
+      queue: (data.queue || []).map(normalizePlayableItem).filter(Boolean).slice(0, 8),
       fetched_at: Date.now(),
       spotify_response_elapsed_ms: Date.now() - requestStartedAt,
       spotify_response_at: Date.now()
@@ -488,6 +492,7 @@ module.exports = {
   getQueue,
   normalizeTrack,
   normalizeEpisode,
+  normalizePlayableItem,
   clearPlaybackCache,
   clearQueueCache,
   clearAllSpotifyCache,
