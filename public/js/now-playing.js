@@ -34,6 +34,30 @@ function isPodcastMedia(track) {
   return track?.media_type === 'episode' || track?.playback_type === 'episode' || track?.isPodcast;
 }
 
+function setMarqueeText(el, text) {
+  if (!el) return;
+  el.classList.remove('is-marquee');
+  el.style.removeProperty('--marquee-distance');
+  el.style.removeProperty('--marquee-duration');
+  el.innerHTML = '';
+
+  const inner = document.createElement('span');
+  inner.className = 'marquee-inner';
+  inner.textContent = text;
+  el.appendChild(inner);
+
+  requestAnimationFrame(() => {
+    const overflow = inner.scrollWidth - el.clientWidth;
+    if (overflow <= 2) return;
+
+    const distance = overflow + 34;
+    const duration = Math.min(32, Math.max(10, distance / 28));
+    el.style.setProperty('--marquee-distance', `${distance}px`);
+    el.style.setProperty('--marquee-duration', `${duration}s`);
+    el.classList.add('is-marquee');
+  });
+}
+
 function getDisplayProgress(track) {
   if (!track) return 0;
 
@@ -59,8 +83,8 @@ function renderTrack(track) {
   card.classList.toggle('playing', playing);
   card.classList.toggle('podcast', isPodcast);
 
-  songName.textContent = track.name || (isPodcast ? '未知 Podcast' : '未知歌曲');
-  artistName.textContent = track.artists || (isPodcast ? 'Podcast' : '未知歌手');
+  setMarqueeText(songName, track.name || (isPodcast ? '未知 Podcast' : '未知歌曲'));
+  setMarqueeText(artistName, track.artists || (isPodcast ? 'Podcast' : '未知歌手'));
 
   if (track.cover_url) {
     cover.src = track.cover_url;
