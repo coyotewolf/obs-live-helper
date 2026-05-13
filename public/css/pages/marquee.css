@@ -1,0 +1,26 @@
+.song-name,
+.artist-name,
+.queue-title,
+.queue-artist {
+  text-overflow: clip !important;
+}
+
+.marquee-inner {
+  display: inline-block;
+  min-width: max-content;
+  padding-right: 34px;
+}
+
+.is-marquee .marquee-inner {
+  animation-name: obsMarqueeLeft;
+  animation-duration: var(--marquee-duration, 14s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes obsMarqueeLeft {
+  0% { transform: translateX(0); }
+  14% { transform: translateX(0); }
+  86% { transform: translateX(var(--marquee-end, -80px)); }
+  100% { transform: translateX(var(--marquee-end, -80px)); }
+}
