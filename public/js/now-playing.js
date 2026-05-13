@@ -11,6 +11,7 @@ const progressFill = document.getElementById('progressFill');
 
 let latestTrack = null;
 let latestFetchTime = 0;
+let latestRenderSignature = '';
 
 function formatTime(ms) {
   if (!Number.isFinite(ms) || ms < 0) return '0:00';
@@ -34,9 +35,25 @@ function isPodcastMedia(track) {
   return track?.media_type === 'episode' || track?.playback_type === 'episode' || track?.isPodcast;
 }
 
+function makeGap() {
+  const gap = document.createElement('span');
+  gap.className = 'marquee-gap';
+  gap.textContent = '\t\t';
+  return gap;
+}
+
+function makeCopy(text) {
+  const copy = document.createElement('span');
+  copy.className = 'marquee-copy';
+  copy.textContent = text;
+  return copy;
+}
+
 function setMarqueeText(el, text) {
   if (!el) return;
   const safeText = String(text || '');
+  if (el.dataset.marqueeText === safeText) return;
+  el.dataset.marqueeText = safeText;
 
   el.classList.remove('is-marquee');
   el.style.removeProperty('--marquee-end');
@@ -49,10 +66,7 @@ function setMarqueeText(el, text) {
   const track = document.createElement('span');
   track.className = 'marquee-track';
 
-  const first = document.createElement('span');
-  first.className = 'marquee-copy marquee-copy-main';
-  first.textContent = safeText;
-
+  const first = makeCopy(safeText);
   track.appendChild(first);
   inner.appendChild(track);
   el.appendChild(inner);
@@ -61,14 +75,15 @@ function setMarqueeText(el, text) {
     const overflow = first.scrollWidth - el.clientWidth;
     if (overflow <= 2) return;
 
-    const second = document.createElement('span');
-    second.className = 'marquee-copy';
-    second.textContent = safeText;
-    track.appendChild(second);
+    const gap1 = makeGap();
+    const second = makeCopy(safeText);
+    const gap2 = makeGap();
+    const third = makeCopy(safeText);
+    track.append(gap1, second, gap2, third);
 
     requestAnimationFrame(() => {
       const singleCycle = second.offsetLeft - first.offsetLeft;
-      const duration = Math.min(42, Math.max(12, singleCycle / 34));
+      const duration = Math.min(48, Math.max(14, singleCycle / 34));
       el.style.setProperty('--marquee-end', `${-singleCycle}px`);
       el.style.setProperty('--marquee-duration', `${duration}s`);
       el.classList.add('is-marquee');
@@ -88,28 +103,46 @@ function getDisplayProgress(track) {
   return clamp(baseProgress + elapsedSinceFetch, 0, duration);
 }
 
+function getTrackSignature(track) {
+  if (!track) return '';
+  return [
+    track.id || track.uri || track.name || '',
+    track.name || '',
+    track.artists || '',
+    track.cover_url || '',
+    track.media_type || track.playback_type || ''
+  ].join('|');
+}
+
 function renderTrack(track) {
   if (!track) {
+    latestRenderSignature = '';
     card.classList.add('hidden');
     return;
   }
 
   const playing = isTrackPlaying(track);
   const isPodcast = isPodcastMedia(track);
+  const signature = getTrackSignature(track);
+  const contentChanged = signature !== latestRenderSignature;
+  latestRenderSignature = signature;
+
   card.classList.remove('hidden');
   card.classList.toggle('paused', !playing);
   card.classList.toggle('playing', playing);
   card.classList.toggle('podcast', isPodcast);
 
-  setMarqueeText(songName, track.name || (isPodcast ? '未知 Podcast' : '未知歌曲'));
-  setMarqueeText(artistName, track.artists || (isPodcast ? 'Podcast' : '未知歌手'));
+  if (contentChanged) {
+    setMarqueeText(songName, track.name || (isPodcast ? '未知 Podcast' : '未知歌曲'));
+    setMarqueeText(artistName, track.artists || (isPodcast ? 'Podcast' : '未知歌手'));
 
-  if (track.cover_url) {
-    cover.src = track.cover_url;
-    cover.style.visibility = 'visible';
-  } else {
-    cover.removeAttribute('src');
-    cover.style.visibility = 'hidden';
+    if (track.cover_url) {
+      cover.src = track.cover_url;
+      cover.style.visibility = 'visible';
+    } else {
+      cover.removeAttribute('src');
+      cover.style.visibility = 'hidden';
+    }
   }
 
   playState.dataset.state = isPodcast && playing ? 'podcast' : (playing ? 'playing' : 'paused');
