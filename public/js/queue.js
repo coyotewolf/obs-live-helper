@@ -21,6 +21,20 @@ function isPodcastItem(track) {
   return track?.media_type === 'episode';
 }
 
+function makeGap() {
+  const gap = document.createElement('span');
+  gap.className = 'marquee-gap';
+  gap.textContent = '\t\t';
+  return gap;
+}
+
+function makeCopy(text) {
+  const copy = document.createElement('span');
+  copy.className = 'marquee-copy';
+  copy.textContent = text;
+  return copy;
+}
+
 function setMarqueeText(el, text) {
   if (!el) return;
   const safeText = String(text || '');
@@ -36,10 +50,7 @@ function setMarqueeText(el, text) {
   const track = document.createElement('span');
   track.className = 'marquee-track';
 
-  const first = document.createElement('span');
-  first.className = 'marquee-copy marquee-copy-main';
-  first.textContent = safeText;
-
+  const first = makeCopy(safeText);
   track.appendChild(first);
   inner.appendChild(track);
   el.appendChild(inner);
@@ -48,14 +59,15 @@ function setMarqueeText(el, text) {
     const overflow = first.scrollWidth - el.clientWidth;
     if (overflow <= 2) return;
 
-    const second = document.createElement('span');
-    second.className = 'marquee-copy';
-    second.textContent = safeText;
-    track.appendChild(second);
+    const gap1 = makeGap();
+    const second = makeCopy(safeText);
+    const gap2 = makeGap();
+    const third = makeCopy(safeText);
+    track.append(gap1, second, gap2, third);
 
     requestAnimationFrame(() => {
       const singleCycle = second.offsetLeft - first.offsetLeft;
-      const duration = Math.min(38, Math.max(10, singleCycle / 30));
+      const duration = Math.min(42, Math.max(12, singleCycle / 30));
       el.style.setProperty('--marquee-end', `${-singleCycle}px`);
       el.style.setProperty('--marquee-duration', `${duration}s`);
       el.classList.add('is-marquee');
