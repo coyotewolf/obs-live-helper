@@ -17,19 +17,20 @@
   will-change: transform;
 }
 
-.marquee-copy {
+.marquee-copy,
+.marquee-gap {
   display: inline-block;
-  white-space: nowrap;
+  white-space: pre;
+  flex: 0 0 auto;
 }
 
-.marquee-copy + .marquee-copy::before {
-  content: "\0009\0009";
-  white-space: pre;
+.marquee-gap {
+  width: 8em;
 }
 
 .is-marquee .marquee-track {
   animation-name: obsMarqueeSeamlessLeft;
-  animation-duration: var(--marquee-duration, 16s);
+  animation-duration: var(--marquee-duration, 18s);
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
