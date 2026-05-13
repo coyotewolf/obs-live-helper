@@ -270,6 +270,7 @@ async function fetchPlaybackFromSpotify() {
   try {
     const response = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
       headers: { Authorization: `Bearer ${accessToken}` },
+      params: { additional_types: 'track,episode' },
       timeout: SPOTIFY_PLAYBACK_TIMEOUT_MS,
       validateStatus: status => (status >= 200 && status < 300) || status === 204
     });
