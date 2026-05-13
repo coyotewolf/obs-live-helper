@@ -36,25 +36,43 @@ function isPodcastMedia(track) {
 
 function setMarqueeText(el, text) {
   if (!el) return;
+  const safeText = String(text || '');
+
   el.classList.remove('is-marquee');
-  el.style.removeProperty('--marquee-distance');
+  el.style.removeProperty('--marquee-end');
   el.style.removeProperty('--marquee-duration');
   el.innerHTML = '';
 
   const inner = document.createElement('span');
   inner.className = 'marquee-inner';
-  inner.textContent = text;
+
+  const track = document.createElement('span');
+  track.className = 'marquee-track';
+
+  const first = document.createElement('span');
+  first.className = 'marquee-copy marquee-copy-main';
+  first.textContent = safeText;
+
+  track.appendChild(first);
+  inner.appendChild(track);
   el.appendChild(inner);
 
   requestAnimationFrame(() => {
-    const overflow = inner.scrollWidth - el.clientWidth;
+    const overflow = first.scrollWidth - el.clientWidth;
     if (overflow <= 2) return;
 
-    const distance = overflow + 34;
-    const duration = Math.min(32, Math.max(10, distance / 28));
-    el.style.setProperty('--marquee-distance', `${distance}px`);
-    el.style.setProperty('--marquee-duration', `${duration}s`);
-    el.classList.add('is-marquee');
+    const second = document.createElement('span');
+    second.className = 'marquee-copy';
+    second.textContent = safeText;
+    track.appendChild(second);
+
+    requestAnimationFrame(() => {
+      const singleCycle = second.offsetLeft - first.offsetLeft;
+      const duration = Math.min(42, Math.max(12, singleCycle / 34));
+      el.style.setProperty('--marquee-end', `${-singleCycle}px`);
+      el.style.setProperty('--marquee-duration', `${duration}s`);
+      el.classList.add('is-marquee');
+    });
   });
 }
 
