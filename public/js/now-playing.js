@@ -30,6 +30,10 @@ function isTrackPlaying(track) {
   return Boolean(track?.is_playing);
 }
 
+function isPodcastMedia(track) {
+  return track?.media_type === 'episode' || track?.playback_type === 'episode' || track?.isPodcast;
+}
+
 function getDisplayProgress(track) {
   if (!track) return 0;
 
@@ -49,12 +53,14 @@ function renderTrack(track) {
   }
 
   const playing = isTrackPlaying(track);
+  const isPodcast = isPodcastMedia(track);
   card.classList.remove('hidden');
   card.classList.toggle('paused', !playing);
   card.classList.toggle('playing', playing);
+  card.classList.toggle('podcast', isPodcast);
 
-  songName.textContent = track.name || '未知歌曲';
-  artistName.textContent = track.artists || '未知歌手';
+  songName.textContent = track.name || (isPodcast ? '未知 Podcast' : '未知歌曲');
+  artistName.textContent = track.artists || (isPodcast ? 'Podcast' : '未知歌手');
 
   if (track.cover_url) {
     cover.src = track.cover_url;
@@ -64,8 +70,8 @@ function renderTrack(track) {
     cover.style.visibility = 'hidden';
   }
 
-  playState.dataset.state = playing ? 'playing' : 'paused';
-  playState.textContent = playing ? 'PLAYING' : 'PAUSED';
+  playState.dataset.state = isPodcast && playing ? 'podcast' : (playing ? 'playing' : 'paused');
+  playState.textContent = isPodcast && playing ? 'PODCAST' : (playing ? 'PLAYING' : 'PAUSED');
 
   updateProgress();
 }
@@ -86,16 +92,20 @@ async function fetchStatus() {
   try {
     const res = await fetch(`${STATUS_URL}?_t=${Date.now()}`);
     const data = await res.json();
+    const media = data.track || data.episode;
 
-    if (!data.authorized || !data.track) {
+    if (!data.authorized || !media) {
       latestTrack = null;
       renderTrack(null);
       return;
     }
 
+    const isPodcast = data.isPodcast || data.playback_type === 'episode' || media.media_type === 'episode';
     latestTrack = {
-      ...data.track,
-      is_playing: Boolean(data.playing || data.track?.is_playing)
+      ...media,
+      isPodcast,
+      playback_type: data.playback_type,
+      is_playing: Boolean(data.playing || media?.is_playing || isPodcast)
     };
     latestFetchTime = Date.now();
     renderTrack(latestTrack);
