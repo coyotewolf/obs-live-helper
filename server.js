@@ -15,7 +15,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const WebSocket = require('ws');
-const { getAdminToken, isLocalRequest } = require('./services/securityStore');
+const { getAdminToken, isLocalRequest, requireLocalOrAdmin } = require('./services/securityStore');
 
 const app = express();
 const PORT = process.env.PORT || 5172;
@@ -273,7 +273,7 @@ app.use('/lyrics', express.static(runtimePaths.LYRICS_DIR, {
   maxAge: 0
 }));
 app.use('/fonts', express.static(runtimePaths.FONTS_DIR));
-app.use(express.static(runtimePaths.STORAGE_DIR));
+// Runtime storage contains security.json and OAuth state. Never publish it.
 
 const stylePath = runtimePaths.storagePath('style.css');
 
@@ -284,7 +284,7 @@ app.get('/style.css', (_, res) => {
   res.sendFile(stylePath);
 });
 
-app.post('/api/style/save', (req, res) => {
+app.post('/api/style/save', requireLocalOrAdmin, (req, res) => {
   const css = typeof req.body === 'string' ? req.body : req.body.css;
   if (!css) return res.status(400).send('missing css');
 
@@ -296,6 +296,15 @@ app.post('/api/style/save', (req, res) => {
     console.log(`✅ style.css 已更新 (${Buffer.byteLength(css)} bytes)`);
     res.end('ok');
   });
+});
+
+app.use('/api', (req, res, next) => {
+  const editorPath = req.path === '/editor' || req.path.startsWith('/editor/');
+  const protectedWrite = !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+    && (editorPath || req.path.startsWith('/style/') || req.path.startsWith('/font/') || req.path.startsWith('/spotify/'));
+  const protectedRead = ['/spotify/auth/login', '/spotify/callback', '/spotify/log', '/spotify/lyrics-cache/stats'].includes(req.path);
+  if (protectedWrite || protectedRead) return requireLocalOrAdmin(req, res, next);
+  next();
 });
 
 app.use('/api/editor', require('./routes/editor'));

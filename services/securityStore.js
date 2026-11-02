@@ -62,13 +62,25 @@ function rotateRequestPin() {
 }
 
 function isLocalRequest(req) {
-  const host = String(req.headers.host || '').split(':')[0].toLowerCase();
-  const ip = String(req.ip || req.socket?.remoteAddress || '');
-  return [
-    'localhost',
-    '127.0.0.1',
-    '::1'
-  ].includes(host) || ip.includes('127.0.0.1') || ip.includes('::1') || ip.includes('::ffff:127.0.0.1');
+  // A tunnel's TCP peer is often loopback. Neither Host nor the peer alone is proof.
+  const peer = String(req.socket?.remoteAddress || '');
+  const loopbackPeers = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+  if (!loopbackPeers.includes(peer)) return false;
+  if (['forwarded', 'x-forwarded-for', 'x-forwarded-host', 'cf-connecting-ip']
+      .some(name => req.headers[name] !== undefined)) return false;
+  let url;
+  try { url = new URL(`http://${req.headers.host || ''}`); } catch { return false; }
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return false;
+  const origin = req.headers.origin;
+  if (origin) {
+    try { if (new URL(origin).origin !== url.origin) return false; } catch { return false; }
+  }
+  return true;
+}
+
+function requireLocalOrAdmin(req, res, next) {
+  if (isLocalRequest(req)) return next();
+  return requireAdmin(req, res, next);
 }
 
 function getProvidedAdminToken(req) {
@@ -101,5 +113,6 @@ module.exports = {
   getRequestPin,
   rotateRequestPin,
   requireAdmin,
-  isLocalRequest
+  isLocalRequest,
+  requireLocalOrAdmin
 };
