@@ -24,3 +24,7 @@ npm lockfile 解析與 npm ci 通過，生命週期腳本和 audit 均停用。�
 交付包含兩種 patch：obs-live-helper.patch 是 HEAD 加既有工作與安全修補；obs-live-helper-security-only.patch 僅是相對於已保存既有工作快照的安全差異。套用前須核對當前原檔 hash，避免重複套用原有變更。未提交、推送、建立 PR、部署。npm audit 依指示不執行，完整漏洞清單尚未重新掃描；Electron 桌面封裝／原生 UI 未驗證。
 
 建議 commit：`fix(security): patch upload and redirect dependencies`。
+
+## GitHub CI 包裝驗證
+
+第一次 Windows CI 完成安裝程式產生後，electron-builder 因 CI 自動發佈判斷而要求 GH_TOKEN，沒有 token 因而失敗；沒有發佈版本。修正工作流為 npm ci --no-audit --no-fund、先跑兩組安全測試、使用 --publish never 只建置，並將 GITHUB_TOKEN 權限限制為 contents: read。CI 只上傳 Actions 測試產物，不建立 release／tag 或部署。

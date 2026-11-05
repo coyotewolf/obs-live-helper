@@ -1,4 +1,6 @@
 name: Build Windows Installer
+permissions:
+  contents: read
 on:
   workflow_dispatch:
   push:
@@ -14,9 +16,13 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+      - name: Test credential and administration guards
+        run: node --test tests/security.test.cjs
+      - name: Test upload and redirect dependencies
+        run: node tests/dependency-security.test.cjs
       - name: Build installer
-        run: npm run dist
+        run: npm run dist -- --publish never
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
