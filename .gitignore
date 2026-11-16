@@ -22,3 +22,5 @@ dist/
 dist/
 
 replace-cleanup.txt
+
+test-results/
