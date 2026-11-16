@@ -7,6 +7,15 @@ const {createRequire}=require('node:module');
 const req=createRequire(path.resolve(__dirname,'..','package.json'));
 const express=req('express');
 const multer=req('multer');
+// Prevent accidental rollback below the October 2026 Multer security floor.
+// This covers CVE-2026-3520 (<2.1.1) and GHSA-q7qp-rjg7-q26m (<2.5.0).
+// Check both installed and locked copies; these tests do not attest deployment.
+const semver=req('semver');
+const lock=req('./package-lock.json');
+assert.ok(semver.gte(req('multer/package.json').version,'2.5.0'),'installed Multer must be >=2.5.0');
+const lockedMulter=Object.entries(lock.packages).filter(([p])=>/(^|\/)node_modules\/multer$/.test(p));
+assert.ok(lockedMulter.length>0,'lockfile must contain Multer');
+for(const [location,entry] of lockedMulter){assert.ok(semver.gte(entry.version,'2.5.0'),`${location} must be >=2.5.0`);}
 const fixtureParent=path.resolve(__dirname,'..','test-results');
 const root=path.join(fixtureParent,'dependency-security-'+process.pid);
 assert.ok(root.startsWith(fixtureParent+path.sep));
